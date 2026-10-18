@@ -2,29 +2,27 @@ package com.lukeneedham.apphub.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -51,7 +49,7 @@ fun PullRequestScreen(
     PullRequestContent(repo, number, state, onRefresh, onDownload, onInstall, onBack)
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PullRequestContent(
     repo: String,
@@ -102,25 +100,47 @@ internal fun PullRequestContent(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    LinkButton("Open on GitHub", onClick = { uriHandler.openUri("https://github.com/$repo/pull/$number") })
+                    OutlinedButton(onClick = { uriHandler.openUri("https://github.com/$repo/pull/$number") }) { Text("Open on GitHub") }
                     return@Column
                 }
 
                 val pr = item.pr
-                val status = statusOf(item)
                 val target = pr.downloadableApk
 
                 Text(pr.title, style = MaterialTheme.typography.headlineSmall)
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Pill(status.text, status.color)
-                    Text(
-                        "#${pr.number} · ${pr.author}" + if (pr.isDraft) " · draft" else "",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Text(
+                    "#${pr.number} · ${pr.author}" + if (pr.isDraft) " · draft" else "",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StatusControl(controlOf(item), onDownload = onDownload, onInstall = onInstall)
+                    Spacer(Modifier.weight(1f))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (pr.webUrl != null) {
+                            CircleIconButton(
+                                icon = R.drawable.ic_globe,
+                                description = "Open web deployment",
+                                onClick = { uriHandler.openUri(pr.webUrl) },
+                                size = 36.dp,
+                            )
+                        }
+                        if (pr.sessionUrl != null) {
+                            CircleIconButton(
+                                icon = R.drawable.ic_claude,
+                                description = "Open Claude session",
+                                onClick = { uriHandler.openUri(pr.sessionUrl) },
+                                size = 36.dp,
+                            )
+                        }
+                        CircleIconButton(
+                            icon = R.drawable.ic_pull_request,
+                            description = "Open pull request on GitHub",
+                            onClick = { uriHandler.openUri(pr.url) },
+                            size = 36.dp,
+                        )
+                    }
                 }
 
                 if (target?.isStale == true) {
@@ -131,28 +151,12 @@ internal fun PullRequestContent(
                     )
                 }
 
-                when (val download = item.download) {
-                    is DownloadState.Downloading -> DownloadProgress(download)
-                    is DownloadState.Failed -> Text(
-                        "Download failed: ${download.message}",
+                (item.download as? DownloadState.Failed)?.let { failed ->
+                    Text(
+                        "Download failed: ${failed.message}",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
-                    else -> Unit
-                }
-
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    primaryAction(item)?.let { (label, isDownload) ->
-                        Button(
-                            onClick = if (isDownload) onDownload else onInstall,
-                            modifier = Modifier.height(36.dp),
-                            shape = CircleShape,
-                            contentPadding = PaddingValues(horizontal = 18.dp),
-                        ) { Text(label) }
-                    }
-                    if (pr.webUrl != null) LinkButton("Web", onClick = { uriHandler.openUri(pr.webUrl) })
-                    if (pr.sessionUrl != null) LinkButton("Claude session", onClick = { uriHandler.openUri(pr.sessionUrl) })
-                    LinkButton("Open PR", onClick = { uriHandler.openUri(pr.url) })
                 }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
