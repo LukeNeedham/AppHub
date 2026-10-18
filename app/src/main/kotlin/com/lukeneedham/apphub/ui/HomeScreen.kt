@@ -13,8 +13,6 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,7 +32,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -262,7 +259,6 @@ private fun RepoCard(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PullRequestRow(
     item: PullRequestItem,
@@ -278,16 +274,42 @@ private fun PullRequestRow(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(pr.title, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(
-                    "#${pr.number} · ${pr.author}" + if (pr.isDraft) " · draft" else "",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(pr.title, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                "#${pr.number} · ${pr.author}" + if (pr.isDraft) " · draft" else "",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            StatusControl(control, onDownload = { onDownload(pr.key) }, onInstall = { onInstall(pr.key) })
+            Spacer(Modifier.weight(1f))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (pr.webUrl != null) {
+                    CircleIconButton(
+                        icon = R.drawable.ic_globe,
+                        description = "Open web deployment",
+                        onClick = { uriHandler.openUri(pr.webUrl) },
+                        size = 36.dp,
+                    )
+                }
+                if (pr.sessionUrl != null) {
+                    CircleIconButton(
+                        icon = R.drawable.ic_claude,
+                        description = "Open Claude session",
+                        onClick = { uriHandler.openUri(pr.sessionUrl) },
+                        size = 36.dp,
+                    )
+                }
+                CircleIconButton(
+                    icon = R.drawable.ic_pull_request,
+                    description = "Open pull request on GitHub",
+                    onClick = { uriHandler.openUri(pr.url) },
+                    size = 36.dp,
                 )
             }
-            StatusControl(control, onDownload = { onDownload(pr.key) }, onInstall = { onInstall(pr.key) })
         }
 
         if (target?.isStale == true) {
@@ -303,24 +325,6 @@ private fun PullRequestRow(
                 "Download failed: ${failed.message}",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.error,
-            )
-        }
-
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (pr.webUrl != null) LinkButton("Web", onClick = { uriHandler.openUri(pr.webUrl) })
-            if (pr.sessionUrl != null) {
-                CircleIconButton(
-                    icon = R.drawable.ic_claude,
-                    description = "Open Claude session",
-                    onClick = { uriHandler.openUri(pr.sessionUrl) },
-                    size = 36.dp,
-                )
-            }
-            CircleIconButton(
-                icon = R.drawable.ic_pull_request,
-                description = "Open pull request on GitHub",
-                onClick = { uriHandler.openUri(pr.url) },
-                size = 36.dp,
             )
         }
     }
@@ -345,17 +349,6 @@ private fun CircleIconButton(icon: Int, description: String, onClick: () -> Unit
             )
         }
     }
-}
-
-@Composable
-private fun LinkButton(text: String, onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = Modifier.height(36.dp),
-        shape = CircleShape,
-        contentPadding = PaddingValues(horizontal = 14.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) { Text(text, style = MaterialTheme.typography.labelLarge) }
 }
 
 /** A small rounded tag: [color] on a faint tint of itself, with an optional dot. */
