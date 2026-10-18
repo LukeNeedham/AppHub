@@ -8,6 +8,9 @@ import java.io.File
 interface PullRequestSource {
     suspend fun openPullRequests(): List<PullRequest>
 
+    /** The `owner/name` of every repo to list, with or without open pull requests. */
+    suspend fun repositories(): List<String> = emptyList()
+
     /** What the last successful (or partly successful) load found, to show before the next one finishes. */
     fun cached(): List<PullRequest> = emptyList()
 }

@@ -60,6 +60,9 @@ data class PullRequest(
 /** An APK that can be downloaded. [buildId] tells builds apart: the commit, or the release tag for a stale one. */
 data class ApkTarget(val url: String, val buildId: String, val isStale: Boolean)
 
+/** The GitHub page of the repo `owner/name`. */
+fun repoUrl(repo: String) = "https://github.com/$repo"
+
 sealed interface DownloadState {
     data object Idle : DownloadState
     data class Downloading(val bytes: Long, val total: Long?) : DownloadState

@@ -36,6 +36,7 @@ class SettingsViewModelTest {
 
     private class FakeApi(private val valid: Set<String>) : GithubApi {
         override suspend fun openPullRequests(): List<IssueDto> = emptyList()
+        override suspend fun repositories(): List<String> = emptyList()
         override suspend fun comments(repo: String, number: Int): List<CommentDto> = emptyList()
         override suspend fun checkToken(token: String): RateLimitInfo =
             if (token in valid) RateLimitInfo(5000, 4990) else throw InvalidTokenException()
