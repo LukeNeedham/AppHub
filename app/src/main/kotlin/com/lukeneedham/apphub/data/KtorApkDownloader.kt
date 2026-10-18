@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.request.prepareGet
@@ -34,7 +35,7 @@ class KtorApkDownloader(
     override fun download(url: String, fileName: String): Flow<DownloadEvent> = flow {
         directory.mkdirs()
         val target = File(directory, fileName)
-        val partial = File(directory, "$fileName.part")
+        val partial = File(directory, fileName + PARTIAL_SUFFIX)
         try {
             client.prepareGet(url).execute { response ->
                 if (!response.status.isSuccess()) throw IOException("Download failed: HTTP ${response.status.value}")
@@ -67,9 +68,15 @@ class KtorApkDownloader(
         }
     }.flowOn(Dispatchers.IO)
 
-    override fun prune(keep: Set<String>) {
-        directory.listFiles()?.forEach { file ->
-            if (file.name !in keep) file.delete()
+    override suspend fun prune(keep: Set<String>) {
+        withContext(Dispatchers.IO) {
+            directory.listFiles()?.forEach { file ->
+                if (file.name.removeSuffix(PARTIAL_SUFFIX) !in keep) file.delete()
+            }
         }
+    }
+
+    private companion object {
+        const val PARTIAL_SUFFIX = ".part"
     }
 }

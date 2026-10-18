@@ -28,6 +28,9 @@ interface GithubApi {
     /** Every open PR, newest activity first. */
     suspend fun openPullRequests(): List<IssueDto>
 
+    /** The `owner/name` of every non-archived repo of the owner, most recently updated first. */
+    suspend fun repositories(): List<String>
+
     /** The first 100 comments of the PR, oldest first. */
     suspend fun comments(repo: String, number: Int): List<CommentDto>
 
@@ -49,6 +52,19 @@ class KtorGithubApi(
         return get<SearchDto>(url).items
     }
 
+    override suspend fun repositories(): List<String> {
+        val names = mutableListOf<String>()
+        var page = 1
+        while (true) {
+            val batch = get<List<RepoDto>>(
+                "https://api.github.com/users/$owner/repos?type=owner&sort=updated&per_page=$REPOS_PER_PAGE&page=$page",
+            )
+            names += batch.filterNot { it.archived }.map { it.fullName }
+            if (batch.size < REPOS_PER_PAGE) return names
+            page++
+        }
+    }
+
     override suspend fun comments(repo: String, number: Int): List<CommentDto> =
         get("https://api.github.com/repos/$repo/issues/$number/comments?per_page=100")
 
@@ -57,6 +73,10 @@ class KtorGithubApi(
         val core = get<RateLimitDto>("https://api.github.com/rate_limit", token = token, forceNetwork = true)
             .resources.core
         return RateLimitInfo(core.limit, core.remaining)
+    }
+
+    private companion object {
+        const val REPOS_PER_PAGE = 100
     }
 
     private suspend inline fun <reified T> get(
@@ -103,6 +123,12 @@ data class IssueDto(
     val body: String? = null,
     /** Changes when the PR or any of its comments does, including an edited comment. */
     @SerialName("updated_at") val updatedAt: String = "",
+)
+
+@Serializable
+data class RepoDto(
+    @SerialName("full_name") val fullName: String,
+    val archived: Boolean = false,
 )
 
 @Serializable

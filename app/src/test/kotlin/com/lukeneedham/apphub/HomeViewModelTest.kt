@@ -52,8 +52,9 @@ class HomeViewModelTest {
         webUrl = null,
     )
 
-    private class FakeSource(var prs: List<PullRequest>) : PullRequestSource {
+    private class FakeSource(var prs: List<PullRequest>, var repos: List<String> = emptyList()) : PullRequestSource {
         override suspend fun openPullRequests() = prs
+        override suspend fun repositories() = repos
     }
 
     private class FakeDownloader : ApkDownloader {
@@ -64,7 +65,7 @@ class HomeViewModelTest {
             downloaded += url
             return flowOf(DownloadEvent.Progress(5, 10), DownloadEvent.Done(File(fileName)))
         }
-        override fun prune(keep: Set<String>) { kept += keep }
+        override suspend fun prune(keep: Set<String>) { kept += keep }
     }
 
     private class FakeInstaller : ApkInstaller {
@@ -97,6 +98,32 @@ class HomeViewModelTest {
         val state = viewModel.uiState.value
         assertEquals(listOf("LukeNeedham/FlagTutor", "LukeNeedham/Other"), state.repos.map { it.repo })
         assertEquals(listOf(1, 2), state.repos[0].pullRequests.map { it.pr.number })
+    }
+
+    @Test
+    fun reposWithoutPullRequestsComeAfterThoseWithSome() = runTest(dispatcher) {
+        val source = FakeSource(
+            listOf(pr(1, repo = "LukeNeedham/Other")),
+            repos = listOf("LukeNeedham/Empty", "LukeNeedham/Other", "LukeNeedham/AlsoEmpty"),
+        )
+        val viewModel = HomeViewModel(source, FakeDownloader(), FakeInstaller(), FakeTracker(), FakeTokenStore())
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(listOf("LukeNeedham/Other", "LukeNeedham/Empty", "LukeNeedham/AlsoEmpty"), state.repos.map { it.repo })
+        assertEquals("https://github.com/LukeNeedham/Empty", state.repos[1].url)
+        assertTrue(state.repos[1].pullRequests.isEmpty())
+    }
+
+    @Test
+    fun reposWithoutPullRequestsStartCollapsedAndCanBeExpanded() = runTest(dispatcher) {
+        val source = FakeSource(listOf(pr(1)), repos = listOf("LukeNeedham/FlagTutor", "LukeNeedham/Empty"))
+        val viewModel = HomeViewModel(source, FakeDownloader(), FakeInstaller(), FakeTracker(), FakeTokenStore())
+        advanceUntilIdle()
+        assertEquals(setOf("LukeNeedham/Empty"), viewModel.uiState.value.collapsedRepos)
+
+        viewModel.toggleRepo("LukeNeedham/Empty")
+        assertEquals(emptySet<String>(), viewModel.uiState.value.collapsedRepos)
     }
 
     @Test

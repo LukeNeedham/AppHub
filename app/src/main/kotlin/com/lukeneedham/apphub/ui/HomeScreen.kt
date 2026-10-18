@@ -115,11 +115,12 @@ internal fun HomeContent(
             ) {
                 item {
                     val prCount = state.repos.sumOf { it.pullRequests.size }
+                    val projectCount = state.repos.count { it.pullRequests.isNotEmpty() }
                     Text(
                         when {
-                            state.repos.isEmpty() -> if (state.isLoading) "Loading…" else "No open pull requests"
+                            prCount == 0 -> if (state.isLoading && state.repos.isEmpty()) "Loading…" else "No open pull requests"
                             else -> "$prCount open pull request${if (prCount == 1) "" else "s"} in " +
-                                "${state.repos.size} project${if (state.repos.size == 1) "" else "s"}"
+                                "$projectCount project${if (projectCount == 1) "" else "s"}"
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -189,7 +190,11 @@ private fun RepoCard(
                 }
                 Pill(
                     text = section.pullRequests.size.toString(),
-                    color = MaterialTheme.colorScheme.primary,
+                    color = if (section.pullRequests.isEmpty()) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
                     dot = false,
                 )
                 Spacer(Modifier.width(4.dp))
@@ -207,6 +212,32 @@ private fun RepoCard(
                 exit = shrinkVertically() + fadeOut(),
             ) {
                 Column {
+                    val uriHandler = LocalUriHandler.current
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        CircleIconButton(
+                            icon = R.drawable.ic_github,
+                            description = "Open ${section.repo} on GitHub",
+                            onClick = { uriHandler.openUri(section.url) },
+                        )
+                        CircleIconButton(
+                            icon = R.drawable.ic_claude,
+                            description = "Start a Claude session on ${section.repo}",
+                            onClick = { uriHandler.openUri(section.claudeUrl) },
+                        )
+                    }
+                    if (section.pullRequests.isEmpty()) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        Text(
+                            "No open pull requests",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                        )
+                    }
                     section.pullRequests.forEach { item ->
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         PullRequestRow(item, onDownload, onInstall)
@@ -295,6 +326,27 @@ private fun DownloadProgress(download: DownloadState.Downloading) {
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/** A round outlined button holding just an icon. */
+@Composable
+private fun CircleIconButton(icon: Int, description: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.size(40.dp),
+        shape = CircleShape,
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                painterResource(icon),
+                contentDescription = description,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+        }
     }
 }
 

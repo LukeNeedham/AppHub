@@ -13,6 +13,8 @@ import com.lukeneedham.apphub.domain.PullRequestSource
 import com.lukeneedham.apphub.domain.InvalidTokenException
 import com.lukeneedham.apphub.domain.RateLimitException
 import com.lukeneedham.apphub.domain.TokenStore
+import com.lukeneedham.apphub.domain.newClaudeSessionUrl
+import com.lukeneedham.apphub.domain.repoUrl
 import com.lukeneedham.common.logger.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -30,14 +32,17 @@ data class PullRequestItem(
     val install: InstallStatus,
 )
 
-/** The open pull requests of one repo. */
-data class RepoSection(val repo: String, val pullRequests: List<PullRequestItem>)
+/** One repo and its open pull requests, of which there may be none. */
+data class RepoSection(val repo: String, val pullRequests: List<PullRequestItem>) {
+    val url: String get() = repoUrl(repo)
+    val claudeUrl: String get() = newClaudeSessionUrl(repo)
+}
 
 data class HomeUiState(
     val isLoading: Boolean = true,
     val error: String? = null,
     val repos: List<RepoSection> = emptyList(),
-    /** Repos the user has collapsed. */
+    /** Repos shown collapsed: those without open pull requests start so, and the user can flip either kind. */
     val collapsedRepos: Set<String> = emptySet(),
 )
 
@@ -56,7 +61,8 @@ class HomeViewModel(
     private var pullRequests = emptyList<PullRequest>()
     private var isLoading = true
     private var error: String? = null
-    private var collapsedRepos = emptySet<String>()
+    private var repositories = emptyList<String>()
+    private var toggledRepos = emptySet<String>()
     private val downloads = mutableMapOf<String, DownloadState>()
     private val downloadJobs = mutableMapOf<String, Job>()
 
@@ -75,6 +81,7 @@ class HomeViewModel(
                 pullRequests = source.openPullRequests()
                 error = null
                 forgetClosedPullRequests()
+                repositories = source.repositories()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -87,7 +94,7 @@ class HomeViewModel(
     }
 
     fun toggleRepo(repo: String) {
-        collapsedRepos = if (repo in collapsedRepos) collapsedRepos - repo else collapsedRepos + repo
+        toggledRepos = if (repo in toggledRepos) toggledRepos - repo else toggledRepos + repo
         publish()
     }
 
@@ -144,7 +151,7 @@ class HomeViewModel(
             ?: DownloadState.Idle
 
     /** Merged and closed PRs vanish from the list: drop their state and their downloaded files. */
-    private fun forgetClosedPullRequests() {
+    private suspend fun forgetClosedPullRequests() {
         val open = pullRequests.map { it.key }.toSet()
         (downloads.keys - open).forEach { key ->
             downloadJobs.remove(key)?.cancel()
@@ -154,7 +161,7 @@ class HomeViewModel(
     }
 
     private fun publish() {
-        val sections = pullRequests
+        val withPullRequests = pullRequests
             .groupBy { it.repo }
             .map { (repo, prs) ->
                 RepoSection(
@@ -162,7 +169,12 @@ class HomeViewModel(
                     pullRequests = prs.map { PullRequestItem(it, stateOf(it), tracker.statusFor(it)) },
                 )
             }
-        _uiState.value = HomeUiState(isLoading = isLoading, error = error, repos = sections, collapsedRepos = collapsedRepos)
+        // Repos with no open pull requests come after the ones that have some
+        val withNone = (repositories - withPullRequests.map { it.repo }.toSet())
+            .map { RepoSection(repo = it, pullRequests = emptyList()) }
+        val sections = withPullRequests + withNone
+        val collapsed = sections.filter { (it.repo in toggledRepos) != it.pullRequests.isEmpty() }.map { it.repo }.toSet()
+        _uiState.value = HomeUiState(isLoading = isLoading, error = error, repos = sections, collapsedRepos = collapsed)
     }
 
     private fun describe(e: Exception): String =

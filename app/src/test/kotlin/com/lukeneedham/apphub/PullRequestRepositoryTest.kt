@@ -31,6 +31,7 @@ class PullRequestRepositoryTest {
         val commentCalls = mutableListOf<Int>()
         var rateLimitedOn: Int? = null
         override suspend fun openPullRequests() = issues
+        override suspend fun repositories(): List<String> = emptyList()
         override suspend fun checkToken(token: String) = RateLimitInfo(5000, 5000)
         override suspend fun comments(repo: String, number: Int): List<CommentDto> {
             if (number == rateLimitedOn) throw RateLimitException(null)

@@ -23,6 +23,8 @@ class PullRequestRepository(
 
     override fun cached(): List<PullRequest> = cache.load().values.map { it.pr }
 
+    override suspend fun repositories(): List<String> = api.repositories()
+
     override suspend fun openPullRequests(): List<PullRequest> {
         val issues = api.openPullRequests()
         val known = cache.load()

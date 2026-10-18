@@ -8,6 +8,9 @@ import java.io.File
 interface PullRequestSource {
     suspend fun openPullRequests(): List<PullRequest>
 
+    /** The `owner/name` of every repo to list, with or without open pull requests. */
+    suspend fun repositories(): List<String> = emptyList()
+
     /** What the last successful (or partly successful) load found, to show before the next one finishes. */
     fun cached(): List<PullRequest> = emptyList()
 }
@@ -24,8 +27,8 @@ interface ApkDownloader {
     /** Emits progress, then [DownloadEvent.Done]. Throws on a network or disk error. */
     fun download(url: String, fileName: String): Flow<DownloadEvent>
 
-    /** Deletes every downloaded APK whose name is not in [keep]. */
-    fun prune(keep: Set<String>)
+    /** Deletes every downloaded APK whose name is not in [keep]. A download in progress for a kept name survives. */
+    suspend fun prune(keep: Set<String>)
 }
 
 enum class InstallLaunch {
