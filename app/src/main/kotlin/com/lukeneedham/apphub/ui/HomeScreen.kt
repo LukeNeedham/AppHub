@@ -456,6 +456,7 @@ private fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: (
                                 CircularProgressIndicator(modifier = indicator, strokeWidth = 2.5.dp, color = color)
                             }
                         }
+                        null -> Unit
                     }
                 }
             }
