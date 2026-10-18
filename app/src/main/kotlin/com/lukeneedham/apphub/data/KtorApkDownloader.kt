@@ -68,9 +68,11 @@ class KtorApkDownloader(
         }
     }.flowOn(Dispatchers.IO)
 
-    override suspend fun prune(keep: Set<String>) = withContext(Dispatchers.IO) {
-        directory.listFiles()?.forEach { file ->
-            if (file.name.removeSuffix(PARTIAL_SUFFIX) !in keep) file.delete()
+    override suspend fun prune(keep: Set<String>) {
+        withContext(Dispatchers.IO) {
+            directory.listFiles()?.forEach { file ->
+                if (file.name.removeSuffix(PARTIAL_SUFFIX) !in keep) file.delete()
+            }
         }
     }
 
