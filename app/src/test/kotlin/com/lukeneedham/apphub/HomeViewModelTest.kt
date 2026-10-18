@@ -132,4 +132,16 @@ class HomeViewModelTest {
 
         assertEquals("offline", viewModel.uiState.value.error)
     }
+
+    @Test
+    fun whileRebuildingThePreviousApkIsOfferedAsStale() {
+        val previous = "https://github.com/LukeNeedham/FlagTutor/releases/download/b-1/app-debug.apk"
+        val rebuilding = pr(1).copy(apk = ApkBuild.InProgress("newcommit", previous))
+
+        val target = rebuilding.downloadableApk!!
+        assertEquals(previous, target.url)
+        assertTrue(target.isStale)
+        assertEquals(null, rebuilding.copy(apk = ApkBuild.InProgress("newcommit", null)).downloadableApk)
+        assertTrue(!pr(1).downloadableApk!!.isStale)
+    }
 }

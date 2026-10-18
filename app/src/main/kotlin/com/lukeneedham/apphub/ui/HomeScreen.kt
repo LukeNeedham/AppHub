@@ -112,7 +112,7 @@ private fun PullRequestCard(
                 if (pr.webUrl != null) {
                     OutlinedButton(onClick = { uriHandler.openUri(pr.webUrl) }) { Text("Open web deploy") }
                 }
-                TextButton(onClick = { uriHandler.openUri(pr.url) }) { Text("View PR") }
+                TextButton(onClick = { uriHandler.openUri(pr.url) }) { Text("Open PR") }
             }
         }
     }
@@ -125,11 +125,24 @@ private fun ApkSection(
     onInstall: (String) -> Unit,
 ) {
     val pr = item.pr
+    val target = pr.downloadableApk
     when (val apk = pr.apk) {
         null -> Text("No APK build yet", style = MaterialTheme.typography.bodyMedium)
-        is ApkBuild.InProgress -> Text("Build in progress…", style = MaterialTheme.typography.bodyMedium)
         is ApkBuild.Failed -> Text("Build failed", color = MaterialTheme.colorScheme.error)
         is ApkBuild.Cancelled -> Text("Build cancelled", style = MaterialTheme.typography.bodyMedium)
+        is ApkBuild.InProgress -> {
+            Text("Build in progress…", style = MaterialTheme.typography.bodyMedium)
+            if (target != null) {
+                Text(
+                    "⚠️ This APK is out of date: there are later changes, being rebuilt now. " +
+                        "It does not include the latest commit.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                Text(installStatusText(item.install), style = MaterialTheme.typography.bodyMedium)
+                DownloadControls(pr, item, onDownload, onInstall)
+            }
+        }
         is ApkBuild.Succeeded -> {
             Text(
                 installStatusText(item.install) + apk.commit?.let { " · commit ${it.take(7)}" }.orEmpty(),

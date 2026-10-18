@@ -21,7 +21,7 @@ class PrefsInstallTracker(context: Context) : InstallTracker {
     private val prefs = context.getSharedPreferences("install_tracker", Context.MODE_PRIVATE)
 
     override fun statusFor(pr: PullRequest): InstallStatus {
-        val commit = pr.downloadableApk?.commit ?: return InstallStatus.Unknown
+        val commit = pr.downloadableApk?.buildId ?: return InstallStatus.Unknown
         val packageName = prefs.getString(packageKey(pr.repo), null) ?: return InstallStatus.Unknown
         val updatedAt = lastUpdateTime(packageName) ?: return InstallStatus.NotInstalled
         val installedCommit = prefs.getString("commit:$packageName", null)
@@ -37,7 +37,7 @@ class PrefsInstallTracker(context: Context) : InstallTracker {
     }
 
     override fun onInstallStarted(pr: PullRequest) {
-        val commit = pr.downloadableApk?.commit ?: return
+        val commit = pr.downloadableApk?.buildId ?: return
         val packageName = prefs.getString(packageKey(pr.repo), null) ?: return
         prefs.edit()
             .putString("pending:package", packageName)

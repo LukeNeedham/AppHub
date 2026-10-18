@@ -30,13 +30,26 @@ data class PullRequest(
 ) {
     val key: String get() = "$repo#$number"
 
-    /** The APK to offer, if a build has succeeded. */
-    val downloadableApk: ApkBuild.Succeeded? get() = apk as? ApkBuild.Succeeded
+    /**
+     * The APK to offer: this commit's if its build succeeded, or while a newer build runs the previous
+     * one, flagged [ApkTarget.isStale] because it does not include the latest commits.
+     */
+    val downloadableApk: ApkTarget?
+        get() = when (val build = apk) {
+            is ApkBuild.Succeeded -> ApkTarget(build.url, build.commit ?: tagOf(build.url), isStale = false)
+            is ApkBuild.InProgress -> build.previousUrl?.let { ApkTarget(it, "stale-${tagOf(it)}", isStale = true) }
+            else -> null
+        }
 
-    /** Unique per PR and commit, so a new commit is downloaded again and old files can be pruned. */
+    /** Unique per PR and build, so a new build is downloaded again and old files can be pruned. */
     val apkFileName: String
-        get() = "${repo.replace('/', '_')}-$number-${downloadableApk?.commit ?: "unknown"}.apk"
+        get() = "${repo.replace('/', '_')}-$number-${downloadableApk?.buildId ?: "unknown"}.apk"
+
+    private fun tagOf(url: String) = url.substringAfter("/releases/download/").substringBefore('/')
 }
+
+/** An APK that can be downloaded. [buildId] tells builds apart: the commit, or the release tag for a stale one. */
+data class ApkTarget(val url: String, val buildId: String, val isStale: Boolean)
 
 sealed interface DownloadState {
     data object Idle : DownloadState

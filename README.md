@@ -11,7 +11,9 @@ web test deploy, so I can install and try a PR build straight from my phone.
   known preview host (Netlify, Vercel, Cloudflare Pages, Firebase, GitHub Pages and so on; see
   `CommentParser.previewHosts`).
 - **Downloads and installs the APK itself**, with progress and a state (downloading, downloaded, failed),
-  then opens the system installer. The first time, Android asks to allow AppHub to install apps.
+  then opens the system installer. "Open PR" opens the PR in the browser (or the GitHub app, if it handles links). The first time, Android asks to allow AppHub to install apps.
+- **Stale builds.** While a newer commit is rebuilding, the card still offers the previous APK, marked as out
+  of date (the CI comment on the PR does the same).
 - **Says whether the PR's build is installed.** Debug builds share a version number, so AppHub remembers
   which commit it installed for each app and when; a later change to the installed app (another build)
   makes it read "a different build is installed".
