@@ -282,10 +282,17 @@ private fun PullRequestRow(
     val target = pr.downloadableApk
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).padding(bottom = 14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        // The whole upper section opens the page of the PR, as the details button does
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClickLabel = "Open the page of this pull request") { onOpenPullRequest(PullRequestRef(pr.repo, pr.number)) }
+                .padding(top = 14.dp, bottom = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
             Text(pr.title, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
                 "#${pr.number} · ${pr.author}" + if (pr.isDraft) " · draft" else "",
