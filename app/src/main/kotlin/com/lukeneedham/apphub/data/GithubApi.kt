@@ -14,21 +14,28 @@ import java.io.IOException
  * Unauthenticated GitHub REST calls, so only public repos are visible. The client should have an
  * HTTP cache: GitHub answers with ETags, and a revalidated `304` does not count against the rate limit.
  */
-class GithubApi(
+interface GithubApi {
+    /** Every open PR, newest activity first. */
+    suspend fun openPullRequests(): List<IssueDto>
+
+    /** The first 100 comments of the PR, oldest first. */
+    suspend fun comments(repo: String, number: Int): List<CommentDto>
+}
+
+class OkHttpGithubApi(
     private val client: OkHttpClient,
     private val owner: String,
-) {
+) : GithubApi {
     private val json = Json { ignoreUnknownKeys = true }
 
     /** Every open PR in [owner]'s repos, newest activity first. One search call. */
-    suspend fun openPullRequests(): List<IssueDto> {
+    override suspend fun openPullRequests(): List<IssueDto> {
         val url = "https://api.github.com/search/issues?q=is:pr+is:open+archived:false+user:$owner" +
             "&sort=updated&order=desc&per_page=100"
         return json.decodeFromString<SearchDto>(get(url)).items
     }
 
-    /** The first 100 comments of the PR, oldest first. */
-    suspend fun comments(repo: String, number: Int): List<CommentDto> =
+    override suspend fun comments(repo: String, number: Int): List<CommentDto> =
         json.decodeFromString(get("https://api.github.com/repos/$repo/issues/$number/comments?per_page=100"))
 
     private suspend fun get(url: String): String = withContext(Dispatchers.IO) {
@@ -61,6 +68,8 @@ data class IssueDto(
     val user: UserDto? = null,
     val draft: Boolean = false,
     val body: String? = null,
+    /** Changes when the PR or any of its comments does, including an edited comment. */
+    @SerialName("updated_at") val updatedAt: String = "",
 )
 
 @Serializable

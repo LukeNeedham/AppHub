@@ -57,6 +57,7 @@ class HomeViewModel(
     private val downloadJobs = mutableMapOf<String, Job>()
 
     init {
+        pullRequests = source.cached()
         refresh()
     }
 

@@ -6,6 +6,9 @@ import java.io.File
 /** Where the open pull requests come from. */
 interface PullRequestSource {
     suspend fun openPullRequests(): List<PullRequest>
+
+    /** What the last successful (or partly successful) load found, to show before the next one finishes. */
+    fun cached(): List<PullRequest> = emptyList()
 }
 
 sealed interface DownloadEvent {

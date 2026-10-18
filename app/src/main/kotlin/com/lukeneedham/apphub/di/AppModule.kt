@@ -2,6 +2,9 @@ package com.lukeneedham.apphub.di
 
 import com.lukeneedham.apphub.data.AndroidApkInstaller
 import com.lukeneedham.apphub.data.GithubApi
+import com.lukeneedham.apphub.data.OkHttpGithubApi
+import com.lukeneedham.apphub.data.PrefsPullRequestCache
+import com.lukeneedham.apphub.data.PullRequestCache
 import com.lukeneedham.apphub.data.OkHttpApkDownloader
 import com.lukeneedham.apphub.data.PrefsInstallTracker
 import com.lukeneedham.apphub.data.PullRequestRepository
@@ -28,8 +31,9 @@ val appModule = module {
             .cache(Cache(File(androidContext().cacheDir, "http"), 10L * 1024 * 1024))
             .build()
     }
-    single { GithubApi(get(), GITHUB_OWNER) }
-    single { PullRequestRepository(get()) } bind PullRequestSource::class
+    single<GithubApi> { OkHttpGithubApi(get(), GITHUB_OWNER) }
+    single<PullRequestCache> { PrefsPullRequestCache(androidContext()) }
+    single { PullRequestRepository(get(), get()) } bind PullRequestSource::class
     single<ApkDownloader> { OkHttpApkDownloader(get(), File(androidContext().cacheDir, "apks")) }
     single<ApkInstaller> { AndroidApkInstaller(androidContext()) }
     single<InstallTracker> { PrefsInstallTracker(androidContext()) }

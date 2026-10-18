@@ -1,21 +1,28 @@
 package com.lukeneedham.apphub.domain
 
+import kotlinx.serialization.Serializable
 import java.io.File
 
 /** The state of the APK build, as reported by the shared CI comment on a pull request. */
+@Serializable
 sealed interface ApkBuild {
     val commit: String?
 
+    @Serializable
     data class Succeeded(val url: String, override val commit: String?) : ApkBuild
 
     /** [previousUrl] is the stale APK of the last build, kept in the comment while a new one builds. */
+    @Serializable
     data class InProgress(override val commit: String?, val previousUrl: String?) : ApkBuild
 
+    @Serializable
     data class Failed(override val commit: String?) : ApkBuild
 
+    @Serializable
     data class Cancelled(override val commit: String?) : ApkBuild
 }
 
+@Serializable
 data class PullRequest(
     /** `owner/name` */
     val repo: String,

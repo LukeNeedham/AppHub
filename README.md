@@ -23,9 +23,11 @@ web test deploy, so I can install and try a PR build straight from my phone.
 
 ## Limits
 
-- No sign-in: only public repos, and GitHub allows 60 anonymous requests an hour. Responses are cached
-  with ETags (a revalidated `304` is free), but a very large number of open PRs can still hit the limit;
-  the app then says when to retry.
+- No sign-in: only public repos, and GitHub allows 60 anonymous requests an hour per IP address (a shared
+  Wi-Fi, VPN or mobile network shares it with other people). A refresh is one request to list the open PRs,
+  plus one per PR whose `updated_at` changed since the last refresh (a new or edited comment bumps it); the
+  parsed PRs are kept on disk. When the limit is hit the app keeps showing the last list and says when to
+  retry.
 - The "installed" check only knows about installs done through AppHub, and learns an app's package name
   from the first APK downloaded for its repo.
 - A download stops if the app is closed.
