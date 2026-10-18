@@ -41,6 +41,9 @@ enum class InstallLaunch {
 
 interface ApkInstaller {
     fun install(file: File): InstallLaunch
+
+    /** Starts the installed app [packageName]; false when it has no launcher activity or is not installed. */
+    fun open(packageName: String): Boolean
 }
 
 /** The user's GitHub token, if they gave one. It raises the rate limit from 60 to 5,000 requests an hour. */
@@ -54,6 +57,8 @@ interface TokenStore {
 /** Remembers what AppHub installed, to tell whether the installed app is a PR's build. */
 interface InstallTracker {
     fun statusFor(pr: PullRequest): InstallStatus
+    /** The package name of the app built from [pr]'s repo, once known. */
+    fun packageNameFor(pr: PullRequest): String?
     fun onDownloaded(pr: PullRequest, file: File)
     fun onInstallStarted(pr: PullRequest)
 

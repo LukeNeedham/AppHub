@@ -34,7 +34,8 @@ Notes:
 |---|---|---|
 | Download | Downloads the APK, then installs it | An APK is ready and not installed, or an update or old build |
 | Install | Installs the APK already downloaded | Downloaded but not installed |
-| Circular arrow | Reinstalls (installs if already downloaded, else downloads first) | Installed; also **Retry** after a failed download, in red |
+| Open | Starts the installed app | Installed |
+| Circular arrow | Downloads again | **Retry** after a failed download, in red |
 | Progress ring | Nothing | Downloading |
 | None | Nothing | No APK to act on: No build, Building without an older APK, Build failed, Cancelled |
 

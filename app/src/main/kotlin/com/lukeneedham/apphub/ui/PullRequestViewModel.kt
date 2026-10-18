@@ -81,6 +81,10 @@ class PullRequestViewModel(
         pullRequest?.let(downloads::install)
     }
 
+    fun open() {
+        pullRequest?.let(downloads::open)
+    }
+
     private fun publish() {
         val pr = pullRequest
         _uiState.value = PullRequestUiState(

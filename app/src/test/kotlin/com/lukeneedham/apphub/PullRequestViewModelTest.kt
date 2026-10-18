@@ -77,10 +77,12 @@ class PullRequestViewModelTest {
             installed += file
             return InstallLaunch.Launched
         }
+        override fun open(packageName: String) = true
     }
 
     private class FakeTracker : InstallTracker {
         override fun statusFor(pr: PullRequest) = InstallStatus.Unknown
+        override fun packageNameFor(pr: PullRequest): String? = null
         override fun onDownloaded(pr: PullRequest, file: File) = Unit
         override fun onInstallStarted(pr: PullRequest) = Unit
         override fun confirmPending() = Unit

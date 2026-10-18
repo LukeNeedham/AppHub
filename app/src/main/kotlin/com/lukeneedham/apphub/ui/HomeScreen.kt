@@ -74,11 +74,12 @@ fun HomeScreen(
     onToggleRepo: (String) -> Unit,
     onDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
+    onOpen: (String) -> Unit,
     onOpenPullRequest: (PullRequestRef) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onResume() }
-    HomeContent(state, onRefresh, onToggleRepo, onDownload, onInstall, onOpenPullRequest, onOpenSettings)
+    HomeContent(state, onRefresh, onToggleRepo, onDownload, onInstall, onOpen, onOpenPullRequest, onOpenSettings)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,6 +90,7 @@ internal fun HomeContent(
     onToggleRepo: (String) -> Unit,
     onDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
+    onOpen: (String) -> Unit,
     onOpenPullRequest: (PullRequestRef) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -144,6 +146,7 @@ internal fun HomeContent(
                         onToggle = { onToggleRepo(section.repo) },
                         onDownload = onDownload,
                         onInstall = onInstall,
+                        onOpen = onOpen,
                         onOpenPullRequest = onOpenPullRequest,
                     )
                 }
@@ -173,6 +176,7 @@ private fun RepoCard(
     onToggle: () -> Unit,
     onDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
+    onOpen: (String) -> Unit,
     onOpenPullRequest: (PullRequestRef) -> Unit,
 ) {
     val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
@@ -256,7 +260,7 @@ private fun RepoCard(
                     }
                     section.pullRequests.forEach { item ->
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        PullRequestRow(item, onDownload, onInstall, onOpenPullRequest)
+                        PullRequestRow(item, onDownload, onInstall, onOpen, onOpenPullRequest)
                     }
                 }
             }
@@ -269,6 +273,7 @@ private fun PullRequestRow(
     item: PullRequestItem,
     onDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
+    onOpen: (String) -> Unit,
     onOpenPullRequest: (PullRequestRef) -> Unit,
 ) {
     val pr = item.pr
@@ -290,7 +295,7 @@ private fun PullRequestRow(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            StatusControl(control, onDownload = { onDownload(pr.key) }, onInstall = { onInstall(pr.key) })
+            StatusControl(control, onDownload = { onDownload(pr.key) }, onInstall = { onInstall(pr.key) }, onOpen = { onOpen(pr.key) })
             Spacer(Modifier.weight(1f))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (pr.webUrl != null) {
@@ -382,9 +387,11 @@ private fun Pill(text: String, color: Color, dot: Boolean = true) {
 /** The status tag of a PR, with what presses on from here ([trailing]) at its end. */
 internal data class Control(val text: String, val color: Color, val trailing: Trailing? = null)
 
+internal enum class ActionKind { Download, Install, Open }
+
 internal sealed interface Trailing {
-    /** A press on the tag downloads the APK ([isDownload]) or installs the one already downloaded. */
-    data class Action(val icon: Int, val description: String, val isDownload: Boolean) : Trailing
+    /** A press on the tag downloads the APK, installs the one already downloaded, or opens the installed app ([kind]). */
+    data class Action(val icon: Int, val description: String, val kind: ActionKind) : Trailing
 
     /** [fraction] is null while the size is not known. */
     data class Progress(val fraction: Float?) : Trailing
@@ -415,21 +422,21 @@ internal fun controlOf(item: PullRequestItem): Control {
             Control(text, StatusColors.info, Trailing.Progress(total?.let { download.bytes.toFloat() / it }))
         }
         is DownloadState.Downloaded -> when {
-            installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_refresh, "Reinstall", isDownload = false))
+            installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open app", ActionKind.Open))
             else -> offered.copy(
                 text = if (target?.isStale == true) offered.text else "Ready to install",
-                trailing = Trailing.Action(R.drawable.ic_install, "Install", isDownload = false),
+                trailing = Trailing.Action(R.drawable.ic_install, "Install", ActionKind.Install),
             )
         }
         is DownloadState.Failed -> Control(
             "Download failed",
             scheme.error,
-            target?.let { Trailing.Action(R.drawable.ic_refresh, "Retry download", isDownload = true) },
+            target?.let { Trailing.Action(R.drawable.ic_refresh, "Retry download", ActionKind.Download) },
         )
         DownloadState.Idle -> when {
             target == null -> build
-            installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_refresh, "Download and reinstall", isDownload = true))
-            else -> offered.copy(trailing = Trailing.Action(R.drawable.ic_download, "Download", isDownload = true))
+            installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open app", ActionKind.Open))
+            else -> offered.copy(trailing = Trailing.Action(R.drawable.ic_download, "Download", ActionKind.Download))
         }
     }
 }
@@ -439,13 +446,19 @@ internal fun controlOf(item: PullRequestItem): Control {
  * press does next, or its progress. A press anywhere on the pill does that.
  */
 @Composable
-internal fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: () -> Unit) {
+internal fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: () -> Unit, onOpen: () -> Unit) {
     val color = control.color
     // The pale status colours do not read as text on their own tint in light mode, so the text takes a darker shade
     val textColor = if (isSystemInDarkTheme()) color else lerp(color, Color.Black, 0.3f)
     val action = control.trailing as? Trailing.Action
     Surface(
-        onClick = { if (action?.isDownload == true) onDownload() else onInstall() },
+        onClick = {
+            when (action?.kind) {
+                ActionKind.Download -> onDownload()
+                ActionKind.Open -> onOpen()
+                else -> onInstall()
+            }
+        },
         enabled = action != null,
         modifier = Modifier.semantics(mergeDescendants = true) { action?.let { contentDescription = "${control.text}. ${it.description}" } },
         shape = CircleShape,
