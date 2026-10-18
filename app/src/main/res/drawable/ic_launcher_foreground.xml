@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A hub with four connected nodes; the arrow in the hub is a hole, so it shows the background. Keep
+     app-icon.png at the repo root in step with this (docs/app-icon.md in ci-workflows). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M44,54a10,10 0 1,0 20,0a10,10 0 1,0 -20,0ZM52.5,48L55.5,48L55.5,52.5L59,52.5L54,58.5L49,52.5L52.5,52.5Z" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:pathData="M61.1,61.1L71,71M46.9,61.1L37,71M61.1,46.9L71,37M46.9,46.9L37,37" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M65.5,71a5.5,5.5 0 1,0 11,0a5.5,5.5 0 1,0 -11,0ZM31.5,71a5.5,5.5 0 1,0 11,0a5.5,5.5 0 1,0 -11,0ZM65.5,37a5.5,5.5 0 1,0 11,0a5.5,5.5 0 1,0 -11,0ZM31.5,37a5.5,5.5 0 1,0 11,0a5.5,5.5 0 1,0 -11,0Z" />
+</vector>
