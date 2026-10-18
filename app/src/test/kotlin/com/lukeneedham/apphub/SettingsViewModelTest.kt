@@ -59,7 +59,6 @@ class SettingsViewModelTest {
         assertEquals("github_pat_abcd", tokens.token.value)
         val state = viewModel.uiState.value
         assertEquals(true, state.signedIn)
-        assertEquals("abcd", state.tokenHint)
         assertEquals("", state.input)
         assertEquals(RateLimitInfo(5000, 4990), state.rateLimit)
     }

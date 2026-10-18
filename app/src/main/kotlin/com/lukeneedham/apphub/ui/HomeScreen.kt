@@ -1,7 +1,10 @@
 package com.lukeneedham.apphub.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -28,7 +31,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -36,6 +38,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -45,7 +48,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -83,13 +85,11 @@ internal fun HomeContent(
     onInstall: (String) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val background = MaterialTheme.colorScheme.background
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = background,
         topBar = {
-            LargeTopAppBar(
+            TopAppBar(
                 title = { Text("AppHub", fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(onClick = onOpenSettings) {
@@ -100,7 +100,6 @@ internal fun HomeContent(
                     containerColor = background,
                     scrolledContainerColor = background,
                 ),
-                scrollBehavior = scrollBehavior,
             )
         },
     ) { padding ->
@@ -172,7 +171,7 @@ private fun RepoCard(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(Modifier.animateContentSize()) {
+        Column {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -181,11 +180,6 @@ private fun RepoCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(
-                        section.repo.substringBefore('/'),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                     Text(
                         section.repo.substringAfter('/'),
                         style = MaterialTheme.typography.titleMedium,
@@ -206,7 +200,12 @@ private fun RepoCard(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            AnimatedVisibility(visible = expanded) {
+            // One animation for card and content together: the size follows the content, which fades with it
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+            ) {
                 Column {
                     section.pullRequests.forEach { item ->
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

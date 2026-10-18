@@ -88,7 +88,7 @@ private fun GithubCard(
         Text("GitHub", style = MaterialTheme.typography.titleMedium)
         if (state.signedIn) {
             Text(
-                "Signed in with a token ending …${state.tokenHint}",
+                "Signed in with a GitHub token",
                 style = MaterialTheme.typography.bodyMedium,
             )
             state.rateLimit?.let {
