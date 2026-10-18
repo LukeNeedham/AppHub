@@ -3,9 +3,6 @@ package com.lukeneedham.apphub.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lukeneedham.apphub.domain.ApkDownloader
-import com.lukeneedham.apphub.domain.ApkInstaller
-import com.lukeneedham.apphub.domain.DownloadEvent
-import com.lukeneedham.apphub.domain.DownloadState
 import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.InstallTracker
 import com.lukeneedham.apphub.domain.PullRequest
@@ -17,7 +14,6 @@ import com.lukeneedham.apphub.domain.newClaudeSessionUrl
 import com.lukeneedham.apphub.domain.repoUrl
 import com.lukeneedham.common.logger.Logger
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,7 +45,7 @@ data class HomeUiState(
 class HomeViewModel(
     private val source: PullRequestSource,
     private val downloader: ApkDownloader,
-    private val installer: ApkInstaller,
+    private val downloads: ApkDownloads,
     private val tracker: InstallTracker,
     private val tokenStore: TokenStore,
 ) : ViewModel() {
@@ -63,12 +59,12 @@ class HomeViewModel(
     private var error: String? = null
     private var repositories = emptyList<String>()
     private var toggledRepos = emptySet<String>()
-    private val downloads = mutableMapOf<String, DownloadState>()
-    private val downloadJobs = mutableMapOf<String, Job>()
 
     init {
         pullRequests = source.cached()
         refresh()
+        // Downloads and installs started here or on a PR's own page
+        viewModelScope.launch { downloads.changes.drop(1).collect { publish() } }
         // A new or removed token changes what GitHub allows and shows: load again
         viewModelScope.launch { tokenStore.token.drop(1).collect { refresh() } }
     }
@@ -105,58 +101,17 @@ class HomeViewModel(
     }
 
     fun download(key: String) {
-        val pr = pullRequests.firstOrNull { it.key == key } ?: return
-        val apk = pr.downloadableApk ?: return
-        if (downloadJobs[key]?.isActive == true) return
-        downloadJobs[key] = viewModelScope.launch {
-            try {
-                downloader.download(apk.url, pr.apkFileName).collect { event ->
-                    when (event) {
-                        is DownloadEvent.Progress -> setDownload(key, DownloadState.Downloading(event.bytes, event.total))
-                        is DownloadEvent.Done -> {
-                            setDownload(key, DownloadState.Downloaded(event.file))
-                            tracker.onDownloaded(pr, event.file)
-                            install(key)
-                        }
-                    }
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Logger.e("Download of ${pr.key} failed", e)
-                setDownload(key, DownloadState.Failed(e.message ?: "Download failed"))
-            }
-        }
+        pullRequests.firstOrNull { it.key == key }?.let(downloads::download)
     }
 
     /** Opens the system installer for an APK that is already downloaded. */
     fun install(key: String) {
-        val pr = pullRequests.firstOrNull { it.key == key } ?: return
-        val file = (stateOf(pr) as? DownloadState.Downloaded)?.file ?: return
-        tracker.onDownloaded(pr, file)
-        tracker.onInstallStarted(pr)
-        installer.install(file)
-        publish()
+        pullRequests.firstOrNull { it.key == key }?.let(downloads::install)
     }
-
-    private fun setDownload(key: String, state: DownloadState) {
-        downloads[key] = state
-        publish()
-    }
-
-    /** A file left from an earlier session counts as downloaded. */
-    private fun stateOf(pr: PullRequest): DownloadState =
-        downloads[pr.key]
-            ?: downloader.existing(pr.apkFileName)?.let { DownloadState.Downloaded(it) }
-            ?: DownloadState.Idle
 
     /** Merged and closed PRs vanish from the list: drop their state and their downloaded files. */
     private suspend fun forgetClosedPullRequests() {
-        val open = pullRequests.map { it.key }.toSet()
-        (downloads.keys - open).forEach { key ->
-            downloadJobs.remove(key)?.cancel()
-            downloads.remove(key)
-        }
+        downloads.retainOnly(pullRequests.map { it.key }.toSet())
         downloader.prune(pullRequests.filter { it.downloadableApk != null }.map { it.apkFileName }.toSet())
     }
 
@@ -166,7 +121,7 @@ class HomeViewModel(
             .map { (repo, prs) ->
                 RepoSection(
                     repo = repo,
-                    pullRequests = prs.map { PullRequestItem(it, stateOf(it), tracker.statusFor(it)) },
+                    pullRequests = prs.map { PullRequestItem(it, downloads.stateOf(it), tracker.statusFor(it)) },
                 )
             }
         // Repos with no open pull requests come after the ones that have some

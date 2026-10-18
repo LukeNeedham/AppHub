@@ -60,6 +60,7 @@ import coil3.compose.AsyncImage
 import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.DownloadState
 import com.lukeneedham.apphub.domain.InstallStatus
+import com.lukeneedham.apphub.domain.PullRequestRef
 import com.lukeneedham.apphub.domain.repoIconUrl
 import com.lukeneedham.apphub.ui.theme.StatusColors
 
@@ -71,10 +72,11 @@ fun HomeScreen(
     onToggleRepo: (String) -> Unit,
     onDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
+    onOpenPullRequest: (PullRequestRef) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onResume() }
-    HomeContent(state, onRefresh, onToggleRepo, onDownload, onInstall, onOpenSettings)
+    HomeContent(state, onRefresh, onToggleRepo, onDownload, onInstall, onOpenPullRequest, onOpenSettings)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,6 +87,7 @@ internal fun HomeContent(
     onToggleRepo: (String) -> Unit,
     onDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
+    onOpenPullRequest: (PullRequestRef) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val background = MaterialTheme.colorScheme.background
@@ -139,6 +142,7 @@ internal fun HomeContent(
                         onToggle = { onToggleRepo(section.repo) },
                         onDownload = onDownload,
                         onInstall = onInstall,
+                        onOpenPullRequest = onOpenPullRequest,
                     )
                 }
             }
@@ -147,7 +151,7 @@ internal fun HomeContent(
 }
 
 @Composable
-private fun ErrorCard(message: String, onRetry: () -> Unit) {
+internal fun ErrorCard(message: String, onRetry: () -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
@@ -167,6 +171,7 @@ private fun RepoCard(
     onToggle: () -> Unit,
     onDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
+    onOpenPullRequest: (PullRequestRef) -> Unit,
 ) {
     val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
     Surface(
@@ -249,7 +254,7 @@ private fun RepoCard(
                     }
                     section.pullRequests.forEach { item ->
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        PullRequestRow(item, onDownload, onInstall)
+                        PullRequestRow(item, onDownload, onInstall, onOpenPullRequest)
                     }
                 }
             }
@@ -263,6 +268,7 @@ private fun PullRequestRow(
     item: PullRequestItem,
     onDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
+    onOpenPullRequest: (PullRequestRef) -> Unit,
 ) {
     val pr = item.pr
     val uriHandler = LocalUriHandler.current
@@ -312,6 +318,7 @@ private fun PullRequestRow(
                     contentPadding = PaddingValues(horizontal = 18.dp),
                 ) { Text(label) }
             }
+            LinkButton("Details", onClick = { onOpenPullRequest(PullRequestRef(pr.repo, pr.number)) })
             if (pr.webUrl != null) LinkButton("Web", onClick = { uriHandler.openUri(pr.webUrl) })
             if (pr.sessionUrl != null) LinkButton("Claude session", onClick = { uriHandler.openUri(pr.sessionUrl) })
             LinkButton("Open PR", onClick = { uriHandler.openUri(pr.url) })
@@ -320,7 +327,7 @@ private fun PullRequestRow(
 }
 
 @Composable
-private fun DownloadProgress(download: DownloadState.Downloading) {
+internal fun DownloadProgress(download: DownloadState.Downloading) {
     val total = download.total
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val shape = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape)
@@ -360,7 +367,7 @@ private fun CircleIconButton(icon: Int, description: String, onClick: () -> Unit
 }
 
 @Composable
-private fun LinkButton(text: String, onClick: () -> Unit) {
+internal fun LinkButton(text: String, onClick: () -> Unit) {
     OutlinedButton(
         onClick = onClick,
         modifier = Modifier.height(36.dp),
@@ -372,7 +379,7 @@ private fun LinkButton(text: String, onClick: () -> Unit) {
 
 /** A small rounded tag: [color] on a faint tint of itself, with an optional dot. */
 @Composable
-private fun Pill(text: String, color: Color, dot: Boolean = true) {
+internal fun Pill(text: String, color: Color, dot: Boolean = true) {
     Row(
         modifier = Modifier
             .clip(CircleShape)
@@ -386,10 +393,10 @@ private fun Pill(text: String, color: Color, dot: Boolean = true) {
     }
 }
 
-private data class Status(val text: String, val color: Color)
+internal data class Status(val text: String, val color: Color)
 
 @Composable
-private fun statusOf(item: PullRequestItem): Status {
+internal fun statusOf(item: PullRequestItem): Status {
     val scheme = MaterialTheme.colorScheme
     return when (val apk = item.pr.apk) {
         null -> Status("No build", scheme.onSurfaceVariant)
@@ -405,7 +412,7 @@ private fun statusOf(item: PullRequestItem): Status {
 }
 
 /** The main button of a PR, and whether pressing it downloads (true) or installs (false). Null for none. */
-private fun primaryAction(item: PullRequestItem): Pair<String, Boolean>? {
+internal fun primaryAction(item: PullRequestItem): Pair<String, Boolean>? {
     val target = item.pr.downloadableApk ?: return null
     return when (item.download) {
         is DownloadState.Downloading -> null
@@ -423,4 +430,4 @@ private fun primaryAction(item: PullRequestItem): Pair<String, Boolean>? {
     }
 }
 
-private fun megabytes(bytes: Long): String = "%.1f".format(bytes / 1_000_000.0)
+internal fun megabytes(bytes: Long): String = "%.1f".format(bytes / 1_000_000.0)

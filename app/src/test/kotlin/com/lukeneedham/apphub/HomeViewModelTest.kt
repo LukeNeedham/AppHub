@@ -11,7 +11,9 @@ import com.lukeneedham.apphub.domain.InstallTracker
 import com.lukeneedham.apphub.domain.PullRequest
 import com.lukeneedham.apphub.domain.PullRequestSource
 import com.lukeneedham.apphub.domain.TokenStore
+import com.lukeneedham.apphub.ui.ApkDownloads
 import com.lukeneedham.apphub.ui.HomeViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -51,6 +53,11 @@ class HomeViewModelTest {
         apk = ApkBuild.Succeeded("https://github.com/$repo/releases/download/b-$number/app-debug.apk", commit),
         webUrl = null,
     )
+
+    private fun viewModel(source: PullRequestSource, downloader: ApkDownloader, installer: ApkInstaller, tokens: TokenStore): HomeViewModel {
+        val tracker = FakeTracker()
+        return HomeViewModel(source, downloader, ApkDownloads(downloader, installer, tracker, CoroutineScope(dispatcher)), tracker, tokens)
+    }
 
     private class FakeSource(var prs: List<PullRequest>, var repos: List<String> = emptyList()) : PullRequestSource {
         override suspend fun openPullRequests() = prs
@@ -92,7 +99,7 @@ class HomeViewModelTest {
     @Test
     fun groupsPullRequestsByRepo() = runTest(dispatcher) {
         val source = FakeSource(listOf(pr(1), pr(2), pr(3, repo = "LukeNeedham/Other")))
-        val viewModel = HomeViewModel(source, FakeDownloader(), FakeInstaller(), FakeTracker(), FakeTokenStore())
+        val viewModel = viewModel(source, FakeDownloader(), FakeInstaller(), FakeTokenStore())
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
@@ -106,7 +113,7 @@ class HomeViewModelTest {
             listOf(pr(1, repo = "LukeNeedham/Other")),
             repos = listOf("LukeNeedham/Empty", "LukeNeedham/Other", "LukeNeedham/AlsoEmpty"),
         )
-        val viewModel = HomeViewModel(source, FakeDownloader(), FakeInstaller(), FakeTracker(), FakeTokenStore())
+        val viewModel = viewModel(source, FakeDownloader(), FakeInstaller(), FakeTokenStore())
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
@@ -118,7 +125,7 @@ class HomeViewModelTest {
     @Test
     fun reposWithoutPullRequestsStartCollapsedAndCanBeExpanded() = runTest(dispatcher) {
         val source = FakeSource(listOf(pr(1)), repos = listOf("LukeNeedham/FlagTutor", "LukeNeedham/Empty"))
-        val viewModel = HomeViewModel(source, FakeDownloader(), FakeInstaller(), FakeTracker(), FakeTokenStore())
+        val viewModel = viewModel(source, FakeDownloader(), FakeInstaller(), FakeTokenStore())
         advanceUntilIdle()
         assertEquals(setOf("LukeNeedham/Empty"), viewModel.uiState.value.collapsedRepos)
 
@@ -130,7 +137,7 @@ class HomeViewModelTest {
     fun mergedPullRequestsDisappearAndTheirFilesArePruned() = runTest(dispatcher) {
         val source = FakeSource(listOf(pr(1), pr(2)))
         val downloader = FakeDownloader()
-        val viewModel = HomeViewModel(source, downloader, FakeInstaller(), FakeTracker(), FakeTokenStore())
+        val viewModel = viewModel(source, downloader, FakeInstaller(), FakeTokenStore())
         advanceUntilIdle()
 
         source.prs = listOf(pr(2))
@@ -146,7 +153,7 @@ class HomeViewModelTest {
         val source = FakeSource(listOf(pr(1)))
         val downloader = FakeDownloader()
         val installer = FakeInstaller()
-        val viewModel = HomeViewModel(source, downloader, installer, FakeTracker(), FakeTokenStore())
+        val viewModel = viewModel(source, downloader, installer, FakeTokenStore())
         advanceUntilIdle()
 
         viewModel.download("LukeNeedham/FlagTutor#1")
@@ -163,7 +170,7 @@ class HomeViewModelTest {
         val source = object : PullRequestSource {
             override suspend fun openPullRequests(): List<PullRequest> = error("offline")
         }
-        val viewModel = HomeViewModel(source, FakeDownloader(), FakeInstaller(), FakeTracker(), FakeTokenStore())
+        val viewModel = viewModel(source, FakeDownloader(), FakeInstaller(), FakeTokenStore())
         advanceUntilIdle()
 
         assertEquals("offline", viewModel.uiState.value.error)
@@ -183,7 +190,7 @@ class HomeViewModelTest {
 
     @Test
     fun reposCanBeCollapsedAndExpanded() = runTest(dispatcher) {
-        val viewModel = HomeViewModel(FakeSource(listOf(pr(1))), FakeDownloader(), FakeInstaller(), FakeTracker(), FakeTokenStore())
+        val viewModel = viewModel(FakeSource(listOf(pr(1))), FakeDownloader(), FakeInstaller(), FakeTokenStore())
         advanceUntilIdle()
 
         viewModel.toggleRepo("LukeNeedham/FlagTutor")
@@ -196,7 +203,7 @@ class HomeViewModelTest {
     fun changingTheTokenLoadsThePullRequestsAgain() = runTest(dispatcher) {
         val source = FakeSource(listOf(pr(1)))
         val tokens = FakeTokenStore()
-        val viewModel = HomeViewModel(source, FakeDownloader(), FakeInstaller(), FakeTracker(), tokens)
+        val viewModel = viewModel(source, FakeDownloader(), FakeInstaller(), tokens)
         advanceUntilIdle()
         assertEquals(1, viewModel.uiState.value.repos.single().pullRequests.size)
 

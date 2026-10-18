@@ -25,6 +25,7 @@ class PullRequestRepositoryTest {
         htmlUrl = "https://github.com/o/r/pull/$number",
         repositoryUrl = "https://api.github.com/repos/o/r",
         updatedAt = updatedAt,
+        body = "  Adds the thing\n\nhttps://claude.ai/code/session_abc  ",
     )
 
     private class FakeApi(var issues: List<IssueDto>, var comment: String) : GithubApi {
@@ -59,6 +60,15 @@ class PullRequestRepositoryTest {
         api.commentCalls.clear()
         repository.openPullRequests()
         assertEquals(listOf(1, 2), api.commentCalls.sorted())
+    }
+
+    @Test
+    fun theDescriptionIsKeptAndABlankOneIsNot() = runTest {
+        val api = FakeApi(listOf(issue(1, "t1"), issue(2, "t1").copy(body = " \n")), comment)
+        val prs = PullRequestRepository(api, MemoryCache()).openPullRequests()
+
+        assertEquals("Adds the thing\n\nhttps://claude.ai/code/session_abc", prs[0].description)
+        assertEquals(null, prs[1].description)
     }
 
     @Test

@@ -14,6 +14,7 @@ class CommentParserTest {
         ### ✅ Build succeeded
 
         - **APK:** 📦 [Download]($apk)
+        - **AppHub:** 📲 [Open](https://lukeneedham.app/PR/FlagTutor/12)
         - **Commit:** [`be7d718`](https://github.com/LukeNeedham/FlagTutor/commit/be7d718aaa)
         - **Built:** 09/10/2026 12:56:20
         - **Run:** [#210](https://github.com/LukeNeedham/FlagTutor/actions/runs/1)
@@ -22,6 +23,11 @@ class CommentParserTest {
     @Test
     fun succeededComment() {
         assertEquals(ApkBuild.Succeeded(apk, "be7d718"), CommentParser.parseApkBuild(succeeded))
+    }
+
+    @Test
+    fun theAppHubLinkIsNotTakenAsAWebDeploy() {
+        assertNull(CommentParser.parseWebUrl(succeeded))
     }
 
     @Test
