@@ -16,7 +16,7 @@ import com.lukeneedham.apphub.ui.AppNavigation
 import com.lukeneedham.apphub.ui.Home
 import com.lukeneedham.apphub.ui.PullRequestPage
 import com.lukeneedham.apphub.ui.theme.AppTheme
-import com.lukeneedham.common.ui.ProvideDebugSettings
+import com.lukeneedham.apphub.ui.theme.ProvideAppDebugSettings
 
 class MainActivity : ComponentActivity() {
 
@@ -29,8 +29,8 @@ class MainActivity : ComponentActivity() {
         // After a rotation or process restart the saved back stack already has the page
         if (savedInstanceState == null) pendingLink = linkOf(intent)
         setContent {
-            ProvideDebugSettings {
-                AppTheme {
+            AppTheme {
+                ProvideAppDebugSettings {
                     // The debug page is reached from Settings, so there is no floating DebugButton
                     val backStack = rememberNavBackStack(Home)
                     LaunchedEffect(pendingLink) {
