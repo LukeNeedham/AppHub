@@ -27,4 +27,10 @@ class AndroidApkInstaller(private val context: Context) : ApkInstaller {
         context.startActivity(intent)
         return InstallLaunch.Launched
     }
+
+    override fun open(packageName: String): Boolean {
+        val intent = context.packageManager.getLaunchIntentForPackage(packageName) ?: return false
+        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        return true
+    }
 }

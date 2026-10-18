@@ -73,6 +73,12 @@ class ApkDownloads(
         notifyChanged()
     }
 
+    /** Starts the installed app of a PR whose build is installed. */
+    fun open(pr: PullRequest) {
+        val packageName = tracker.packageNameFor(pr) ?: return
+        installer.open(packageName)
+    }
+
     /** Drops the state of every PR whose key is not in [open], cancelling its download. */
     fun retainOnly(open: Set<String>) {
         (states.keys - open).forEach { key ->

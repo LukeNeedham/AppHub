@@ -31,6 +31,8 @@ class PrefsInstallTracker(context: Context) : InstallTracker {
         return if (isThisBuild) InstallStatus.Installed else InstallStatus.DifferentBuild
     }
 
+    override fun packageNameFor(pr: PullRequest): String? = prefs.getString(packageKey(pr.repo), null)
+
     override fun onDownloaded(pr: PullRequest, file: File) {
         val info = packageManager.getPackageArchiveInfo(file.path, 0) ?: return
         prefs.edit().putString(packageKey(pr.repo), info.packageName).apply()

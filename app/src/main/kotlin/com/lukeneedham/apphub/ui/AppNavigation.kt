@@ -57,6 +57,7 @@ fun AppNavigation(backStack: NavBackStack<NavKey>) {
                     onToggleRepo = viewModel::toggleRepo,
                     onDownload = viewModel::download,
                     onInstall = viewModel::install,
+                    onOpen = viewModel::open,
                     onOpenPullRequest = { backStack.add(PullRequestPage(it.repo, it.number)) },
                     onOpenSettings = { backStack.add(Settings) },
                 )
@@ -72,6 +73,7 @@ fun AppNavigation(backStack: NavBackStack<NavKey>) {
                     onResume = viewModel::onResume,
                     onDownload = viewModel::download,
                     onInstall = viewModel::install,
+                    onOpen = viewModel::open,
                     onBack = { backStack.removeLastOrNull() },
                 )
             }
