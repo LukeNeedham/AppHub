@@ -105,10 +105,11 @@ private fun GithubCard(
         } else {
             Text(
                 "Without a token GitHub allows 60 requests an hour. With one it allows 5,000. " +
-                    "Create a fine-grained token with \"Public repositories (read-only)\" access and no other permissions.",
+                    "The token only needs to read public repositories, so it carries no permissions.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            TokenSteps()
             OutlinedTextField(
                 value = state.input,
                 onValueChange = onInputChange,
@@ -132,6 +133,28 @@ private fun GithubCard(
                     shape = CircleShape,
                 ) { Text(if (state.isChecking) "Checking…" else "Save token") }
                 TextButton(onClick = { uriHandler.openUri(NEW_TOKEN_URL) }) { Text("Create a token") }
+            }
+        }
+    }
+}
+
+/** How to make a token on GitHub's fine-grained token page, which "Create a token" opens. */
+@Composable
+private fun TokenSteps() {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("How to create a token", style = MaterialTheme.typography.labelLarge)
+        listOf(
+            "Tap \"Create a token\" below. It opens GitHub: sign in if it asks.",
+            "Token name: anything, for example AppHub.",
+            "Expiration: pick a date (the longest is 1 year). You will need a new token after it.",
+            "Repository access: choose \"Public repositories\".",
+            "Leave every permission unset, scroll to the bottom and tap \"Generate token\".",
+            "Copy the token (it starts with github_pat_). GitHub shows it only once.",
+            "Come back here, paste it in the field and tap \"Save token\".",
+        ).forEachIndexed { index, step ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("${index + 1}.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                Text(step, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
             }
         }
     }
