@@ -34,8 +34,15 @@ in the PR for the work you were asked to do, saying so in the description. Never
 - Open a PR for completed work. When the APK build comment appears on the PR, paste the download link into the chat.
 
 ## App icon
-- Commit the icon as `app-icon.png` at the repo root: square PNG, at least 512x512. The app hub reads it
-  from `main`, and the PR build (`check-icon` job) fails without it. Update it whenever the launcher icon changes.
+- `app-icon.png` at the repo root is the app's icon for the app hub: a 512x512 circle on a transparent
+  background (the adaptive launcher icon's background with its foreground centred, as a circular launcher
+  mask shows it). **CI generates it**: the `app-icon` job of the shared PR workflow renders it from the
+  adaptive icon on every PR and commits it to the PR branch when it differs. Never draw or edit it by hand.
+- So: the app needs an adaptive launcher icon (`android:icon` -> `mipmap-anydpi*` adaptive icon), and a
+  caller that grants `contents: write` (the example callers do). Changing the launcher icon needs no extra
+  step. After a push, `git pull --rebase` to pick up the bot's `app-icon.png` commit before pushing again.
+- To look at it before pushing (optional): `pip install cairosvg pillow`, fetch
+  `scripts/render_app_icon.py` from `main` of `LukeNeedham/ci-workflows` and run it from the repo root.
 
 ## Architecture
 - Single activity (`ComponentActivity`), Jetpack Compose + Material 3, no XML, no fragments.
@@ -50,7 +57,8 @@ in the PR for the work you were asked to do, saying so in the description. Never
 ## Shared library (`com.lukeneedham:common`)
 - Repository `https://lukeneedham.github.io/ci-workflows/maven` (group `com.lukeneedham` only); version in `libs.versions.toml`.
 - Call `DebugKit.init(DebugKitConfig(enabled = BuildConfig.DEBUG))` first thing in `Application.onCreate`.
-- Wrap the UI in `ProvideDebugSettings`, place a `DebugButton`, add `DebugPage`, `LogsPage`, `CrashesPage` to navigation.
+- Wrap the UI in `ProvideDebugSettings`, add `DebugPage`, `LogsPage`, `CrashesPage` to navigation.
+- Every app has a settings page (add one to an existing app that lacks it; fine if nothing else is on it). It holds the `DebugButton`, and never a floating button on the main page. The library's `DebugPage` shows the app's package and current version.
 - Use `Logger.d/i/w/e`, never `Log` or `println`. Scale animation durations with `LocalAnimationSpeed.current.scale(ms)`.
 - Apps with their own debug tools keep their own debug page, with a button that opens the library's `DebugPage`.
 
