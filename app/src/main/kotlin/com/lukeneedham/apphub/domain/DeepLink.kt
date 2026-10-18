@@ -4,7 +4,7 @@ package com.lukeneedham.apphub.domain
 const val GITHUB_OWNER = "LukeNeedham"
 
 /** The host of the links that open a pull request's page in the app. */
-const val DEEP_LINK_HOST = "lukeneedham.com"
+const val DEEP_LINK_HOST = "www.lukeneedham.com"
 
 /**
  * The first path segment of those links. The host also serves a personal website, so the links live
@@ -19,7 +19,7 @@ data class PullRequestRef(val repo: String, val number: Int) {
 }
 
 /**
- * `https://lukeneedham.com/apphub/pr/<repo name>/<number>`. The repo is part of the link because PR numbers
+ * `https://www.lukeneedham.com/apphub/pr/<repo name>/<number>`. The repo is part of the link because PR numbers
  * repeat across repos; the owner is left out as AppHub only lists [GITHUB_OWNER]'s.
  */
 fun pullRequestDeepLink(repo: String, number: Int) = "https://$DEEP_LINK_HOST/$DEEP_LINK_PREFIX/PR/${repo.substringAfter('/')}/$number"

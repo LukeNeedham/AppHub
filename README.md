@@ -17,8 +17,8 @@ web test deploy, so I can install and try a PR build straight from my phone.
   description or comments, if there is one. Settings (top right) leads to the Debug page in debug builds. The first time, Android asks to allow AppHub to install apps.
 - **A page per PR.** "Details" on a PR opens its own page: title, number, author, status, the same actions
   (download/install, Web, Claude session, Open PR) and the PR description.
-- **Deep link.** `https://lukeneedham.com/apphub/pr/<repo name>/<number>` (for example
-  `https://lukeneedham.com/apphub/pr/AppHub/10`) opens that PR's page. The repo is in the link because PR numbers
+- **Deep link.** `https://www.lukeneedham.com/apphub/pr/<repo name>/<number>` (for example
+  `https://www.lukeneedham.com/apphub/pr/AppHub/10`) opens that PR's page. The repo is in the link because PR numbers
   repeat across repos; the owner is always `LukeNeedham`. The shared CI is meant to put this link in its
   PR comment, so it can be handed straight to whoever wants to install the build.
 - **Stale builds.** While a newer commit is rebuilding, the card still offers the previous APK, marked as out
@@ -44,7 +44,7 @@ web test deploy, so I can install and try a PR build straight from my phone.
 ## Making the deep link open the app
 
 Android only opens an `https` link in the app without asking when the domain vouches for it. Serve
-`https://lukeneedham.com/.well-known/assetlinks.json` (no redirect, `application/json`) with the app's
+`https://www.lukeneedham.com/.well-known/assetlinks.json` (no redirect, `application/json`; the host is `www.`, because the bare `lukeneedham.com` redirects to it and Android does not follow redirects) with the app's
 package and the SHA-256 of the signing certificate (the committed `app/debug.keystore` for the CI builds):
 
 ```json
@@ -60,7 +60,7 @@ package and the SHA-256 of the signing certificate (the committed `app/debug.key
 
 Until then the link opens in the browser; the app can still be chosen under Settings → Apps → AppHub →
 Open by default → Add link. Try a link with
-`adb shell am start -a android.intent.action.VIEW -d https://lukeneedham.com/apphub/pr/AppHub/10`.
+`adb shell am start -a android.intent.action.VIEW -d https://www.lukeneedham.com/apphub/pr/AppHub/10`.
 
 ## Development
 
