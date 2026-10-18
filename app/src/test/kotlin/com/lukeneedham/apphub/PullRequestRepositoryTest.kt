@@ -8,6 +8,7 @@ import com.lukeneedham.apphub.data.PullRequestCache
 import com.lukeneedham.apphub.data.PullRequestRepository
 import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.RateLimitException
+import com.lukeneedham.apphub.domain.RateLimitInfo
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -30,6 +31,7 @@ class PullRequestRepositoryTest {
         val commentCalls = mutableListOf<Int>()
         var rateLimitedOn: Int? = null
         override suspend fun openPullRequests() = issues
+        override suspend fun checkToken(token: String) = RateLimitInfo(5000, 5000)
         override suspend fun comments(repo: String, number: Int): List<CommentDto> {
             if (number == rateLimitedOn) throw RateLimitException(null)
             commentCalls += number

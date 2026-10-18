@@ -1,6 +1,7 @@
 package com.lukeneedham.apphub.domain
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import java.io.File
 
 /** Where the open pull requests come from. */
@@ -37,6 +38,14 @@ enum class InstallLaunch {
 
 interface ApkInstaller {
     fun install(file: File): InstallLaunch
+}
+
+/** The user's GitHub token, if they gave one. It raises the rate limit from 60 to 5,000 requests an hour. */
+interface TokenStore {
+    val token: StateFlow<String?>
+
+    /** Saves [token], or forgets it when null. */
+    fun set(token: String?)
 }
 
 /** Remembers what AppHub installed, to tell whether the installed app is a PR's build. */

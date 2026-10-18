@@ -10,13 +10,16 @@ import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.InstallTracker
 import com.lukeneedham.apphub.domain.PullRequest
 import com.lukeneedham.apphub.domain.PullRequestSource
+import com.lukeneedham.apphub.domain.InvalidTokenException
 import com.lukeneedham.apphub.domain.RateLimitException
+import com.lukeneedham.apphub.domain.TokenStore
 import com.lukeneedham.common.logger.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
@@ -43,6 +46,7 @@ class HomeViewModel(
     private val downloader: ApkDownloader,
     private val installer: ApkInstaller,
     private val tracker: InstallTracker,
+    private val tokenStore: TokenStore,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -59,6 +63,8 @@ class HomeViewModel(
     init {
         pullRequests = source.cached()
         refresh()
+        // A new or removed token changes what GitHub allows and shows: load again
+        viewModelScope.launch { tokenStore.token.drop(1).collect { refresh() } }
     }
 
     fun refresh() {
@@ -166,6 +172,7 @@ class HomeViewModel(
                 "GitHub's rate limit for anonymous requests is used up." +
                     if (resets != null) " Try again after $resets." else ""
             }
+            is InvalidTokenException -> "GitHub rejected your token. Replace or remove it in Settings."
             else -> e.message ?: "Could not load pull requests"
         }
 }

@@ -23,11 +23,14 @@ web test deploy, so I can install and try a PR build straight from my phone.
 
 ## Limits
 
-- No sign-in: only public repos, and GitHub allows 60 anonymous requests an hour per IP address (a shared
-  Wi-Fi, VPN or mobile network shares it with other people). A refresh is one request to list the open PRs,
-  plus one per PR whose `updated_at` changed since the last refresh (a new or edited comment bumps it); the
-  parsed PRs are kept on disk. When the limit is hit the app keeps showing the last list and says when to
-  retry.
+- Sign-in is optional. Without a token only public repos are visible and GitHub allows 60 anonymous
+  requests an hour per IP address (a shared Wi-Fi, VPN or mobile network shares it). With a personal access
+  token (Settings → GitHub; a fine-grained token with "Public repositories (read-only)" and nothing else) it
+  is 5,000. The token is checked with GitHub before it is kept, stored encrypted with an Android Keystore
+  key, and sent only to `api.github.com`.
+- A refresh is one request to list the open PRs, plus one per PR whose `updated_at` changed since the last
+  refresh (a new or edited comment bumps it); the parsed PRs are kept on disk. When the limit is hit the app
+  keeps showing the last list and says when to retry.
 - The "installed" check only knows about installs done through AppHub, and learns an app's package name
   from the first APK downloaded for its repo.
 - A download stops if the app is closed.

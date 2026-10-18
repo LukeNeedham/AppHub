@@ -2,6 +2,7 @@ package com.lukeneedham.apphub.di
 
 import com.lukeneedham.apphub.data.AndroidApkInstaller
 import com.lukeneedham.apphub.data.GithubApi
+import com.lukeneedham.apphub.data.KeystoreTokenStore
 import com.lukeneedham.apphub.data.OkHttpGithubApi
 import com.lukeneedham.apphub.data.PrefsPullRequestCache
 import com.lukeneedham.apphub.data.PullRequestCache
@@ -12,7 +13,9 @@ import com.lukeneedham.apphub.domain.ApkDownloader
 import com.lukeneedham.apphub.domain.ApkInstaller
 import com.lukeneedham.apphub.domain.InstallTracker
 import com.lukeneedham.apphub.domain.PullRequestSource
+import com.lukeneedham.apphub.domain.TokenStore
 import com.lukeneedham.apphub.ui.HomeViewModel
+import com.lukeneedham.apphub.ui.SettingsViewModel
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
@@ -31,11 +34,13 @@ val appModule = module {
             .cache(Cache(File(androidContext().cacheDir, "http"), 10L * 1024 * 1024))
             .build()
     }
-    single<GithubApi> { OkHttpGithubApi(get(), GITHUB_OWNER) }
+    single<TokenStore> { KeystoreTokenStore(androidContext()) }
+    single<GithubApi> { OkHttpGithubApi(get(), GITHUB_OWNER, get()) }
     single<PullRequestCache> { PrefsPullRequestCache(androidContext()) }
     single { PullRequestRepository(get(), get()) } bind PullRequestSource::class
     single<ApkDownloader> { OkHttpApkDownloader(get(), File(androidContext().cacheDir, "apks")) }
     single<ApkInstaller> { AndroidApkInstaller(androidContext()) }
     single<InstallTracker> { PrefsInstallTracker(androidContext()) }
     viewModelOf(::HomeViewModel)
+    viewModelOf(::SettingsViewModel)
 }

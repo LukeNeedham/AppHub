@@ -55,7 +55,13 @@ fun AppNavigation(backStack: NavBackStack<NavKey>) {
                 )
             }
             entry<Settings> {
+                val viewModel = koinViewModel<SettingsViewModel>()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
                 SettingsScreen(
+                    state = state,
+                    onInputChange = viewModel::onInputChange,
+                    onSave = viewModel::save,
+                    onRemove = viewModel::remove,
                     onBack = { backStack.removeLastOrNull() },
                     onOpenDebug = if (DebugKit.enabled) ({ backStack.add(Debug) }) else null,
                 )

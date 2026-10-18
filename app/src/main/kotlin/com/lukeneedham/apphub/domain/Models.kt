@@ -80,4 +80,10 @@ enum class InstallStatus {
     Installed,
 }
 
+/** GitHub's request allowance: [limit] an hour, [remaining] of it left. */
+data class RateLimitInfo(val limit: Int, val remaining: Int)
+
+/** GitHub answered 401: the saved token is wrong, revoked or expired. */
+class InvalidTokenException : Exception("GitHub rejected the token")
+
 class RateLimitException(val resetEpochSeconds: Long?) : Exception("GitHub rate limit reached")
