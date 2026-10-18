@@ -21,12 +21,14 @@ class PullRequestRepository(private val api: GithubApi) : PullRequestSource {
                     PullRequest(
                         repo = repo,
                         number = issue.number,
-                        title = issue.title,
+                        // A PR title can carry a whole commit message: keep the first line
+                        title = issue.title.lineSequence().first().trim(),
                         author = issue.user?.login.orEmpty(),
                         url = issue.htmlUrl,
                         isDraft = issue.draft,
                         apk = apk,
                         webUrl = web,
+                        sessionUrl = CommentParser.parseSessionUrl(listOf(issue.body) + bodies),
                     )
                 }
             }

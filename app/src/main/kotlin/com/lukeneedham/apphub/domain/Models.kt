@@ -27,6 +27,8 @@ data class PullRequest(
     /** Null when no CI comment has been posted yet. */
     val apk: ApkBuild?,
     val webUrl: String?,
+    /** A Claude Code session linked from the PR description or comments. */
+    val sessionUrl: String? = null,
 ) {
     val key: String get() = "$repo#$number"
 

@@ -72,4 +72,12 @@ class CommentParserTest {
         assertEquals(ApkBuild.Succeeded(apk, "be7d718"), build)
         assertEquals("https://new.pages.dev", web)
     }
+
+    @Test
+    fun sessionLinkFromTheDescriptionOrComments() {
+        val session = "https://claude.ai/code/session_01F93afMNjrG448fJEVXhHby"
+        assertEquals(session, CommentParser.parseSessionUrl(listOf(null, "Generated with Claude\n\n$session\n")))
+        assertEquals("https://claude.ai/code/session_abc", CommentParser.parseSessionUrl(listOf("none", "see https://claude.ai/code/session_abc.")))
+        assertNull(CommentParser.parseSessionUrl(listOf("https://claude.ai/chat/123", null)))
+    }
 }

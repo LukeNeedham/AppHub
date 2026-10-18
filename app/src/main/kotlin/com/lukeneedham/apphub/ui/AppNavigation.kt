@@ -9,6 +9,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.lukeneedham.common.DebugKit
 import com.lukeneedham.common.ui.CrashesPage
 import com.lukeneedham.common.ui.DebugPage
 import com.lukeneedham.common.ui.LogsPage
@@ -17,6 +18,9 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Serializable
 data object Home : NavKey
+
+@Serializable
+data object Settings : NavKey
 
 @Serializable
 data object Debug : NavKey
@@ -44,8 +48,16 @@ fun AppNavigation(backStack: NavBackStack<NavKey>) {
                     state = state,
                     onRefresh = viewModel::refresh,
                     onResume = viewModel::onResume,
+                    onToggleRepo = viewModel::toggleRepo,
                     onDownload = viewModel::download,
                     onInstall = viewModel::install,
+                    onOpenSettings = { backStack.add(Settings) },
+                )
+            }
+            entry<Settings> {
+                SettingsScreen(
+                    onBack = { backStack.removeLastOrNull() },
+                    onOpenDebug = if (DebugKit.enabled) ({ backStack.add(Debug) }) else null,
                 )
             }
             entry<Debug> {

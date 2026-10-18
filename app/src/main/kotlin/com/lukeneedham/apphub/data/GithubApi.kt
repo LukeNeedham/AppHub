@@ -60,6 +60,7 @@ data class IssueDto(
     @SerialName("repository_url") val repositoryUrl: String,
     val user: UserDto? = null,
     val draft: Boolean = false,
+    val body: String? = null,
 )
 
 @Serializable

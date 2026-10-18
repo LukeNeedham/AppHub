@@ -6,12 +6,15 @@ web test deploy, so I can install and try a PR build straight from my phone.
 - **Lists** the open PRs of every public repo of `LukeNeedham` (one search call), grouped by repo. A PR
   that is merged or closed drops off the list on the next refresh (pull down), and its downloaded APK is
   deleted.
+- **Collapsible projects.** Each repo is a card that collapses to its header; a PR shows only its title,
+  a status tag and its actions: download/install, Web, Claude session, Open PR.
 - **Reads the PR's comments**: the APK link comes from the shared CI comment
   ([ci-workflows](https://github.com/LukeNeedham/ci-workflows)), the web link from a deploy comment on a
   known preview host (Netlify, Vercel, Cloudflare Pages, Firebase, GitHub Pages and so on; see
   `CommentParser.previewHosts`).
 - **Downloads and installs the APK itself**, with progress and a state (downloading, downloaded, failed),
-  then opens the system installer. "Open PR" opens the PR in the browser (or the GitHub app, if it handles links). The first time, Android asks to allow AppHub to install apps.
+  then opens the system installer. "Open PR" opens the PR in the browser (or the GitHub app, if it handles links); "Claude session" opens the Claude Code session linked in the PR
+  description or comments, if there is one. Settings (top right) leads to the Debug page in debug builds. The first time, Android asks to allow AppHub to install apps.
 - **Stale builds.** While a newer commit is rebuilding, the card still offers the previous APK, marked as out
   of date (the CI comment on the PR does the same).
 - **Says whether the PR's build is installed.** Debug builds share a version number, so AppHub remembers

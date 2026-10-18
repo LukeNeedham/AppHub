@@ -144,4 +144,15 @@ class HomeViewModelTest {
         assertEquals(null, rebuilding.copy(apk = ApkBuild.InProgress("newcommit", null)).downloadableApk)
         assertTrue(!pr(1).downloadableApk!!.isStale)
     }
+
+    @Test
+    fun reposCanBeCollapsedAndExpanded() = runTest(dispatcher) {
+        val viewModel = HomeViewModel(FakeSource(listOf(pr(1))), FakeDownloader(), FakeInstaller(), FakeTracker())
+        advanceUntilIdle()
+
+        viewModel.toggleRepo("LukeNeedham/FlagTutor")
+        assertEquals(setOf("LukeNeedham/FlagTutor"), viewModel.uiState.value.collapsedRepos)
+        viewModel.toggleRepo("LukeNeedham/FlagTutor")
+        assertEquals(emptySet<String>(), viewModel.uiState.value.collapsedRepos)
+    }
 }

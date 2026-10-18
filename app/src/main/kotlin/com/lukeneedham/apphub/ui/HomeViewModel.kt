@@ -34,6 +34,8 @@ data class HomeUiState(
     val isLoading: Boolean = true,
     val error: String? = null,
     val repos: List<RepoSection> = emptyList(),
+    /** Repos the user has collapsed. */
+    val collapsedRepos: Set<String> = emptySet(),
 )
 
 class HomeViewModel(
@@ -50,6 +52,7 @@ class HomeViewModel(
     private var pullRequests = emptyList<PullRequest>()
     private var isLoading = true
     private var error: String? = null
+    private var collapsedRepos = emptySet<String>()
     private val downloads = mutableMapOf<String, DownloadState>()
     private val downloadJobs = mutableMapOf<String, Job>()
 
@@ -74,6 +77,11 @@ class HomeViewModel(
             isLoading = false
             publish()
         }
+    }
+
+    fun toggleRepo(repo: String) {
+        collapsedRepos = if (repo in collapsedRepos) collapsedRepos - repo else collapsedRepos + repo
+        publish()
     }
 
     /** Call whenever the app comes back to the foreground: an install may have finished. */
@@ -147,7 +155,7 @@ class HomeViewModel(
                     pullRequests = prs.map { PullRequestItem(it, stateOf(it), tracker.statusFor(it)) },
                 )
             }
-        _uiState.value = HomeUiState(isLoading = isLoading, error = error, repos = sections)
+        _uiState.value = HomeUiState(isLoading = isLoading, error = error, repos = sections, collapsedRepos = collapsedRepos)
     }
 
     private fun describe(e: Exception): String =

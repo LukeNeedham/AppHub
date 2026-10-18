@@ -44,6 +44,12 @@ object CommentParser {
             .map { it.value.trimEnd('.', ',', ';') }
             .firstOrNull { url -> hostOf(url)?.let(::isPreviewHost) == true }
 
+    private val sessionUrl = Regex("""https://claude\.ai/code/session_[A-Za-z0-9_-]+""")
+
+    /** The first Claude Code session link in any of [texts] (the PR description, then comments). */
+    fun parseSessionUrl(texts: List<String?>): String? =
+        texts.firstNotNullOfOrNull { text -> text?.let { sessionUrl.find(it)?.value } }
+
     /** The newest APK build and web link across a PR's comments, oldest first. */
     fun parse(commentBodies: List<String>): Pair<ApkBuild?, String?> {
         var apk: ApkBuild? = null
