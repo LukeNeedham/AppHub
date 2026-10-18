@@ -26,12 +26,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -258,7 +257,7 @@ private fun PullRequestRow(
 ) {
     val pr = item.pr
     val uriHandler = LocalUriHandler.current
-    val status = statusOf(item)
+    val control = controlOf(item)
     val target = pr.downloadableApk
 
     Column(
@@ -274,7 +273,7 @@ private fun PullRequestRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Pill(status.text, status.color)
+            StatusControl(control, onDownload = { onDownload(pr.key) }, onInstall = { onInstall(pr.key) })
         }
 
         if (target?.isStale == true) {
@@ -285,25 +284,15 @@ private fun PullRequestRow(
             )
         }
 
-        when (val download = item.download) {
-            is DownloadState.Downloading -> DownloadProgress(download)
-            is DownloadState.Failed -> Text(
-                "Download failed: ${download.message}",
+        (item.download as? DownloadState.Failed)?.let { failed ->
+            Text(
+                "Download failed: ${failed.message}",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.error,
             )
-            else -> Unit
         }
 
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            primaryAction(item)?.let { (label, isDownload) ->
-                Button(
-                    onClick = { if (isDownload) onDownload(pr.key) else onInstall(pr.key) },
-                    modifier = Modifier.height(36.dp),
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 18.dp),
-                ) { Text(label) }
-            }
             if (pr.webUrl != null) LinkButton("Web", onClick = { uriHandler.openUri(pr.webUrl) })
             if (pr.sessionUrl != null) {
                 CircleIconButton(
@@ -320,25 +309,6 @@ private fun PullRequestRow(
                 size = 36.dp,
             )
         }
-    }
-}
-
-@Composable
-private fun DownloadProgress(download: DownloadState.Downloading) {
-    val total = download.total
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        val shape = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape)
-        if (total != null) {
-            LinearProgressIndicator(progress = { download.bytes.toFloat() / total }, modifier = shape)
-        } else {
-            LinearProgressIndicator(modifier = shape)
-        }
-        Text(
-            if (total != null) "Downloading · ${megabytes(download.bytes)} of ${megabytes(total)} MB"
-            else "Downloading · ${megabytes(download.bytes)} MB",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 
@@ -390,39 +360,100 @@ private fun Pill(text: String, color: Color, dot: Boolean = true) {
     }
 }
 
-private data class Status(val text: String, val color: Color)
+/** What the merged build status and action control on a PR shows. */
+private sealed interface Control {
+    /** Only says something about the build, so it cannot be pressed. */
+    data class Tag(val text: String, val color: Color) : Control
+
+    /** A press downloads the APK ([isDownload]) or installs the one already downloaded. */
+    data class Action(val label: String, val icon: Int, val isDownload: Boolean, val isError: Boolean = false) : Control
+
+    /** [fraction] is null while the size is not known. */
+    data class Progress(val fraction: Float?, val text: String) : Control
+}
 
 @Composable
-private fun statusOf(item: PullRequestItem): Status {
+private fun controlOf(item: PullRequestItem): Control {
     val scheme = MaterialTheme.colorScheme
-    return when (val apk = item.pr.apk) {
-        null -> Status("No build", scheme.onSurfaceVariant)
-        is ApkBuild.InProgress -> Status("Building", StatusColors.info)
-        is ApkBuild.Failed -> Status("Build failed", scheme.error)
-        is ApkBuild.Cancelled -> Status("Cancelled", scheme.onSurfaceVariant)
-        is ApkBuild.Succeeded -> when (item.install) {
-            InstallStatus.Installed -> Status("Installed", StatusColors.success)
-            InstallStatus.DifferentBuild -> Status("Update ready", StatusColors.warning)
-            InstallStatus.NotInstalled, InstallStatus.Unknown -> Status("Ready", scheme.primary)
+    val target = item.pr.downloadableApk
+    val download = item.download
+    if (download is DownloadState.Downloading) {
+        val total = download.total
+        return if (total != null) {
+            Control.Progress(download.bytes.toFloat() / total, "${(download.bytes * 100 / total).toInt()}%")
+        } else {
+            Control.Progress(null, "${megabytes(download.bytes)} MB")
         }
+    }
+    if (target != null) {
+        when (download) {
+            is DownloadState.Downloaded -> {
+                val label = if (item.install == InstallStatus.Installed) "Reinstall" else "Install"
+                return Control.Action(label, R.drawable.ic_install, isDownload = false)
+            }
+            is DownloadState.Failed -> return Control.Action("Retry", R.drawable.ic_download, isDownload = true, isError = true)
+            else -> when {
+                target.isStale -> return Control.Action("Old build", R.drawable.ic_download, isDownload = true)
+                item.install == InstallStatus.DifferentBuild ->
+                    return Control.Action("Update", R.drawable.ic_download, isDownload = true)
+                item.install != InstallStatus.Installed ->
+                    return Control.Action("Download", R.drawable.ic_download, isDownload = true)
+            }
+        }
+    }
+    return when (val apk = item.pr.apk) {
+        null -> Control.Tag("No build", scheme.onSurfaceVariant)
+        is ApkBuild.InProgress -> Control.Tag("Building", StatusColors.info)
+        is ApkBuild.Failed -> Control.Tag("Build failed", scheme.error)
+        is ApkBuild.Cancelled -> Control.Tag("Cancelled", scheme.onSurfaceVariant)
+        is ApkBuild.Succeeded -> Control.Tag("Installed", StatusColors.success)
     }
 }
 
-/** The main button of a PR, and whether pressing it downloads (true) or installs (false). Null for none. */
-private fun primaryAction(item: PullRequestItem): Pair<String, Boolean>? {
-    val target = item.pr.downloadableApk ?: return null
-    return when (item.download) {
-        is DownloadState.Downloading -> null
-        is DownloadState.Downloaded ->
-            (if (item.install == InstallStatus.Installed) "Reinstall" else "Install") to false
-        is DownloadState.Failed -> "Retry" to true
-        DownloadState.Idle -> {
-            val label = when {
-                target.isStale -> "Download old build"
-                item.install == InstallStatus.DifferentBuild -> "Download update"
-                else -> "Download & install"
+/** The one pill on the right of a PR: a tag for the build, or the filled button or progress that moves it on. */
+@Composable
+private fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    when (control) {
+        is Control.Tag -> Pill(control.text, control.color)
+        is Control.Action -> {
+            val container = if (control.isError) scheme.error else scheme.primary
+            val content = if (control.isError) scheme.onError else scheme.onPrimary
+            Surface(
+                onClick = if (control.isDownload) onDownload else onInstall,
+                shape = CircleShape,
+                color = container,
+                contentColor = content,
+            ) {
+                Row(
+                    modifier = Modifier.height(32.dp).padding(start = 10.dp, end = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(painterResource(control.icon), contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text(control.label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                }
             }
-            label to true
+        }
+        is Control.Progress -> {
+            val color = scheme.primary
+            Row(
+                modifier = Modifier
+                    .height(32.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.14f))
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                val indicator = Modifier.size(16.dp)
+                if (control.fraction != null) {
+                    CircularProgressIndicator(progress = { control.fraction }, modifier = indicator, strokeWidth = 2.5.dp)
+                } else {
+                    CircularProgressIndicator(modifier = indicator, strokeWidth = 2.5.dp)
+                }
+                Text(control.text, style = MaterialTheme.typography.labelLarge, color = color, fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 }
