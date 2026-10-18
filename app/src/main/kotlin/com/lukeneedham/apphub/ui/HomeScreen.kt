@@ -52,6 +52,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -304,8 +305,20 @@ private fun PullRequestRow(
                 ) { Text(label) }
             }
             if (pr.webUrl != null) LinkButton("Web", onClick = { uriHandler.openUri(pr.webUrl) })
-            if (pr.sessionUrl != null) LinkButton("Claude session", onClick = { uriHandler.openUri(pr.sessionUrl) })
-            LinkButton("Open PR", onClick = { uriHandler.openUri(pr.url) })
+            if (pr.sessionUrl != null) {
+                CircleIconButton(
+                    icon = R.drawable.ic_claude,
+                    description = "Open Claude session",
+                    onClick = { uriHandler.openUri(pr.sessionUrl) },
+                    size = 36.dp,
+                )
+            }
+            CircleIconButton(
+                icon = R.drawable.ic_pull_request,
+                description = "Open pull request on GitHub",
+                onClick = { uriHandler.openUri(pr.url) },
+                size = 36.dp,
+            )
         }
     }
 }
@@ -331,10 +344,10 @@ private fun DownloadProgress(download: DownloadState.Downloading) {
 
 /** A round outlined button holding just an icon. */
 @Composable
-private fun CircleIconButton(icon: Int, description: String, onClick: () -> Unit) {
+private fun CircleIconButton(icon: Int, description: String, onClick: () -> Unit, size: Dp = 40.dp) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(40.dp),
+        modifier = Modifier.size(size),
         shape = CircleShape,
         color = Color.Transparent,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
