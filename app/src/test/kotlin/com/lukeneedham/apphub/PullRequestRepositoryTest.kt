@@ -27,7 +27,7 @@ class PullRequestRepositoryTest {
         updatedAt = updatedAt,
     )
 
-    private class FakeApi(var issues: List<IssueDto>, val comment: String) : GithubApi {
+    private class FakeApi(var issues: List<IssueDto>, var comment: String) : GithubApi {
         val commentCalls = mutableListOf<Int>()
         var rateLimitedOn: Int? = null
         override suspend fun openPullRequests() = issues
@@ -71,6 +71,18 @@ class PullRequestRepositoryTest {
         api.issues = listOf(issue(1, "t1"), issue(2, "t2"))
         repository.openPullRequests()
         assertEquals(listOf(2), api.commentCalls)
+    }
+
+    @Test
+    fun anInProgressBuildIsFetchedAgainEvenIfUpdatedAtIsUnchanged() = runTest {
+        val inProgress = "### ⏳ Build in progress\n\n- **Commit:** [`abc1234`](https://github.com/o/r/commit/abc1234)"
+        val api = FakeApi(listOf(issue(1, "t1")), inProgress)
+        val repository = PullRequestRepository(api, MemoryCache())
+        assertTrue(repository.openPullRequests()[0].apk is ApkBuild.InProgress)
+
+        // CI edits its comment in place: updated_at stays the same
+        api.comment = comment
+        assertTrue(repository.openPullRequests()[0].apk is ApkBuild.Succeeded)
     }
 
     @Test

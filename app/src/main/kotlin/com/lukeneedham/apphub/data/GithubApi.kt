@@ -121,7 +121,7 @@ data class IssueDto(
     val user: UserDto? = null,
     val draft: Boolean = false,
     val body: String? = null,
-    /** Changes when the PR or any of its comments does, including an edited comment. */
+    /** Changes on a push or a new comment, but not when a comment is edited. */
     @SerialName("updated_at") val updatedAt: String = "",
 )
 
