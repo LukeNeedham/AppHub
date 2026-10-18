@@ -23,7 +23,7 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- https://lukeneedham.com/apphub-9c4f1e/PR/<repo>/<number>: opens that pull request's page. autoVerify needs
+            <!-- https://lukeneedham.com/apphub/pr/<repo>/<number>: opens that pull request's page. autoVerify needs
                  https://lukeneedham.com/.well-known/assetlinks.json to list this app; see the README -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -32,7 +32,7 @@
                 <data
                     android:scheme="https"
                     android:host="lukeneedham.com"
-                    android:pathPrefix="/apphub-9c4f1e/PR/" />
+                    android:pathPrefix="/apphub/pr/" />
             </intent-filter>
         </activity>
 
