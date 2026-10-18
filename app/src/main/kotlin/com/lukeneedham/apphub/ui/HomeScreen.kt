@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -48,6 +49,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -360,99 +363,101 @@ private fun Pill(text: String, color: Color, dot: Boolean = true) {
     }
 }
 
-/** What the merged build status and action control on a PR shows. */
-private sealed interface Control {
-    /** Only says something about the build, so it cannot be pressed. */
-    data class Tag(val text: String, val color: Color) : Control
+/** The status tag of a PR, with what presses on from here ([trailing]) at its end. */
+private data class Control(val text: String, val color: Color, val trailing: Trailing? = null)
 
-    /** A press downloads the APK ([isDownload]) or installs the one already downloaded. */
-    data class Action(val label: String, val icon: Int, val isDownload: Boolean, val isError: Boolean = false) : Control
+private sealed interface Trailing {
+    /** A press on the tag downloads the APK ([isDownload]) or installs the one already downloaded. */
+    data class Action(val icon: Int, val description: String, val isDownload: Boolean) : Trailing
 
     /** [fraction] is null while the size is not known. */
-    data class Progress(val fraction: Float?, val text: String) : Control
+    data class Progress(val fraction: Float?) : Trailing
 }
 
 @Composable
 private fun controlOf(item: PullRequestItem): Control {
     val scheme = MaterialTheme.colorScheme
+    val installed = item.install == InstallStatus.Installed
+    val build = when (item.pr.apk) {
+        null -> Control("No build", scheme.onSurfaceVariant)
+        is ApkBuild.InProgress -> Control("Building", StatusColors.info)
+        is ApkBuild.Failed -> Control("Build failed", scheme.error)
+        is ApkBuild.Cancelled -> Control("Cancelled", scheme.onSurfaceVariant)
+        is ApkBuild.Succeeded -> when (item.install) {
+            InstallStatus.Installed -> Control("Installed", StatusColors.success)
+            InstallStatus.DifferentBuild -> Control("Update ready", StatusColors.warning)
+            InstallStatus.NotInstalled, InstallStatus.Unknown -> Control("Ready", scheme.primary)
+        }
+    }
     val target = item.pr.downloadableApk
-    val download = item.download
-    if (download is DownloadState.Downloading) {
-        val total = download.total
-        return if (total != null) {
-            Control.Progress(download.bytes.toFloat() / total, "${(download.bytes * 100 / total).toInt()}%")
-        } else {
-            Control.Progress(null, "${megabytes(download.bytes)} MB")
+    return when (val download = item.download) {
+        is DownloadState.Downloading -> {
+            val total = download.total
+            val text = if (total != null) "Downloading ${(download.bytes * 100 / total).toInt()}%" else "Downloading"
+            Control(text, scheme.primary, Trailing.Progress(total?.let { download.bytes.toFloat() / it }))
         }
-    }
-    if (target != null) {
-        when (download) {
-            is DownloadState.Downloaded -> {
-                val label = if (item.install == InstallStatus.Installed) "Reinstall" else "Install"
-                return Control.Action(label, R.drawable.ic_install, isDownload = false)
-            }
-            is DownloadState.Failed -> return Control.Action("Retry", R.drawable.ic_download, isDownload = true, isError = true)
-            else -> when {
-                target.isStale -> return Control.Action("Old build", R.drawable.ic_download, isDownload = true)
-                item.install == InstallStatus.DifferentBuild ->
-                    return Control.Action("Update", R.drawable.ic_download, isDownload = true)
-                item.install != InstallStatus.Installed ->
-                    return Control.Action("Download", R.drawable.ic_download, isDownload = true)
-            }
+        is DownloadState.Downloaded -> when {
+            installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_refresh, "Reinstall", isDownload = false))
+            else -> Control("Ready to install", scheme.primary, Trailing.Action(R.drawable.ic_install, "Install", isDownload = false))
         }
-    }
-    return when (val apk = item.pr.apk) {
-        null -> Control.Tag("No build", scheme.onSurfaceVariant)
-        is ApkBuild.InProgress -> Control.Tag("Building", StatusColors.info)
-        is ApkBuild.Failed -> Control.Tag("Build failed", scheme.error)
-        is ApkBuild.Cancelled -> Control.Tag("Cancelled", scheme.onSurfaceVariant)
-        is ApkBuild.Succeeded -> Control.Tag("Installed", StatusColors.success)
+        is DownloadState.Failed -> Control(
+            "Download failed",
+            scheme.error,
+            target?.let { Trailing.Action(R.drawable.ic_refresh, "Retry download", isDownload = true) },
+        )
+        DownloadState.Idle -> when {
+            target == null -> build
+            installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_refresh, "Download and reinstall", isDownload = true))
+            else -> build.copy(trailing = Trailing.Action(R.drawable.ic_download, "Download", isDownload = true))
+        }
     }
 }
 
-/** The one pill on the right of a PR: a tag for the build, or the filled button or progress that moves it on. */
+/**
+ * The status of a PR as a coloured pill: a dot and the status, then after a divider the icon of what a
+ * press does next, or its progress. A press anywhere on the pill does that.
+ */
 @Composable
 private fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    when (control) {
-        is Control.Tag -> Pill(control.text, control.color)
-        is Control.Action -> {
-            val container = if (control.isError) scheme.error else scheme.primary
-            val content = if (control.isError) scheme.onError else scheme.onPrimary
-            Surface(
-                onClick = if (control.isDownload) onDownload else onInstall,
-                shape = CircleShape,
-                color = container,
-                contentColor = content,
-            ) {
-                Row(
-                    modifier = Modifier.height(32.dp).padding(start = 10.dp, end = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Icon(painterResource(control.icon), contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text(control.label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                }
-            }
-        }
-        is Control.Progress -> {
-            val color = scheme.primary
+    val color = control.color
+    val action = control.trailing as? Trailing.Action
+    Surface(
+        onClick = { if (action?.isDownload == true) onDownload() else onInstall() },
+        enabled = action != null,
+        modifier = Modifier.semantics(mergeDescendants = true) { action?.let { contentDescription = "${control.text}. ${it.description}" } },
+        shape = CircleShape,
+        color = color.copy(alpha = 0.14f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.45f)),
+    ) {
+        Row(modifier = Modifier.height(32.dp), verticalAlignment = Alignment.CenterVertically) {
             Row(
-                modifier = Modifier
-                    .height(32.dp)
-                    .clip(CircleShape)
-                    .background(color.copy(alpha = 0.14f))
-                    .padding(horizontal = 12.dp),
+                modifier = Modifier.padding(start = 12.dp, end = if (control.trailing == null) 12.dp else 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                val indicator = Modifier.size(16.dp)
-                if (control.fraction != null) {
-                    CircularProgressIndicator(progress = { control.fraction }, modifier = indicator, strokeWidth = 2.5.dp)
-                } else {
-                    CircularProgressIndicator(modifier = indicator, strokeWidth = 2.5.dp)
+                Box(Modifier.size(6.dp).clip(CircleShape).background(color))
+                Text(control.text, style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.SemiBold)
+            }
+            if (control.trailing != null) {
+                Box(Modifier.width(1.dp).fillMaxHeight().background(color.copy(alpha = 0.3f)))
+                Box(Modifier.width(38.dp), contentAlignment = Alignment.Center) {
+                    when (val trailing = control.trailing) {
+                        is Trailing.Action -> Icon(
+                            painterResource(trailing.icon),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = color,
+                        )
+                        is Trailing.Progress -> {
+                            val indicator = Modifier.size(16.dp)
+                            if (trailing.fraction != null) {
+                                CircularProgressIndicator(progress = { trailing.fraction }, modifier = indicator, strokeWidth = 2.5.dp, color = color)
+                            } else {
+                                CircularProgressIndicator(modifier = indicator, strokeWidth = 2.5.dp, color = color)
+                            }
+                        }
+                    }
                 }
-                Text(control.text, style = MaterialTheme.typography.labelLarge, color = color, fontWeight = FontWeight.SemiBold)
             }
         }
     }
