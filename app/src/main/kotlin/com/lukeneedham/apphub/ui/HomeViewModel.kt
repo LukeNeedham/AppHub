@@ -144,7 +144,7 @@ class HomeViewModel(
             ?: DownloadState.Idle
 
     /** Merged and closed PRs vanish from the list: drop their state and their downloaded files. */
-    private fun forgetClosedPullRequests() {
+    private suspend fun forgetClosedPullRequests() {
         val open = pullRequests.map { it.key }.toSet()
         (downloads.keys - open).forEach { key ->
             downloadJobs.remove(key)?.cancel()

@@ -64,7 +64,7 @@ class HomeViewModelTest {
             downloaded += url
             return flowOf(DownloadEvent.Progress(5, 10), DownloadEvent.Done(File(fileName)))
         }
-        override fun prune(keep: Set<String>) { kept += keep }
+        override suspend fun prune(keep: Set<String>) { kept += keep }
     }
 
     private class FakeInstaller : ApkInstaller {
