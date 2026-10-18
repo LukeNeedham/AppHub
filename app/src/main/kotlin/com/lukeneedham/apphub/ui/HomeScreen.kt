@@ -214,17 +214,21 @@ private fun RepoCard(
                 Column {
                     val uriHandler = LocalUriHandler.current
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Text(
-                        "github.com/${section.repo}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { uriHandler.openUri(section.url) }
-                            .padding(horizontal = 18.dp, vertical = 14.dp),
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        CircleIconButton(
+                            icon = R.drawable.ic_github,
+                            description = "Open ${section.repo} on GitHub",
+                            onClick = { uriHandler.openUri(section.url) },
+                        )
+                        CircleIconButton(
+                            icon = R.drawable.ic_claude,
+                            description = "Start a Claude session on ${section.repo}",
+                            onClick = { uriHandler.openUri(section.claudeUrl) },
+                        )
+                    }
                     if (section.pullRequests.isEmpty()) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         Text(
@@ -322,6 +326,27 @@ private fun DownloadProgress(download: DownloadState.Downloading) {
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/** A round outlined button holding just an icon. */
+@Composable
+private fun CircleIconButton(icon: Int, description: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.size(40.dp),
+        shape = CircleShape,
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                painterResource(icon),
+                contentDescription = description,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+        }
     }
 }
 

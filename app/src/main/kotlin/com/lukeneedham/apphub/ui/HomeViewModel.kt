@@ -13,6 +13,7 @@ import com.lukeneedham.apphub.domain.PullRequestSource
 import com.lukeneedham.apphub.domain.InvalidTokenException
 import com.lukeneedham.apphub.domain.RateLimitException
 import com.lukeneedham.apphub.domain.TokenStore
+import com.lukeneedham.apphub.domain.newClaudeSessionUrl
 import com.lukeneedham.apphub.domain.repoUrl
 import com.lukeneedham.common.logger.Logger
 import kotlinx.coroutines.CancellationException
@@ -34,6 +35,7 @@ data class PullRequestItem(
 /** One repo and its open pull requests, of which there may be none. */
 data class RepoSection(val repo: String, val pullRequests: List<PullRequestItem>) {
     val url: String get() = repoUrl(repo)
+    val claudeUrl: String get() = newClaudeSessionUrl(repo)
 }
 
 data class HomeUiState(

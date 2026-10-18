@@ -2,6 +2,7 @@ package com.lukeneedham.apphub.domain
 
 import kotlinx.serialization.Serializable
 import java.io.File
+import java.net.URLEncoder
 
 /** The state of the APK build, as reported by the shared CI comment on a pull request. */
 @Serializable
@@ -62,6 +63,9 @@ data class ApkTarget(val url: String, val buildId: String, val isStale: Boolean)
 
 /** The GitHub page of the repo `owner/name`. */
 fun repoUrl(repo: String) = "https://github.com/$repo"
+
+/** Opens Claude Code ready to start a new session on the repo `owner/name`. */
+fun newClaudeSessionUrl(repo: String) = "https://claude.ai/code/new?repo=" + URLEncoder.encode(repo, "UTF-8")
 
 sealed interface DownloadState {
     data object Idle : DownloadState
