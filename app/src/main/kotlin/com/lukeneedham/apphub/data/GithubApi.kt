@@ -4,14 +4,19 @@ import com.lukeneedham.apphub.domain.InvalidTokenException
 import com.lukeneedham.apphub.domain.RateLimitException
 import com.lukeneedham.apphub.domain.RateLimitInfo
 import com.lukeneedham.apphub.domain.TokenStore
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.http.HttpHeaders
+import io.ktor.http.isSuccess
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import okhttp3.CacheControl
 import okhttp3.OkHttpClient
-import okhttp3.Request
 import java.io.IOException
 
 /**
@@ -30,55 +35,57 @@ interface GithubApi {
     suspend fun checkToken(token: String): RateLimitInfo
 }
 
-class OkHttpGithubApi(
-    private val client: OkHttpClient,
+/** Ktor over OkHttp: [client] should be built on an OkHttp engine with the HTTP cache. */
+class KtorGithubApi(
+    private val client: HttpClient,
     private val owner: String,
     private val tokenStore: TokenStore,
 ) : GithubApi {
-    private val json = Json { ignoreUnknownKeys = true }
 
     /** Every open PR in [owner]'s repos, newest activity first. One search call. */
     override suspend fun openPullRequests(): List<IssueDto> {
         val url = "https://api.github.com/search/issues?q=is:pr+is:open+archived:false+user:$owner" +
             "&sort=updated&order=desc&per_page=100"
-        return json.decodeFromString<SearchDto>(get(url)).items
+        return get<SearchDto>(url).items
     }
 
     override suspend fun comments(repo: String, number: Int): List<CommentDto> =
-        json.decodeFromString(get("https://api.github.com/repos/$repo/issues/$number/comments?per_page=100"))
+        get("https://api.github.com/repos/$repo/issues/$number/comments?per_page=100")
 
     override suspend fun checkToken(token: String): RateLimitInfo {
         // Always from the network: this is asking whether the token works right now
-        val body = get("https://api.github.com/rate_limit", token = token, forceNetwork = true)
-        val core = json.decodeFromString<RateLimitDto>(body).resources.core
+        val core = get<RateLimitDto>("https://api.github.com/rate_limit", token = token, forceNetwork = true)
+            .resources.core
         return RateLimitInfo(core.limit, core.remaining)
     }
 
-    private suspend fun get(
+    private suspend inline fun <reified T> get(
         url: String,
         token: String? = tokenStore.token.value,
         forceNetwork: Boolean = false,
-    ): String = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url(url)
-            .header("Accept", "application/vnd.github+json")
-            .header("X-GitHub-Api-Version", "2022-11-28")
-            .apply {
-                // Only ever sent to api.github.com, which is the only host this class talks to
-                if (token != null) header("Authorization", "Bearer $token")
-                if (forceNetwork) cacheControl(CacheControl.FORCE_NETWORK)
-            }
-            .build()
-        client.newCall(request).execute().use { response ->
-            if (response.code == 401) throw InvalidTokenException()
-            if ((response.code == 403 || response.code == 429) &&
-                response.header("X-RateLimit-Remaining") == "0"
-            ) {
-                throw RateLimitException(response.header("X-RateLimit-Reset")?.toLongOrNull())
-            }
-            if (!response.isSuccessful) throw IOException("GitHub returned ${response.code} for $url")
-            response.body?.string() ?: throw IOException("Empty response from $url")
+    ): T {
+        val response = client.get(url) {
+            header(HttpHeaders.Accept, "application/vnd.github+json")
+            header("X-GitHub-Api-Version", "2022-11-28")
+            // Only ever sent to api.github.com, which is the only host this class talks to
+            if (token != null) header(HttpHeaders.Authorization, "Bearer $token")
+            if (forceNetwork) header(HttpHeaders.CacheControl, "no-cache")
         }
+        val code = response.status.value
+        if (code == 401) throw InvalidTokenException()
+        if ((code == 403 || code == 429) && response.headers["X-RateLimit-Remaining"] == "0") {
+            throw RateLimitException(response.headers["X-RateLimit-Reset"]?.toLongOrNull())
+        }
+        if (!response.status.isSuccess()) throw IOException("GitHub returned $code for $url")
+        return response.body()
+    }
+}
+
+/** The client [KtorGithubApi] needs: OkHttp engine on [okHttp], and JSON bodies decoded to DTOs. */
+fun githubHttpClient(okHttp: OkHttpClient): HttpClient = HttpClient(OkHttp) {
+    engine { preconfigured = okHttp }
+    install(ContentNegotiation) {
+        json(Json { ignoreUnknownKeys = true })
     }
 }
 

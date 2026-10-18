@@ -16,8 +16,6 @@ import kotlinx.coroutines.launch
 
 data class SettingsUiState(
     val signedIn: Boolean = false,
-    /** The last characters of the saved token, so the user can tell which one it is. */
-    val tokenHint: String = "",
     val input: String = "",
     val isChecking: Boolean = false,
     val error: String? = null,
@@ -81,6 +79,5 @@ class SettingsViewModel(
 
     private fun stateFor(token: String?) = SettingsUiState(
         signedIn = token != null,
-        tokenHint = token?.takeLast(4).orEmpty(),
     )
 }

@@ -3,10 +3,11 @@ package com.lukeneedham.apphub.di
 import com.lukeneedham.apphub.data.AndroidApkInstaller
 import com.lukeneedham.apphub.data.GithubApi
 import com.lukeneedham.apphub.data.KeystoreTokenStore
-import com.lukeneedham.apphub.data.OkHttpGithubApi
+import com.lukeneedham.apphub.data.KtorGithubApi
+import com.lukeneedham.apphub.data.githubHttpClient
 import com.lukeneedham.apphub.data.PrefsPullRequestCache
 import com.lukeneedham.apphub.data.PullRequestCache
-import com.lukeneedham.apphub.data.OkHttpApkDownloader
+import com.lukeneedham.apphub.data.KtorApkDownloader
 import com.lukeneedham.apphub.data.PrefsInstallTracker
 import com.lukeneedham.apphub.data.PullRequestRepository
 import com.lukeneedham.apphub.domain.ApkDownloader
@@ -35,10 +36,10 @@ val appModule = module {
             .build()
     }
     single<TokenStore> { KeystoreTokenStore(androidContext()) }
-    single<GithubApi> { OkHttpGithubApi(get(), GITHUB_OWNER, get()) }
+    single<GithubApi> { KtorGithubApi(githubHttpClient(get()), GITHUB_OWNER, get()) }
     single<PullRequestCache> { PrefsPullRequestCache(androidContext()) }
     single { PullRequestRepository(get(), get()) } bind PullRequestSource::class
-    single<ApkDownloader> { OkHttpApkDownloader(get(), File(androidContext().cacheDir, "apks")) }
+    single<ApkDownloader> { KtorApkDownloader(get(), File(androidContext().cacheDir, "apks")) }
     single<ApkInstaller> { AndroidApkInstaller(androidContext()) }
     single<InstallTracker> { PrefsInstallTracker(androidContext()) }
     viewModelOf(::HomeViewModel)
