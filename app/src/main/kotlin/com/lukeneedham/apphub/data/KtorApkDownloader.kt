@@ -17,6 +17,7 @@ import io.ktor.utils.io.readAvailable
 import okhttp3.OkHttpClient
 import java.io.File
 import java.io.IOException
+import java.util.zip.ZipFile
 
 /** Downloads into [directory]. A file is written under a temporary name, so a finished name is always whole. */
 class KtorApkDownloader(
@@ -30,7 +31,7 @@ class KtorApkDownloader(
     }
 
     override fun existing(fileName: String): File? =
-        File(directory, fileName).takeIf { it.isFile && it.length() > 0 }
+        File(directory, fileName).takeIf { it.isFile && it.length() > 0 && isValidApk(it) }
 
     override fun download(url: String, fileName: String): Flow<DownloadEvent> = flow {
         directory.mkdirs()
@@ -60,6 +61,11 @@ class KtorApkDownloader(
                 }
                 if (total != null && written != total) throw IOException("Download was cut short")
             }
+            // The length check above only fires when the server sends Content-Length; without it (or if
+            // the bytes are wrong despite a matching length), a corrupt file would otherwise still be
+            // handed to the installer as "done" - and then sit there failing to install every time, since
+            // existing() would keep treating it as a valid cached download. Catch that here instead.
+            if (!isValidApk(partial)) throw IOException("Downloaded file is not a valid APK")
             target.delete()
             if (!partial.renameTo(target)) throw IOException("Could not save the APK")
             emit(DownloadEvent.Done(target))
@@ -75,6 +81,15 @@ class KtorApkDownloader(
             }
         }
     }
+
+    /** A truncated or corrupted download fails to open as a zip, even when its size looks plausible. */
+    private fun isValidApk(file: File): Boolean =
+        try {
+            ZipFile(file).close()
+            true
+        } catch (e: Exception) {
+            false
+        }
 
     private companion object {
         const val PARTIAL_SUFFIX = ".part"

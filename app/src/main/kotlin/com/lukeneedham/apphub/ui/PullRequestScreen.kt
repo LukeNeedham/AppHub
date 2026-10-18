@@ -43,10 +43,11 @@ fun PullRequestScreen(
     onResume: () -> Unit,
     onDownload: () -> Unit,
     onInstall: () -> Unit,
+    onOpen: () -> Unit,
     onBack: () -> Unit,
 ) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onResume() }
-    PullRequestContent(repo, number, state, onRefresh, onDownload, onInstall, onBack)
+    PullRequestContent(repo, number, state, onRefresh, onDownload, onInstall, onOpen, onBack)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,6 +59,7 @@ internal fun PullRequestContent(
     onRefresh: () -> Unit,
     onDownload: () -> Unit,
     onInstall: () -> Unit,
+    onOpen: () -> Unit,
     onBack: () -> Unit,
 ) {
     val background = MaterialTheme.colorScheme.background
@@ -115,7 +117,7 @@ internal fun PullRequestContent(
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    StatusControl(controlOf(item), onDownload = onDownload, onInstall = onInstall)
+                    StatusControl(controlOf(item), onDownload = onDownload, onInstall = onInstall, onOpen = onOpen)
                     Spacer(Modifier.weight(1f))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (pr.webUrl != null) {

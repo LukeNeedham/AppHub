@@ -110,6 +110,11 @@ class HomeViewModel(
         pullRequests.firstOrNull { it.key == key }?.let(downloads::install)
     }
 
+    /** Starts the installed app of the PR. */
+    fun open(key: String) {
+        pullRequests.firstOrNull { it.key == key }?.let(downloads::open)
+    }
+
     /** Merged and closed PRs vanish from the list: drop their state and their downloaded files. */
     private suspend fun forgetClosedPullRequests() {
         downloads.retainOnly(pullRequests.map { it.key }.toSet())

@@ -14,7 +14,6 @@ class CommentParserTest {
         ### ✅ Build succeeded
 
         - **APK:** 📦 [Download]($apk)
-        - **AppHub:** 📲 [Open](https://www.lukeneedham.com/apphub/pr/FlagTutor/12)
         - **Commit:** [`be7d718`](https://github.com/LukeNeedham/FlagTutor/commit/be7d718aaa)
         - **Built:** 09/10/2026 12:56:20
         - **Run:** [#210](https://github.com/LukeNeedham/FlagTutor/actions/runs/1)
@@ -26,8 +25,15 @@ class CommentParserTest {
     }
 
     @Test
-    fun theAppHubLinkIsNotTakenAsAWebDeploy() {
-        assertNull(CommentParser.parseWebUrl(succeeded))
+    fun theAppHubLinkCommentIsNeitherABuildNorAWebDeploy() {
+        val body = """
+            ### 📲 AppHub
+
+            [Open this pull request in AppHub](https://www.lukeneedham.com/apphub/pr/FlagTutor/12)
+        """.trimIndent()
+        assertNull(CommentParser.parseApkBuild(body))
+        assertNull(CommentParser.parseWebUrl(body))
+        assertEquals(ApkBuild.Succeeded(apk, "be7d718") to null, CommentParser.parse(listOf(body, succeeded)))
     }
 
     @Test
