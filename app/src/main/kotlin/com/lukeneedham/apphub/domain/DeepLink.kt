@@ -6,16 +6,23 @@ const val GITHUB_OWNER = "LukeNeedham"
 /** The host of the links that open a pull request's page in the app. */
 const val DEEP_LINK_HOST = "lukeneedham.com"
 
+/**
+ * The first path segment of those links. The host also serves a personal website, so the link sits
+ * behind a path nobody would stumble on. Keep it in step with `pathPrefix` in the manifest and with the
+ * link in ci-workflows' `android_pr_build.yml`.
+ */
+const val DEEP_LINK_PREFIX = "apphub-9c4f1e"
+
 /** A pull request by repo (`owner/name`) and number, as a link names it. */
 data class PullRequestRef(val repo: String, val number: Int) {
     val key: String get() = "$repo#$number"
 }
 
 /**
- * `https://lukeneedham.com/PR/<repo name>/<number>`. The repo is part of the link because PR numbers
+ * `https://lukeneedham.com/apphub-9c4f1e/PR/<repo name>/<number>`. The repo is part of the link because PR numbers
  * repeat across repos; the owner is left out as AppHub only lists [GITHUB_OWNER]'s.
  */
-fun pullRequestDeepLink(repo: String, number: Int) = "https://$DEEP_LINK_HOST/PR/${repo.substringAfter('/')}/$number"
+fun pullRequestDeepLink(repo: String, number: Int) = "https://$DEEP_LINK_HOST/$DEEP_LINK_PREFIX/PR/${repo.substringAfter('/')}/$number"
 
 object DeepLink {
 
@@ -29,9 +36,9 @@ object DeepLink {
         if (!host.equals(DEEP_LINK_HOST, ignoreCase = true)) return null
         val segments = rest.substringAfter('/', "").substringBefore('?').substringBefore('#')
             .split('/').filter { it.isNotEmpty() }
-        if (segments.size != 3 || segments[0] != "PR") return null
-        val name = segments[1].takeIf { repoName.matches(it) } ?: return null
-        val number = segments[2].toIntOrNull()?.takeIf { it > 0 } ?: return null
+        if (segments.size != 4 || segments[0] != DEEP_LINK_PREFIX || segments[1] != "PR") return null
+        val name = segments[2].takeIf { repoName.matches(it) } ?: return null
+        val number = segments[3].toIntOrNull()?.takeIf { it > 0 } ?: return null
         return PullRequestRef("$GITHUB_OWNER/$name", number)
     }
 }
