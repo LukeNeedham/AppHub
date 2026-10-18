@@ -66,7 +66,8 @@ class KtorGithubApi(
     }
 
     override suspend fun comments(repo: String, number: Int): List<CommentDto> =
-        get("https://api.github.com/repos/$repo/issues/$number/comments?per_page=100")
+        // Revalidated every time: the CI edits its comment in place, and a 304 is free of the rate limit
+        get("https://api.github.com/repos/$repo/issues/$number/comments?per_page=100", forceNetwork = true)
 
     override suspend fun checkToken(token: String): RateLimitInfo {
         // Always from the network: this is asking whether the token works right now

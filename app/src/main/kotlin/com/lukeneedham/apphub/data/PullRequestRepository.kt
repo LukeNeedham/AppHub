@@ -1,6 +1,5 @@
 package com.lukeneedham.apphub.data
 
-import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.CommentParser
 import com.lukeneedham.apphub.domain.PullRequest
 import com.lukeneedham.apphub.domain.PullRequestSource
@@ -12,10 +11,11 @@ import kotlinx.coroutines.sync.withPermit
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * One request lists every open PR; the comments of a PR (one more request each) are fetched only when
- * the PR has changed since last time. GitHub bumps a PR's `updated_at` for a new comment or a push, but
- * not for an edited comment, so a PR whose build has not succeeded is always fetched again. This keeps a refresh to a single request
- * once everything is cached, which matters because the anonymous rate limit is 60 requests an hour.
+ * One request lists every open PR, then one more per PR reads its comments. The comments are read on
+ * every refresh: the CI edits its comment in place, and GitHub does not bump a PR's `updated_at` for an
+ * edited comment, so nothing cheap says whether a cached result is still right. The requests are
+ * revalidated through the HTTP cache, and a `304` does not count against the rate limit, which is what
+ * keeps this affordable on the anonymous limit of 60 requests an hour.
  */
 class PullRequestRepository(
     private val api: GithubApi,
@@ -35,9 +35,7 @@ class PullRequestRepository(
                 val limit = Semaphore(4)
                 issues.map { issue ->
                     async {
-                        val key = keyOf(issue)
-                        resolved[key] = known[key]?.takeIf { it.updatedAt == issue.updatedAt && it.isSettled() }
-                            ?: limit.withPermit { fetch(issue) }
+                        resolved[keyOf(issue)] = limit.withPermit { fetch(issue) }
                     }
                 }.awaitAll()
             }
@@ -71,14 +69,6 @@ class PullRequestRepository(
             ),
         )
     }
-
-    /**
-     * The CI edits its comment in place, and editing a comment does not bump the PR's `updated_at`, so a
-     * cached "in progress" (or failed, awaiting a re-run) result can never be told apart from a fresh
-     * one by `updated_at`. Only a finished successful build, or no CI comment yet (a new comment does
-     * bump `updated_at`), is safe to reuse.
-     */
-    private fun CachedPullRequest.isSettled() = pr.apk == null || pr.apk is ApkBuild.Succeeded
 
     private fun repoOf(issue: IssueDto) = issue.repositoryUrl.substringAfter("/repos/")
 
