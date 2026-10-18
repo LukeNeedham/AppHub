@@ -37,6 +37,8 @@ data class PullRequest(
     val webUrl: String?,
     /** A Claude Code session linked from the PR description or comments. */
     val sessionUrl: String? = null,
+    /** The PR description, as written (Markdown); null when empty. */
+    val description: String? = null,
 ) {
     val key: String get() = "$repo#$number"
 

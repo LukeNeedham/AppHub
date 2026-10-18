@@ -15,6 +15,12 @@ web test deploy, so I can install and try a PR build straight from my phone.
 - **Downloads and installs the APK itself**, with progress and a state (downloading, downloaded, failed),
   then opens the system installer. "Open PR" opens the PR in the browser (or the GitHub app, if it handles links); "Claude session" opens the Claude Code session linked in the PR
   description or comments, if there is one. Settings (top right) leads to the Debug page in debug builds. The first time, Android asks to allow AppHub to install apps.
+- **A page per PR.** "Details" on a PR opens its own page: title, number, author, status, the same actions
+  (download/install, Web, Claude session, Open PR) and the PR description.
+- **Deep link.** `https://www.lukeneedham.com/apphub/pr/<repo name>/<number>` (for example
+  `https://www.lukeneedham.com/apphub/pr/AppHub/10`) opens that PR's page. The repo is in the link because PR numbers
+  repeat across repos; the owner is always `LukeNeedham`. The shared CI is meant to put this link in its
+  PR comment, so it can be handed straight to whoever wants to install the build.
 - **Stale builds.** While a newer commit is rebuilding, the card still offers the previous APK, marked as out
   of date (the CI comment on the PR does the same).
 - **Says whether the PR's build is installed.** Debug builds share a version number, so AppHub remembers
@@ -34,6 +40,27 @@ web test deploy, so I can install and try a PR build straight from my phone.
 - The "installed" check only knows about installs done through AppHub, and learns an app's package name
   from the first APK downloaded for its repo.
 - A download stops if the app is closed.
+
+## Making the deep link open the app
+
+Android only opens an `https` link in the app without asking when the domain vouches for it. Serve
+`https://www.lukeneedham.com/.well-known/assetlinks.json` (no redirect, `application/json`; the host is `www.`, because the bare `lukeneedham.com` redirects to it and Android does not follow redirects) with the app's
+package and the SHA-256 of the signing certificate (the committed `app/debug.keystore` for the CI builds):
+
+```json
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.lukeneedham.apphub",
+    "sha256_cert_fingerprints": ["8F:A2:30:33:62:EC:9E:5F:95:9C:B5:C7:1B:D6:0A:FE:08:00:F5:D9:01:67:19:7C:75:54:6D:28:79:2E:AC:AC"]
+  }
+}]
+```
+
+Until then the link opens in the browser; the app can still be chosen under Settings → Apps → AppHub →
+Open by default → Add link. Try a link with
+`adb shell am start -a android.intent.action.VIEW -d https://www.lukeneedham.com/apphub/pr/AppHub/10`.
 
 ## Development
 

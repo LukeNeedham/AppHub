@@ -62,6 +62,7 @@ import coil3.compose.AsyncImage
 import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.DownloadState
 import com.lukeneedham.apphub.domain.InstallStatus
+import com.lukeneedham.apphub.domain.PullRequestRef
 import com.lukeneedham.apphub.domain.repoIconUrl
 import com.lukeneedham.apphub.ui.theme.StatusColors
 
@@ -73,10 +74,11 @@ fun HomeScreen(
     onToggleRepo: (String) -> Unit,
     onDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
+    onOpenPullRequest: (PullRequestRef) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onResume() }
-    HomeContent(state, onRefresh, onToggleRepo, onDownload, onInstall, onOpenSettings)
+    HomeContent(state, onRefresh, onToggleRepo, onDownload, onInstall, onOpenPullRequest, onOpenSettings)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,6 +89,7 @@ internal fun HomeContent(
     onToggleRepo: (String) -> Unit,
     onDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
+    onOpenPullRequest: (PullRequestRef) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val background = MaterialTheme.colorScheme.background
@@ -141,6 +144,7 @@ internal fun HomeContent(
                         onToggle = { onToggleRepo(section.repo) },
                         onDownload = onDownload,
                         onInstall = onInstall,
+                        onOpenPullRequest = onOpenPullRequest,
                     )
                 }
             }
@@ -149,7 +153,7 @@ internal fun HomeContent(
 }
 
 @Composable
-private fun ErrorCard(message: String, onRetry: () -> Unit) {
+internal fun ErrorCard(message: String, onRetry: () -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
@@ -169,6 +173,7 @@ private fun RepoCard(
     onToggle: () -> Unit,
     onDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
+    onOpenPullRequest: (PullRequestRef) -> Unit,
 ) {
     val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
     Surface(
@@ -251,7 +256,7 @@ private fun RepoCard(
                     }
                     section.pullRequests.forEach { item ->
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        PullRequestRow(item, onDownload, onInstall)
+                        PullRequestRow(item, onDownload, onInstall, onOpenPullRequest)
                     }
                 }
             }
@@ -264,6 +269,7 @@ private fun PullRequestRow(
     item: PullRequestItem,
     onDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
+    onOpenPullRequest: (PullRequestRef) -> Unit,
 ) {
     val pr = item.pr
     val uriHandler = LocalUriHandler.current
@@ -309,6 +315,12 @@ private fun PullRequestRow(
                     onClick = { uriHandler.openUri(pr.url) },
                     size = 36.dp,
                 )
+                CircleIconButton(
+                    icon = R.drawable.ic_details,
+                    description = "Open the page of this pull request",
+                    onClick = { onOpenPullRequest(PullRequestRef(pr.repo, pr.number)) },
+                    size = 36.dp,
+                )
             }
         }
 
@@ -332,7 +344,7 @@ private fun PullRequestRow(
 
 /** A round outlined button holding just an icon. */
 @Composable
-private fun CircleIconButton(icon: Int, description: String, onClick: () -> Unit, size: Dp = 40.dp) {
+internal fun CircleIconButton(icon: Int, description: String, onClick: () -> Unit, size: Dp = 40.dp) {
     Surface(
         onClick = onClick,
         modifier = Modifier.size(size),
@@ -368,9 +380,9 @@ private fun Pill(text: String, color: Color, dot: Boolean = true) {
 }
 
 /** The status tag of a PR, with what presses on from here ([trailing]) at its end. */
-private data class Control(val text: String, val color: Color, val trailing: Trailing? = null)
+internal data class Control(val text: String, val color: Color, val trailing: Trailing? = null)
 
-private sealed interface Trailing {
+internal sealed interface Trailing {
     /** A press on the tag downloads the APK ([isDownload]) or installs the one already downloaded. */
     data class Action(val icon: Int, val description: String, val isDownload: Boolean) : Trailing
 
@@ -379,7 +391,7 @@ private sealed interface Trailing {
 }
 
 @Composable
-private fun controlOf(item: PullRequestItem): Control {
+internal fun controlOf(item: PullRequestItem): Control {
     val scheme = MaterialTheme.colorScheme
     val installed = item.install == InstallStatus.Installed
     val build = when (item.pr.apk) {
@@ -427,7 +439,7 @@ private fun controlOf(item: PullRequestItem): Control {
  * press does next, or its progress. A press anywhere on the pill does that.
  */
 @Composable
-private fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: () -> Unit) {
+internal fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: () -> Unit) {
     val color = control.color
     // The pale status colours do not read as text on their own tint in light mode, so the text takes a darker shade
     val textColor = if (isSystemInDarkTheme()) color else lerp(color, Color.Black, 0.3f)
@@ -475,4 +487,4 @@ private fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: (
     }
 }
 
-private fun megabytes(bytes: Long): String = "%.1f".format(bytes / 1_000_000.0)
+internal fun megabytes(bytes: Long): String = "%.1f".format(bytes / 1_000_000.0)
