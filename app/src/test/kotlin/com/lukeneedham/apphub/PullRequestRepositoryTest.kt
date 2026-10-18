@@ -27,7 +27,7 @@ class PullRequestRepositoryTest {
         updatedAt = updatedAt,
     )
 
-    private class FakeApi(var issues: List<IssueDto>, val comment: String) : GithubApi {
+    private class FakeApi(var issues: List<IssueDto>, var comment: String) : GithubApi {
         val commentCalls = mutableListOf<Int>()
         var rateLimitedOn: Int? = null
         override suspend fun openPullRequests() = issues
@@ -47,7 +47,7 @@ class PullRequestRepositoryTest {
     }
 
     @Test
-    fun unchangedPullRequestsCostNoCommentRequests() = runTest {
+    fun commentsAreReadOnEveryRefresh() = runTest {
         val api = FakeApi(listOf(issue(1, "t1"), issue(2, "t1")), comment)
         val repository = PullRequestRepository(api, MemoryCache())
 
@@ -58,19 +58,22 @@ class PullRequestRepositoryTest {
 
         api.commentCalls.clear()
         repository.openPullRequests()
-        assertEquals(emptyList<Int>(), api.commentCalls)
+        assertEquals(listOf(1, 2), api.commentCalls.sorted())
     }
 
     @Test
-    fun onlyAChangedPullRequestIsFetchedAgain() = runTest {
-        val api = FakeApi(listOf(issue(1, "t1"), issue(2, "t1")), comment)
+    fun aCommentEditedInPlaceIsPickedUpEvenIfUpdatedAtIsUnchanged() = runTest {
+        val inProgress = "### ⏳ Build in progress\n\n- **Commit:** [`abc1234`](https://github.com/o/r/commit/abc1234)"
+        val api = FakeApi(listOf(issue(1, "t1")), comment)
         val repository = PullRequestRepository(api, MemoryCache())
-        repository.openPullRequests()
+        assertTrue(repository.openPullRequests()[0].apk is ApkBuild.Succeeded)
 
-        api.commentCalls.clear()
-        api.issues = listOf(issue(1, "t1"), issue(2, "t2"))
-        repository.openPullRequests()
-        assertEquals(listOf(2), api.commentCalls)
+        // A push, then the CI edits its comment: updated_at may not have moved
+        api.comment = inProgress
+        assertTrue(repository.openPullRequests()[0].apk is ApkBuild.InProgress)
+
+        api.comment = comment
+        assertTrue(repository.openPullRequests()[0].apk is ApkBuild.Succeeded)
     }
 
     @Test
@@ -101,8 +104,6 @@ class PullRequestRepositoryTest {
         assertEquals(listOf(1), repository.cached().map { it.number })
 
         api.rateLimitedOn = null
-        api.commentCalls.clear()
-        repository.openPullRequests()
-        assertEquals(listOf(2), api.commentCalls)
+        assertEquals(listOf(1, 2), repository.openPullRequests().map { it.number })
     }
 }
