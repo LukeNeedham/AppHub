@@ -9,6 +9,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -394,20 +396,25 @@ private fun controlOf(item: PullRequestItem): Control {
         is ApkBuild.Cancelled -> Control("Cancelled", scheme.onSurfaceVariant)
         is ApkBuild.Succeeded -> when (item.install) {
             InstallStatus.Installed -> Control("Installed", StatusColors.success)
-            InstallStatus.DifferentBuild -> Control("Update ready", StatusColors.warning)
+            InstallStatus.DifferentBuild -> Control("Update ready", scheme.primary)
             InstallStatus.NotInstalled, InstallStatus.Unknown -> Control("Ready", scheme.primary)
         }
     }
     val target = item.pr.downloadableApk
+    // The APK on offer lacks the latest commits, so what is on offer is the old build, whatever the build says
+    val offered = if (target?.isStale == true) Control("Old build", StatusColors.warning) else build
     return when (val download = item.download) {
         is DownloadState.Downloading -> {
             val total = download.total
             val text = if (total != null) "Downloading ${(download.bytes * 100 / total).toInt()}%" else "Downloading"
-            Control(text, scheme.primary, Trailing.Progress(total?.let { download.bytes.toFloat() / it }))
+            Control(text, StatusColors.info, Trailing.Progress(total?.let { download.bytes.toFloat() / it }))
         }
         is DownloadState.Downloaded -> when {
             installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_refresh, "Reinstall", isDownload = false))
-            else -> Control("Ready to install", scheme.primary, Trailing.Action(R.drawable.ic_install, "Install", isDownload = false))
+            else -> offered.copy(
+                text = if (target?.isStale == true) offered.text else "Ready to install",
+                trailing = Trailing.Action(R.drawable.ic_install, "Install", isDownload = false),
+            )
         }
         is DownloadState.Failed -> Control(
             "Download failed",
@@ -417,7 +424,7 @@ private fun controlOf(item: PullRequestItem): Control {
         DownloadState.Idle -> when {
             target == null -> build
             installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_refresh, "Download and reinstall", isDownload = true))
-            else -> build.copy(trailing = Trailing.Action(R.drawable.ic_download, "Download", isDownload = true))
+            else -> offered.copy(trailing = Trailing.Action(R.drawable.ic_download, "Download", isDownload = true))
         }
     }
 }
@@ -429,6 +436,8 @@ private fun controlOf(item: PullRequestItem): Control {
 @Composable
 private fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: () -> Unit) {
     val color = control.color
+    // The pale status colours do not read as text on their own tint in light mode, so the text takes a darker shade
+    val textColor = if (isSystemInDarkTheme()) color else lerp(color, Color.Black, 0.3f)
     val action = control.trailing as? Trailing.Action
     Surface(
         onClick = { if (action?.isDownload == true) onDownload() else onInstall() },
@@ -445,7 +454,7 @@ private fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: (
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Box(Modifier.size(6.dp).clip(CircleShape).background(color))
-                Text(control.text, style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.SemiBold)
+                Text(control.text, style = MaterialTheme.typography.labelMedium, color = textColor, fontWeight = FontWeight.SemiBold)
             }
             if (control.trailing != null) {
                 Box(Modifier.width(1.dp).fillMaxHeight().background(color.copy(alpha = 0.3f)))
@@ -455,14 +464,14 @@ private fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: (
                             painterResource(trailing.icon),
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = color,
+                            tint = textColor,
                         )
                         is Trailing.Progress -> {
                             val indicator = Modifier.size(16.dp)
                             if (trailing.fraction != null) {
-                                CircularProgressIndicator(progress = { trailing.fraction }, modifier = indicator, strokeWidth = 2.5.dp, color = color)
+                                CircularProgressIndicator(progress = { trailing.fraction }, modifier = indicator, strokeWidth = 2.5.dp, color = textColor)
                             } else {
-                                CircularProgressIndicator(modifier = indicator, strokeWidth = 2.5.dp, color = color)
+                                CircularProgressIndicator(modifier = indicator, strokeWidth = 2.5.dp, color = textColor)
                             }
                         }
                         null -> Unit
