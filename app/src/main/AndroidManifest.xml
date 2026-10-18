@@ -23,15 +23,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- https://lukeneedham.app/PR/<repo>/<number>: opens that pull request's page. autoVerify needs
-                 https://lukeneedham.app/.well-known/assetlinks.json to list this app; see the README -->
+            <!-- https://lukeneedham.com/PR/<repo>/<number>: opens that pull request's page. autoVerify needs
+                 https://lukeneedham.com/.well-known/assetlinks.json to list this app; see the README -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="https"
-                    android:host="lukeneedham.app"
+                    android:host="lukeneedham.com"
                     android:pathPrefix="/PR/" />
             </intent-filter>
         </activity>
