@@ -118,7 +118,11 @@ private fun GithubCard(
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 isError = state.error != null,
-                supportingText = state.error?.let { message -> { Text(message) } },
+                supportingText = if (state.error != null) {
+                    { Text(state.error) }
+                } else {
+                    null
+                },
                 shape = MaterialTheme.shapes.medium,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
