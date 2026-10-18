@@ -3,6 +3,7 @@ package com.lukeneedham.apphub.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lukeneedham.apphub.domain.ApkDownloader
+import com.lukeneedham.apphub.domain.DownloadState
 import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.InstallTracker
 import com.lukeneedham.apphub.domain.PullRequest
