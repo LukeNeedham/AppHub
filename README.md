@@ -41,27 +41,6 @@ web test deploy, so I can install and try a PR build straight from my phone.
   from the first APK downloaded for its repo.
 - A download stops if the app is closed.
 
-## Making the deep link open the app
-
-Android only opens an `https` link in the app without asking when the domain vouches for it. Serve
-`https://www.lukeneedham.com/.well-known/assetlinks.json` (no redirect, `application/json`; the host is `www.`, because the bare `lukeneedham.com` redirects to it and Android does not follow redirects) with the app's
-package and the SHA-256 of the signing certificate (the committed `app/debug.keystore` for the CI builds):
-
-```json
-[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "com.lukeneedham.apphub",
-    "sha256_cert_fingerprints": ["8F:A2:30:33:62:EC:9E:5F:95:9C:B5:C7:1B:D6:0A:FE:08:00:F5:D9:01:67:19:7C:75:54:6D:28:79:2E:AC:AC"]
-  }
-}]
-```
-
-Until then the link opens in the browser; the app can still be chosen under Settings → Apps → AppHub →
-Open by default → Add link. Try a link with
-`adb shell am start -a android.intent.action.VIEW -d https://www.lukeneedham.com/apphub/pr/AppHub/10`.
-
 ## Development
 
 See `CLAUDE.md` and the `lukeneedham-conventions` skill. Every PR builds a debug APK and comments the
