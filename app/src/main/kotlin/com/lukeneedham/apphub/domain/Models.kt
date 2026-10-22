@@ -57,6 +57,10 @@ data class PullRequest(
     val apkFileName: String
         get() = "${repo.replace('/', '_')}-$number-${downloadableApk?.buildId ?: "unknown"}.apk"
 
+    /** The APK on offer as something that can be downloaded and installed, if there is one. */
+    val offer: ApkOffer?
+        get() = downloadableApk?.let { ApkOffer(key, repo, it.buildId, apkFileName) }
+
     private fun tagOf(url: String) = url.substringAfter("/releases/download/").substringBefore('/')
 }
 

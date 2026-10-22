@@ -24,8 +24,11 @@ interface ApkDownloader {
     /** A previously downloaded file for [fileName], if it is still there. */
     fun existing(fileName: String): File?
 
-    /** Emits progress, then [DownloadEvent.Done]. Throws on a network or disk error. */
-    fun download(url: String, fileName: String): Flow<DownloadEvent>
+    /**
+     * Emits progress, then [DownloadEvent.Done]. Throws on a network or disk error. With [fromZip] the
+     * download is a zip (a workflow artifact) and the APK inside it is what is kept.
+     */
+    fun download(url: String, fileName: String, fromZip: Boolean = false): Flow<DownloadEvent>
 
     /** Deletes every downloaded APK whose name is not in [keep]. A download in progress for a kept name survives. */
     suspend fun prune(keep: Set<String>)
@@ -54,14 +57,19 @@ interface TokenStore {
     fun set(token: String?)
 }
 
-/** Remembers what AppHub installed, to tell whether the installed app is a PR's build. */
+/** Remembers what AppHub installed, to tell whether the installed app is a given build of a repo. */
 interface InstallTracker {
-    fun statusFor(pr: PullRequest): InstallStatus
-    /** The package name of the app built from [pr]'s repo, once known. */
-    fun packageNameFor(pr: PullRequest): String?
-    fun onDownloaded(pr: PullRequest, file: File)
-    fun onInstallStarted(pr: PullRequest)
+    /** [buildId] is the commit of the build. */
+    fun statusFor(repo: String, buildId: String): InstallStatus
+
+    /** The package name of the app built from [repo], once known. */
+    fun packageNameFor(repo: String): String?
+    fun onDownloaded(repo: String, file: File)
+    fun onInstallStarted(repo: String, buildId: String)
 
     /** Call when AppHub returns to the foreground: notes whether a started install went through. */
     fun confirmPending()
 }
+
+fun InstallTracker.statusFor(offer: ApkOffer?): InstallStatus =
+    offer?.let { statusFor(it.repo, it.buildId) } ?: InstallStatus.Unknown

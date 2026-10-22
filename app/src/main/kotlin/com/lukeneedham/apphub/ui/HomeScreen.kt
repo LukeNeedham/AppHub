@@ -32,6 +32,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -62,9 +63,19 @@ import coil3.compose.AsyncImage
 import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.DownloadState
 import com.lukeneedham.apphub.domain.InstallStatus
+import com.lukeneedham.apphub.domain.MainBuildItem
+import com.lukeneedham.apphub.domain.MainPhase
 import com.lukeneedham.apphub.domain.PullRequestRef
 import com.lukeneedham.apphub.domain.repoIconUrl
 import com.lukeneedham.apphub.ui.theme.StatusColors
+
+/** What the main build row of a repo can do; each takes the repo `owner/name`. */
+data class MainBuildActions(
+    val build: (String) -> Unit,
+    val download: (String) -> Unit,
+    val install: (String) -> Unit,
+    val open: (String) -> Unit,
+)
 
 @Composable
 fun HomeScreen(
@@ -75,11 +86,12 @@ fun HomeScreen(
     onDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
     onOpen: (String) -> Unit,
+    mainBuild: MainBuildActions,
     onOpenPullRequest: (PullRequestRef) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onResume() }
-    HomeContent(state, onRefresh, onToggleRepo, onDownload, onInstall, onOpen, onOpenPullRequest, onOpenSettings)
+    HomeContent(state, onRefresh, onToggleRepo, onDownload, onInstall, onOpen, mainBuild, onOpenPullRequest, onOpenSettings)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,6 +103,7 @@ internal fun HomeContent(
     onDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
     onOpen: (String) -> Unit,
+    mainBuild: MainBuildActions,
     onOpenPullRequest: (PullRequestRef) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -147,6 +160,7 @@ internal fun HomeContent(
                         onDownload = onDownload,
                         onInstall = onInstall,
                         onOpen = onOpen,
+                        mainBuild = mainBuild,
                         onOpenPullRequest = onOpenPullRequest,
                     )
                 }
@@ -177,6 +191,7 @@ private fun RepoCard(
     onDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
     onOpen: (String) -> Unit,
+    mainBuild: MainBuildActions,
     onOpenPullRequest: (PullRequestRef) -> Unit,
 ) {
     val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
@@ -248,6 +263,10 @@ private fun RepoCard(
                             description = "Start a Claude session on ${section.repo}",
                             onClick = { uriHandler.openUri(section.claudeUrl) },
                         )
+                    }
+                    section.mainBuild?.let { item ->
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        MainBuildRow(item, mainBuild)
                     }
                     if (section.pullRequests.isEmpty()) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -354,6 +373,50 @@ private fun PullRequestRow(
     }
 }
 
+/**
+ * The build of main on demand: its status pill (which also downloads, installs and opens it), a button that
+ * asks for a new build, and a line saying whether the build is the latest main.
+ */
+@Composable
+private fun MainBuildRow(item: MainBuildItem, actions: MainBuildActions) {
+    val control = controlOf(item)
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("Latest main", style = MaterialTheme.typography.bodyLarge)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            StatusControl(
+                control,
+                onDownload = { actions.download(item.repo) },
+                onInstall = { actions.install(item.repo) },
+                onOpen = { actions.open(item.repo) },
+            )
+            Spacer(Modifier.weight(1f))
+            OutlinedButton(onClick = { actions.build(item.repo) }, enabled = item.canBuild, shape = CircleShape) {
+                Text(item.buildLabel)
+            }
+        }
+        item.note?.let { note ->
+            Text(
+                note.text,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (note.warn) StatusColors.warning else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        item.error?.let { error ->
+            Text(error, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+        }
+        (item.download as? DownloadState.Failed)?.let { failed ->
+            Text(
+                "Download failed: ${failed.message}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
 /** A round outlined button holding just an icon. */
 @Composable
 internal fun CircleIconButton(icon: Int, description: String, onClick: () -> Unit, size: Dp = 40.dp) {
@@ -421,8 +484,43 @@ internal fun controlOf(item: PullRequestItem): Control {
     }
     val target = item.pr.downloadableApk
     // The APK on offer lacks the latest commits, so what is on offer is the old build, whatever the build says
-    val offered = if (target?.isStale == true) Control("Old build", StatusColors.warning) else build
-    return when (val download = item.download) {
+    val isOld = target?.isStale == true
+    val offered = if (isOld) Control("Old build", StatusColors.warning) else build
+    return transferControl(item.download, build, offered, installed, hasApk = target != null, isOld = isOld, error = scheme.error)
+}
+
+/** The status of the main build; see docs/status-colors.md. */
+@Composable
+internal fun controlOf(item: MainBuildItem): Control {
+    val scheme = MaterialTheme.colorScheme
+    val installed = item.install == InstallStatus.Installed
+    val behind = item.info.commitsBehind > 0
+    val build = when (item.phase) {
+        MainPhase.NoBuild -> Control("No build", scheme.onSurfaceVariant)
+        MainPhase.Requested -> Control("Starting", StatusColors.info)
+        MainPhase.Building -> Control("Building", StatusColors.info)
+        MainPhase.Failed -> Control("Build failed", scheme.error)
+        MainPhase.Ready -> Control(if (item.install == InstallStatus.DifferentBuild) "Update ready" else "Ready", scheme.primary)
+        MainPhase.Installed -> if (behind) Control("Behind main", StatusColors.warning) else Control("Installed", StatusColors.success)
+    }
+    val building = item.phase == MainPhase.Requested || item.phase == MainPhase.Building
+    // An APK that lacks the latest commits, or that a newer build is about to replace, is the old build
+    val isOld = item.info.apk != null && !installed && (building || behind)
+    val offered = if (isOld) Control("Old build", StatusColors.warning) else build
+    return transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isOld = isOld, error = scheme.error)
+}
+
+/** [build] with what a press does next, given the state of the download of the APK on offer ([offered]). */
+private fun transferControl(
+    download: DownloadState,
+    build: Control,
+    offered: Control,
+    installed: Boolean,
+    hasApk: Boolean,
+    isOld: Boolean,
+    error: Color,
+): Control =
+    when (download) {
         is DownloadState.Downloading -> {
             val total = download.total
             val text = if (total != null) "Downloading ${(download.bytes * 100 / total).toInt()}%" else "Downloading"
@@ -431,22 +529,21 @@ internal fun controlOf(item: PullRequestItem): Control {
         is DownloadState.Downloaded -> when {
             installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open app", ActionKind.Open))
             else -> offered.copy(
-                text = if (target?.isStale == true) offered.text else "Ready to install",
+                text = if (isOld) offered.text else "Ready to install",
                 trailing = Trailing.Action(R.drawable.ic_install, "Install", ActionKind.Install),
             )
         }
         is DownloadState.Failed -> Control(
             "Download failed",
-            scheme.error,
-            target?.let { Trailing.Action(R.drawable.ic_refresh, "Retry download", ActionKind.Download) },
+            error,
+            if (hasApk) Trailing.Action(R.drawable.ic_refresh, "Retry download", ActionKind.Download) else null,
         )
         DownloadState.Idle -> when {
-            target == null -> build
+            !hasApk -> build
             installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open app", ActionKind.Open))
             else -> offered.copy(trailing = Trailing.Action(R.drawable.ic_download, "Download", ActionKind.Download))
         }
     }
-}
 
 /**
  * The status of a PR as a coloured pill: a dot and the status, then after a divider the icon of what a

@@ -58,6 +58,12 @@ fun AppNavigation(backStack: NavBackStack<NavKey>) {
                     onDownload = viewModel::download,
                     onInstall = viewModel::install,
                     onOpen = viewModel::open,
+                    mainBuild = MainBuildActions(
+                        build = viewModel::buildMain,
+                        download = viewModel::downloadMain,
+                        install = viewModel::installMain,
+                        open = viewModel::openMain,
+                    ),
                     onOpenPullRequest = { backStack.add(PullRequestPage(it.repo, it.number)) },
                     onOpenSettings = { backStack.add(Settings) },
                 )

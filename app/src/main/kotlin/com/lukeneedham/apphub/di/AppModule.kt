@@ -9,11 +9,13 @@ import com.lukeneedham.apphub.data.PrefsPullRequestCache
 import com.lukeneedham.apphub.data.PullRequestCache
 import com.lukeneedham.apphub.data.KtorApkDownloader
 import com.lukeneedham.apphub.data.PrefsInstallTracker
+import com.lukeneedham.apphub.data.MainBuildRepository
 import com.lukeneedham.apphub.data.PullRequestRepository
 import com.lukeneedham.apphub.domain.ApkDownloader
 import com.lukeneedham.apphub.domain.ApkInstaller
 import com.lukeneedham.apphub.domain.GITHUB_OWNER
 import com.lukeneedham.apphub.domain.InstallTracker
+import com.lukeneedham.apphub.domain.MainBuildSource
 import com.lukeneedham.apphub.domain.PullRequestSource
 import com.lukeneedham.apphub.domain.TokenStore
 import com.lukeneedham.apphub.ui.ApkDownloads
@@ -43,6 +45,7 @@ val appModule = module {
     single<GithubApi> { KtorGithubApi(githubHttpClient(get()), GITHUB_OWNER, get()) }
     single<PullRequestCache> { PrefsPullRequestCache(androidContext()) }
     single { PullRequestRepository(get(), get()) } bind PullRequestSource::class
+    single { MainBuildRepository(get(), get()) } bind MainBuildSource::class
     single<ApkDownloader> { KtorApkDownloader(get(), File(androidContext().cacheDir, "apks")) }
     single<ApkInstaller> { AndroidApkInstaller(androidContext()) }
     single<InstallTracker> { PrefsInstallTracker(androidContext()) }

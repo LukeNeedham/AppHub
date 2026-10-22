@@ -64,7 +64,7 @@ class PullRequestViewModelTest {
     private class FakeDownloader : ApkDownloader {
         val downloaded = mutableListOf<String>()
         override fun existing(fileName: String): File? = null
-        override fun download(url: String, fileName: String): Flow<DownloadEvent> {
+        override fun download(url: String, fileName: String, fromZip: Boolean): Flow<DownloadEvent> {
             downloaded += url
             return flowOf(DownloadEvent.Done(File(fileName)))
         }
@@ -81,10 +81,10 @@ class PullRequestViewModelTest {
     }
 
     private class FakeTracker : InstallTracker {
-        override fun statusFor(pr: PullRequest) = InstallStatus.Unknown
-        override fun packageNameFor(pr: PullRequest): String? = null
-        override fun onDownloaded(pr: PullRequest, file: File) = Unit
-        override fun onInstallStarted(pr: PullRequest) = Unit
+        override fun statusFor(repo: String, buildId: String) = InstallStatus.Unknown
+        override fun packageNameFor(repo: String): String? = null
+        override fun onDownloaded(repo: String, file: File) = Unit
+        override fun onInstallStarted(repo: String, buildId: String) = Unit
         override fun confirmPending() = Unit
     }
 

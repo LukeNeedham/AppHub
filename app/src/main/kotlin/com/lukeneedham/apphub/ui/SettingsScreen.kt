@@ -105,7 +105,9 @@ private fun GithubCard(
         } else {
             Text(
                 "Without a token GitHub allows 60 requests an hour. With one it allows 5,000. " +
-                    "The token only needs to read public repositories, so it carries no permissions.",
+                    "A token is also what lets AppHub build main on demand: a project's \"Latest main\" row, " +
+                    "with its Build button, only shows when there is one. For that the token needs the Actions " +
+                    "permission (read and write); for the rate limit alone it needs no permissions.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -147,8 +149,9 @@ private fun TokenSteps() {
             "Tap \"Create a token\" below. It opens GitHub: sign in if it asks.",
             "Token name: anything, for example AppHub.",
             "Expiration: pick a date (the longest is 1 year). You will need a new token after it.",
-            "Repository access: choose \"Public repositories\".",
-            "Leave every permission unset, scroll to the bottom and tap \"Generate token\".",
+            "Repository access: choose \"All repositories\" to build main (\"Public repositories\" is enough for the rate limit alone).",
+            "To build main: open \"Repository permissions\", find \"Actions\" and set it to \"Read and write\". Leave the rest unset.",
+            "Scroll to the bottom and tap \"Generate token\".",
             "Copy the token (it starts with github_pat_). GitHub shows it only once.",
             "Come back here, paste it in the field and tap \"Save token\".",
         ).forEachIndexed { index, step ->
