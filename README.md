@@ -27,6 +27,16 @@ web test deploy, so I can install and try a PR build straight from my phone.
   which commit it installed for each app and when; a later change to the installed app (another build)
   makes it read "a different build is installed".
 
+- **Builds main on demand.** With a token, every repo that has `build_main.yml` shows a "Latest main" row:
+  a **Build main** button starts the shared workflow
+  ([`android_main_build.yml`](https://github.com/LukeNeedham/ci-workflows/blob/main/.github/workflows/android_main_build.yml))
+  on `main` through the API, then the row follows the run (Starting, Building) and, when it is done, offers
+  to download and install the APK. Once installed it says whether that is the latest main, or how many
+  commits `main` has since ("3 new commits on main since the installed build"), with a **Build latest main**
+  button. The build is an artifact of the run and expires after **one day**. A repo without
+  `build_main.yml` on `main` simply has no row. The status is read every ten seconds while a build runs, and
+  only while AppHub is running: there is no notification when it finishes.
+
 ## Limits
 
 - Sign-in is optional. Without a token only public repos are visible and GitHub allows 60 anonymous
@@ -34,6 +44,11 @@ web test deploy, so I can install and try a PR build straight from my phone.
   token (Settings → GitHub; a fine-grained token with "Public repositories (read-only)" and nothing else) it
   is 5,000. The token is checked with GitHub before it is kept, stored encrypted with an Android Keystore
   key, and sent only to `api.github.com`.
+- Building main needs a token with the **Actions: Read and write** permission on the repo (a fine-grained
+  token for "All repositories", or the selected ones); downloading its APK needs Actions read, because
+  artifacts, unlike release assets, are not public. Without the permission the row shows, and the button says
+  what is missing. The row costs a few requests per repo on a refresh (the runs, the tip of main, and the
+  artifact), most of them revalidated for free.
 - A refresh is one request to list the open PRs, plus one per PR whose `updated_at` changed since the last
   refresh (a new or edited comment bumps it); the parsed PRs are kept on disk. When the limit is hit the app
   keeps showing the last list and says when to retry.

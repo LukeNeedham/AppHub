@@ -7,6 +7,7 @@ import com.lukeneedham.apphub.domain.InvalidTokenException
 import com.lukeneedham.apphub.domain.PullRequest
 import com.lukeneedham.apphub.domain.PullRequestSource
 import com.lukeneedham.apphub.domain.RateLimitException
+import com.lukeneedham.apphub.domain.statusFor
 import com.lukeneedham.common.logger.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,7 +91,7 @@ class PullRequestViewModel(
         _uiState.value = PullRequestUiState(
             isLoading = isLoading,
             error = error,
-            item = pr?.let { PullRequestItem(it, downloads.stateOf(it), tracker.statusFor(it)) },
+            item = pr?.let { PullRequestItem(it, downloads.stateOf(it), tracker.statusFor(it.offer)) },
             notFound = notFound,
         )
     }

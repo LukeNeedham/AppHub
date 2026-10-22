@@ -4,12 +4,11 @@ import android.content.Context
 import android.content.pm.PackageManager
 import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.InstallTracker
-import com.lukeneedham.apphub.domain.PullRequest
 import java.io.File
 
 /**
  * Debug builds usually keep the same `versionCode` and `versionName`, so the installed version cannot
- * say which PR commit it is. Instead this remembers which commit AppHub installed for each package, and
+ * say which commit it is. Instead this remembers which commit (of a PR or of main) AppHub installed for each package, and
  * the package's `lastUpdateTime` at that moment: if the time has since changed, something else (another
  * build) replaced it.
  *
@@ -20,30 +19,28 @@ class PrefsInstallTracker(context: Context) : InstallTracker {
     private val packageManager = context.packageManager
     private val prefs = context.getSharedPreferences("install_tracker", Context.MODE_PRIVATE)
 
-    override fun statusFor(pr: PullRequest): InstallStatus {
-        val commit = pr.downloadableApk?.buildId ?: return InstallStatus.Unknown
-        val packageName = prefs.getString(packageKey(pr.repo), null) ?: return InstallStatus.Unknown
+    override fun statusFor(repo: String, buildId: String): InstallStatus {
+        val packageName = prefs.getString(packageKey(repo), null) ?: return InstallStatus.Unknown
         val updatedAt = lastUpdateTime(packageName) ?: return InstallStatus.NotInstalled
         val installedCommit = prefs.getString("commit:$packageName", null)
         val installedAt = prefs.getLong("updated:$packageName", -1)
         val isThisBuild = installedCommit != null && installedAt == updatedAt &&
-            (installedCommit.startsWith(commit) || commit.startsWith(installedCommit))
+            (installedCommit.startsWith(buildId) || buildId.startsWith(installedCommit))
         return if (isThisBuild) InstallStatus.Installed else InstallStatus.DifferentBuild
     }
 
-    override fun packageNameFor(pr: PullRequest): String? = prefs.getString(packageKey(pr.repo), null)
+    override fun packageNameFor(repo: String): String? = prefs.getString(packageKey(repo), null)
 
-    override fun onDownloaded(pr: PullRequest, file: File) {
+    override fun onDownloaded(repo: String, file: File) {
         val info = packageManager.getPackageArchiveInfo(file.path, 0) ?: return
-        prefs.edit().putString(packageKey(pr.repo), info.packageName).apply()
+        prefs.edit().putString(packageKey(repo), info.packageName).apply()
     }
 
-    override fun onInstallStarted(pr: PullRequest) {
-        val commit = pr.downloadableApk?.buildId ?: return
-        val packageName = prefs.getString(packageKey(pr.repo), null) ?: return
+    override fun onInstallStarted(repo: String, buildId: String) {
+        val packageName = prefs.getString(packageKey(repo), null) ?: return
         prefs.edit()
             .putString("pending:package", packageName)
-            .putString("pending:commit", commit)
+            .putString("pending:commit", buildId)
             .putLong("pending:at", System.currentTimeMillis())
             .apply()
     }

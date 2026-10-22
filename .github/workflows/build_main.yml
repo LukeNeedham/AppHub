@@ -1,0 +1,15 @@
+# Builds main on demand and keeps the APK for a day. AppHub starts this file by name.
+# Setup guide: https://github.com/LukeNeedham/ci-workflows/blob/main/docs/setup.md
+name: Build Main
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    uses: LukeNeedham/ci-workflows/.github/workflows/android_main_build.yml@main
+    with:
+      apk-path: app/build/outputs/apk/debug/app-debug.apk

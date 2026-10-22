@@ -61,4 +61,14 @@ class KtorApkDownloaderTest {
 
         assertNotNull(existing)
     }
+
+    @Test
+    fun `prune keeps the temporary files of an extraction under a kept name`() = runTest {
+        val dir = folder.newFolder("apks")
+        listOf("keep.apk.extract.part", "old.apk.extract.part").forEach { dir.resolve(it).writeText("x") }
+
+        KtorApkDownloader(OkHttpClient(), dir).prune(setOf("keep.apk"))
+
+        assertEquals(listOf("keep.apk.extract.part"), dir.list()!!.toList())
+    }
 }

@@ -8,7 +8,13 @@ import com.lukeneedham.apphub.domain.DownloadState
 import com.lukeneedham.apphub.domain.InstallLaunch
 import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.InstallTracker
+import com.lukeneedham.apphub.domain.MainApk
+import com.lukeneedham.apphub.domain.MainBuildInfo
+import com.lukeneedham.apphub.domain.MainBuildSource
+import com.lukeneedham.apphub.domain.MainPhase
+import com.lukeneedham.apphub.domain.MainRun
 import com.lukeneedham.apphub.domain.PullRequest
+import com.lukeneedham.apphub.domain.RunState
 import com.lukeneedham.apphub.domain.PullRequestSource
 import com.lukeneedham.apphub.domain.TokenStore
 import com.lukeneedham.apphub.ui.ApkDownloads
@@ -54,9 +60,44 @@ class HomeViewModelTest {
         webUrl = null,
     )
 
-    private fun viewModel(source: PullRequestSource, downloader: ApkDownloader, installer: ApkInstaller, tokens: TokenStore): HomeViewModel {
+    private fun viewModel(
+        source: PullRequestSource,
+        downloader: ApkDownloader,
+        installer: ApkInstaller,
+        tokens: TokenStore,
+        mainBuilds: MainBuildSource = FakeMainBuilds(),
+    ): HomeViewModel {
         val tracker = FakeTracker()
-        return HomeViewModel(source, downloader, ApkDownloads(downloader, installer, tracker, CoroutineScope(dispatcher)), tracker, tokens)
+        return HomeViewModel(
+            source,
+            downloader,
+            ApkDownloads(downloader, installer, tracker, CoroutineScope(dispatcher)),
+            tracker,
+            tokens,
+            mainBuilds,
+        )
+    }
+
+    private val repo = "LukeNeedham/FlagTutor"
+
+    private fun info(runId: Long, state: RunState, apkCommit: String?, behind: Int = 0) = MainBuildInfo(
+        run = MainRun(runId, "run$runId", state),
+        apk = apkCommit?.let { MainApk(artifactId = 7, commit = it) },
+        tip = "tip",
+        commitsBehind = behind,
+    )
+
+    /** Answers with [statuses] in turn, repeating the last; null stands for a repo without the workflow. */
+    private class FakeMainBuilds(var statuses: List<MainBuildInfo?> = listOf(null)) : MainBuildSource {
+        var calls = 0
+        val started = mutableListOf<String>()
+        var startError: Exception? = null
+        override suspend fun status(repo: String) = statuses[minOf(calls++, statuses.size - 1)]
+        override suspend fun start(repo: String) {
+            startError?.let { throw it }
+            started += repo
+        }
+        override suspend fun downloadUrl(repo: String, apk: MainApk) = "https://example.com/artifact.zip"
     }
 
     private class FakeSource(var prs: List<PullRequest>, var repos: List<String> = emptyList()) : PullRequestSource {
@@ -68,7 +109,7 @@ class HomeViewModelTest {
         val kept = mutableListOf<Set<String>>()
         val downloaded = mutableListOf<String>()
         override fun existing(fileName: String): File? = null
-        override fun download(url: String, fileName: String): Flow<DownloadEvent> {
+        override fun download(url: String, fileName: String, fromZip: Boolean): Flow<DownloadEvent> {
             downloaded += url
             return flowOf(DownloadEvent.Progress(5, 10), DownloadEvent.Done(File(fileName)))
         }
@@ -91,10 +132,10 @@ class HomeViewModelTest {
     }
 
     private class FakeTracker : InstallTracker {
-        override fun statusFor(pr: PullRequest) = InstallStatus.Unknown
-        override fun packageNameFor(pr: PullRequest): String? = null
-        override fun onDownloaded(pr: PullRequest, file: File) = Unit
-        override fun onInstallStarted(pr: PullRequest) = Unit
+        override fun statusFor(repo: String, buildId: String) = InstallStatus.Unknown
+        override fun packageNameFor(repo: String): String? = null
+        override fun onDownloaded(repo: String, file: File) = Unit
+        override fun onInstallStarted(repo: String, buildId: String) = Unit
         override fun confirmPending() = Unit
     }
 
@@ -230,5 +271,102 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         assertEquals(2, viewModel.uiState.value.repos.single().pullRequests.size)
+    }
+
+    @Test
+    fun aRepoWithoutTheWorkflowHasNoMainBuild() = runTest(dispatcher) {
+        val viewModel = viewModel(FakeSource(listOf(pr(1))), FakeDownloader(), FakeInstaller(), FakeTokenStore())
+        advanceUntilIdle()
+
+        assertEquals(null, viewModel.uiState.value.repos.single().mainBuild)
+    }
+
+    @Test
+    fun aRepoWithTheWorkflowShowsItsMainBuild() = runTest(dispatcher) {
+        val mainBuilds = FakeMainBuilds(listOf(info(1, RunState.Succeeded, "abc1234")))
+        val viewModel = viewModel(FakeSource(listOf(pr(1))), FakeDownloader(), FakeInstaller(), FakeTokenStore(), mainBuilds)
+        advanceUntilIdle()
+
+        val main = viewModel.uiState.value.repos.single().mainBuild!!
+        assertEquals(MainPhase.Ready, main.phase)
+        assertEquals("LukeNeedham_FlagTutor-main-abc1234.apk", main.offer!!.fileName)
+    }
+
+    @Test
+    fun buildingMainStartsARunAndFollowsItUntilItIsReady() = runTest(dispatcher) {
+        val mainBuilds = FakeMainBuilds(
+            listOf(
+                info(1, RunState.Succeeded, "old1234"),
+                // The press: the new run is listed and going
+                info(2, RunState.Active, "old1234"),
+                info(2, RunState.Succeeded, "new5678"),
+            ),
+        )
+        val viewModel = viewModel(FakeSource(listOf(pr(1))), FakeDownloader(), FakeInstaller(), FakeTokenStore(), mainBuilds)
+        advanceUntilIdle()
+
+        viewModel.buildMain(repo)
+        assertEquals(MainPhase.Requested, viewModel.uiState.value.repos.single().mainBuild!!.phase)
+        advanceUntilIdle()
+
+        assertEquals(listOf(repo), mainBuilds.started)
+        val main = viewModel.uiState.value.repos.single().mainBuild!!
+        assertEquals(MainPhase.Ready, main.phase)
+        assertEquals("new5678", main.info.apk!!.commit)
+    }
+
+    @Test
+    fun aBuildThatCouldNotBeStartedShowsWhy() = runTest(dispatcher) {
+        val mainBuilds = FakeMainBuilds(listOf(info(1, RunState.Succeeded, "abc1234")))
+        mainBuilds.startError = java.io.IOException("needs the Actions permission")
+        val viewModel = viewModel(FakeSource(listOf(pr(1))), FakeDownloader(), FakeInstaller(), FakeTokenStore(), mainBuilds)
+        advanceUntilIdle()
+
+        viewModel.buildMain(repo)
+        advanceUntilIdle()
+
+        val main = viewModel.uiState.value.repos.single().mainBuild!!
+        assertEquals(MainPhase.Ready, main.phase)
+        assertEquals("needs the Actions permission", main.error)
+    }
+
+    @Test
+    fun aRunThatNeverAppearsIsGivenUpOn() = runTest(dispatcher) {
+        val mainBuilds = FakeMainBuilds(listOf(info(1, RunState.Succeeded, "abc1234")))
+        val viewModel = viewModel(FakeSource(listOf(pr(1))), FakeDownloader(), FakeInstaller(), FakeTokenStore(), mainBuilds)
+        advanceUntilIdle()
+
+        viewModel.buildMain(repo)
+        advanceUntilIdle()
+
+        val main = viewModel.uiState.value.repos.single().mainBuild!!
+        assertEquals(MainPhase.Ready, main.phase)
+        assertTrue(main.error!!.startsWith("GitHub did not start the build"))
+    }
+
+    @Test
+    fun downloadingTheMainBuildAsksForALinkAndOpensTheInstaller() = runTest(dispatcher) {
+        val mainBuilds = FakeMainBuilds(listOf(info(1, RunState.Succeeded, "abc1234")))
+        val downloader = FakeDownloader()
+        val installer = FakeInstaller()
+        val viewModel = viewModel(FakeSource(listOf(pr(1))), downloader, installer, FakeTokenStore(), mainBuilds)
+        advanceUntilIdle()
+
+        viewModel.downloadMain(repo)
+        advanceUntilIdle()
+
+        assertEquals(listOf("https://example.com/artifact.zip"), downloader.downloaded)
+        assertEquals(1, installer.installed.size)
+    }
+
+    @Test
+    fun theDownloadOfTheMainBuildSurvivesTheCleanUpOfFiles() = runTest(dispatcher) {
+        val mainBuilds = FakeMainBuilds(listOf(info(1, RunState.Succeeded, "abc1234")))
+        val downloader = FakeDownloader()
+        val viewModel = viewModel(FakeSource(listOf(pr(1))), downloader, FakeInstaller(), FakeTokenStore(), mainBuilds)
+        advanceUntilIdle()
+
+        assertTrue("LukeNeedham_FlagTutor-main-abc1234.apk" in downloader.kept.last())
+        assertTrue(pr(1).apkFileName in downloader.kept.last())
     }
 }

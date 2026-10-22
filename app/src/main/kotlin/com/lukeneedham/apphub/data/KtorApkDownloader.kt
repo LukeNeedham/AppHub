@@ -19,7 +19,10 @@ import java.io.File
 import java.io.IOException
 import java.util.zip.ZipFile
 
-/** Downloads into [directory]. A file is written under a temporary name, so a finished name is always whole. */
+/**
+ * Downloads into [directory]. A file is written under a temporary name, so a finished name is always whole.
+ * A workflow artifact is a zip: it is downloaded whole, then the APK in it is extracted.
+ */
 class KtorApkDownloader(
     okHttp: OkHttpClient,
     private val directory: File,
@@ -33,10 +36,11 @@ class KtorApkDownloader(
     override fun existing(fileName: String): File? =
         File(directory, fileName).takeIf { it.isFile && it.length() > 0 && isValidApk(it) }
 
-    override fun download(url: String, fileName: String): Flow<DownloadEvent> = flow {
+    override fun download(url: String, fileName: String, fromZip: Boolean): Flow<DownloadEvent> = flow {
         directory.mkdirs()
         val target = File(directory, fileName)
         val partial = File(directory, fileName + PARTIAL_SUFFIX)
+        val extracted = File(directory, "$fileName.extract$PARTIAL_SUFFIX")
         try {
             client.prepareGet(url).execute { response ->
                 if (!response.status.isSuccess()) throw IOException("Download failed: HTTP ${response.status.value}")
@@ -65,20 +69,32 @@ class KtorApkDownloader(
             // the bytes are wrong despite a matching length), a corrupt file would otherwise still be
             // handed to the installer as "done" - and then sit there failing to install every time, since
             // existing() would keep treating it as a valid cached download. Catch that here instead.
-            if (!isValidApk(partial)) throw IOException("Downloaded file is not a valid APK")
+            val apk = if (fromZip) extracted.also { extractApk(partial, it) } else partial
+            if (!isValidApk(apk)) throw IOException("Downloaded file is not a valid APK")
             target.delete()
-            if (!partial.renameTo(target)) throw IOException("Could not save the APK")
+            if (!apk.renameTo(target)) throw IOException("Could not save the APK")
             emit(DownloadEvent.Done(target))
         } finally {
             partial.delete()
+            extracted.delete()
         }
     }.flowOn(Dispatchers.IO)
 
     override suspend fun prune(keep: Set<String>) {
         withContext(Dispatchers.IO) {
             directory.listFiles()?.forEach { file ->
-                if (file.name.removeSuffix(PARTIAL_SUFFIX) !in keep) file.delete()
+                // The temporary files of a kept name are named after it: ".part", ".extract.part"
+                if (file.name !in keep && keep.none { file.name.startsWith("$it.") }) file.delete()
             }
+        }
+    }
+
+    /** Copies the first APK in the artifact [zip] to [into]. */
+    private fun extractApk(zip: File, into: File) {
+        ZipFile(zip).use { archive ->
+            val entry = archive.entries().asSequence().firstOrNull { !it.isDirectory && it.name.endsWith(".apk") }
+                ?: throw IOException("The build holds no APK")
+            archive.getInputStream(entry).use { input -> into.outputStream().use { input.copyTo(it) } }
         }
     }
 

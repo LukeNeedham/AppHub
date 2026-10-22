@@ -12,9 +12,9 @@ it sits in that list, so a new state should be placed in it, not given a new col
 | Colour | Means | States |
 |---|---|---|
 | Grey | Nothing to do: there is no APK and none is coming | No build, Cancelled |
-| Blue | Something is running; wait | Building, Downloading |
+| Blue | Something is running; wait | Building, Starting (main build asked for), Downloading |
 | Purple (the app's primary colour) | An APK is ready and you can act on it | Ready, Update ready, Ready to install |
-| Amber | What is on offer is out of date | Old build: the new build has not finished, so only the previous APK can be offered |
+| Amber | What is on offer is out of date | Old build: the new build has not finished, so only the previous APK can be offered. Behind main: the installed main build lacks later commits |
 | Green | Done | Installed |
 | Red | Broken | Build failed, Download failed |
 
@@ -27,6 +27,16 @@ Notes:
 - **Red is for failure** whoever's it is: a failed CI build or a failed download. The text tells them apart.
 - Amber on an old build wins over the build's own state, as the build is still running in that case. The row
   keeps its "Out of date: there are later changes, rebuilding now" note.
+
+## The main build
+
+The "Latest main" row of a repo uses the same pill, from `controlOf(MainBuildItem)`, and a **Build** button
+beside it. Its states are those above, with these meanings:
+
+- **Old build** (amber): the APK on offer lacks commits, because `main` has moved on or a newer build is running.
+- **Behind main** (amber, with the Open icon): the installed build is a main build, but `main` has newer commits.
+- **Starting** (blue): the build was asked for and GitHub has not listed the run yet.
+- **Installed** (green) means the installed build is the tip of `main`; the line under the row says which commit.
 
 ## The trailing icon
 

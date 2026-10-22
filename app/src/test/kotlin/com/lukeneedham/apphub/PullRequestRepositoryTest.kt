@@ -2,7 +2,9 @@ package com.lukeneedham.apphub
 
 import com.lukeneedham.apphub.data.CachedPullRequest
 import com.lukeneedham.apphub.data.CommentDto
+import com.lukeneedham.apphub.data.ArtifactDto
 import com.lukeneedham.apphub.data.GithubApi
+import com.lukeneedham.apphub.data.RunDto
 import com.lukeneedham.apphub.data.IssueDto
 import com.lukeneedham.apphub.data.PullRequestCache
 import com.lukeneedham.apphub.data.PullRequestRepository
@@ -34,6 +36,12 @@ class PullRequestRepositoryTest {
         override suspend fun openPullRequests() = issues
         override suspend fun repositories(): List<String> = emptyList()
         override suspend fun checkToken(token: String) = RateLimitInfo(5000, 5000)
+        override suspend fun mainRuns(repo: String): List<RunDto>? = null
+        override suspend fun runArtifacts(repo: String, runId: Long): List<ArtifactDto> = emptyList()
+        override suspend fun latestCommit(repo: String, branch: String) = ""
+        override suspend fun commitsAhead(repo: String, base: String, head: String) = 0
+        override suspend fun startMainBuild(repo: String) = Unit
+        override suspend fun artifactDownloadUrl(repo: String, artifactId: Long) = ""
         override suspend fun comments(repo: String, number: Int): List<CommentDto> {
             if (number == rateLimitedOn) throw RateLimitException(null)
             commentCalls += number
