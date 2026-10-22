@@ -49,7 +49,9 @@ class KtorGithubApi(
     override suspend fun openPullRequests(): List<IssueDto> {
         val url = "https://api.github.com/search/issues?q=is:pr+is:open+archived:false+user:$owner" +
             "&sort=updated&order=desc&per_page=100"
-        return get<SearchDto>(url).items
+        // Revalidated every time: GitHub marks responses max-age=60, so the HTTP cache would otherwise
+        // serve this list unchecked for a minute, and a refresh would show the previous state
+        return get<SearchDto>(url, forceNetwork = true).items
     }
 
     override suspend fun repositories(): List<String> {
