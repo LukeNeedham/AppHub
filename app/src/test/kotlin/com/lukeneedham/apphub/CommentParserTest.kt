@@ -21,7 +21,7 @@ class CommentParserTest {
 
     @Test
     fun succeededComment() {
-        assertEquals(ApkBuild.Succeeded(apk, "be7d718"), CommentParser.parseApkBuild(succeeded))
+        assertEquals(ApkBuild.Succeeded(apk, "be7d718", "09/10/2026 12:56:20"), CommentParser.parseApkBuild(succeeded))
     }
 
     @Test
@@ -33,7 +33,7 @@ class CommentParserTest {
         """.trimIndent()
         assertNull(CommentParser.parseApkBuild(body))
         assertNull(CommentParser.parseWebUrl(body))
-        assertEquals(ApkBuild.Succeeded(apk, "be7d718") to null, CommentParser.parse(listOf(body, succeeded)))
+        assertEquals(ApkBuild.Succeeded(apk, "be7d718", "09/10/2026 12:56:20") to null, CommentParser.parse(listOf(body, succeeded)))
     }
 
     @Test
