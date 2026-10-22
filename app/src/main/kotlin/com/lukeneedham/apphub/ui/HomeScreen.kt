@@ -509,12 +509,13 @@ internal fun controlOf(item: MainBuildItem): Control {
         MainPhase.Building -> Control("Building", StatusColors.info)
         MainPhase.Failed -> Control("Build failed", scheme.error)
         MainPhase.Ready -> Control(if (item.install == InstallStatus.DifferentBuild) "Update ready" else "Ready", scheme.primary)
-        MainPhase.Installed -> if (behind) Control("Behind main", StatusColors.warning) else Control("Installed", StatusColors.success)
+        MainPhase.Installed -> if (behind) Control("Behind main", scheme.onSurfaceVariant) else Control("Installed", StatusColors.success)
     }
     val building = item.phase == MainPhase.Requested || item.phase == MainPhase.Building
     // An APK that lacks the latest commits, or that a newer build is about to replace, is the old build
     val isOld = item.info.apk != null && !installed && (building || behind)
-    val offered = if (isOld) Control("Old build", StatusColors.warning) else build
+    // Main is not built for every push, so an old build of it is routine: quiet grey, not the amber of a PR's
+    val offered = if (isOld) Control("Old build", scheme.onSurfaceVariant) else build
     return transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isOld = isOld, error = scheme.error)
 }
 
