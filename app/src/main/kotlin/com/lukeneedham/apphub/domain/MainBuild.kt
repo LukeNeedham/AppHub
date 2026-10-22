@@ -43,7 +43,7 @@ data class ApkOffer(val key: String, val repo: String, val buildId: String, val 
 
 enum class MainPhase { NoBuild, Requested, Building, Failed, Ready, Installed }
 
-/** A line under the main build: [warn] when it says the build is not the latest. */
+/** A line under the main build: [warn] when it says something went wrong. A build that lags main is expected, so that is no warning. */
 data class MainNote(val text: String, val warn: Boolean = false)
 
 /**
@@ -95,12 +95,12 @@ data class MainBuildItem(
                 MainPhase.Failed -> MainNote("The build of ${shortCommit(info.run?.commit.orEmpty())} failed", warn = true)
                 MainPhase.NoBuild -> MainNote("No build of main yet. A build is kept for a day.")
                 MainPhase.Installed -> when {
-                    behind > 0 -> MainNote("${commits(behind)} on main since the installed build ($commit)", warn = true)
+                    behind > 0 -> MainNote("${commits(behind)} on main since the installed build ($commit)")
                     else -> MainNote("Installed: this is the latest main ($commit)")
                 }
                 MainPhase.Ready -> when {
                     newerFailed -> MainNote("The newest build failed; this is an older one ($commit)", warn = true)
-                    behind > 0 -> MainNote("${commits(behind)} on main since this build ($commit)", warn = true)
+                    behind > 0 -> MainNote("${commits(behind)} on main since this build ($commit)")
                     else -> MainNote("Built from the latest main ($commit)")
                 }
             }

@@ -83,9 +83,9 @@ class MainBuildItemTest {
     }
 
     @Test
-    fun `a ready apk that lacks commits warns and offers the latest`() {
+    fun `a ready apk that lacks commits is noted and offers the latest`() {
         val item = item(behind = 3)
-        assertEquals(MainNote("3 new commits on main since this build (abcdef1)", warn = true), item.note)
+        assertEquals(MainNote("3 new commits on main since this build (abcdef1)"), item.note)
         assertEquals("Build latest main", item.buildLabel)
     }
 
@@ -99,7 +99,7 @@ class MainBuildItemTest {
     @Test
     fun `the installed build behind main says how far`() {
         val item = item(install = InstallStatus.Installed, behind = 1)
-        assertEquals(MainNote("1 new commit on main since the installed build (abcdef1)", warn = true), item.note)
+        assertEquals(MainNote("1 new commit on main since the installed build (abcdef1)"), item.note)
         assertEquals("Build latest main", item.buildLabel)
         assertTrue(item.canBuild)
     }
