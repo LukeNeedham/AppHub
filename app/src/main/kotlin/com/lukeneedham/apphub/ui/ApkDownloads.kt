@@ -33,9 +33,12 @@ class ApkDownloads(
     /** Ticks whenever a download state or an install status may have changed: read the states again. */
     val changes: StateFlow<Int> = _changes.asStateFlow()
 
-    /** A file left from an earlier session counts as downloaded. */
+    /**
+     * A file left from an earlier session counts as downloaded. A download of an older build of the PR
+     * does not: the file is named per build, and installing it would put the previous commit on the device.
+     */
     fun stateOf(pr: PullRequest): DownloadState =
-        states[pr.key]
+        states[pr.key]?.takeUnless { it is DownloadState.Downloaded && it.file.name != pr.apkFileName }
             ?: downloader.existing(pr.apkFileName)?.let { DownloadState.Downloaded(it) }
             ?: DownloadState.Idle
 

@@ -168,6 +168,22 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun aNewerBuildIsNotShownAsAlreadyDownloaded() = runTest(dispatcher) {
+        val source = FakeSource(listOf(pr(1, commit = "aaaaaaa")))
+        val viewModel = viewModel(source, FakeDownloader(), FakeInstaller(), FakeTokenStore())
+        advanceUntilIdle()
+        viewModel.download("LukeNeedham/FlagTutor#1")
+        advanceUntilIdle()
+
+        source.prs = listOf(pr(1, commit = "bbbbbbb"))
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        val item = viewModel.uiState.value.repos.single().pullRequests.single()
+        assertEquals(DownloadState.Idle, item.download)
+    }
+
+    @Test
     fun failedLoadShowsAnError() = runTest(dispatcher) {
         val source = object : PullRequestSource {
             override suspend fun openPullRequests(): List<PullRequest> = error("offline")
