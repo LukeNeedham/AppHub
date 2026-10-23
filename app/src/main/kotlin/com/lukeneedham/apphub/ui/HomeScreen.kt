@@ -130,6 +130,8 @@ internal fun HomeContent(
     val background = MaterialTheme.colorScheme.background
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    var jumping by remember { mutableStateOf(false) }
+    var jumpId by remember { mutableIntStateOf(0) }
     // Items before the repo cards: the summary, and the error card if there is one
     val headerCount = if (state.error != null) 2 else 1
     val selectedIndex by remember(headerCount, state.repos.size) {
@@ -170,7 +172,20 @@ internal fun HomeContent(
                     RepoNavigation(
                         repos = state.repos.map { it.repo },
                         selectedIndex = selectedIndex,
-                        onSelect = { index -> scope.launch { listState.animateScrollToItem(headerCount + index) } },
+                        // The row has already settled on the project it jumps to, so it ignores the list passing the ones between
+                        followList = !jumping,
+                        onSelect = { index ->
+                            val id = ++jumpId
+                            scope.launch {
+                                jumping = true
+                                try {
+                                    listState.animateScrollToItem(headerCount + index)
+                                } finally {
+                                    // A later jump has taken over if the id moved on
+                                    if (id == jumpId) jumping = false
+                                }
+                            }
+                        },
                     )
                 }
             }
@@ -240,7 +255,7 @@ private fun LazyListState.centredIndex(): Int? {
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun RepoNavigation(repos: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit) {
+private fun RepoNavigation(repos: List<String>, selectedIndex: Int, followList: Boolean, onSelect: (Int) -> Unit) {
     val rowState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val itemSize = 44.dp
@@ -276,7 +291,7 @@ private fun RepoNavigation(repos: List<String>, selectedIndex: Int, onSelect: (I
     }
     // The list scrolling to another project moves the row to its icon
     LaunchedEffect(selectedIndex, repos.size) {
-        if (!userScroll && !rowState.isScrollInProgress) rowState.animateScrollToItem(selectedIndex)
+        if (followList && !userScroll && !rowState.isScrollInProgress) rowState.animateScrollToItem(selectedIndex)
     }
 
     BoxWithConstraints(Modifier.fillMaxWidth()) {
