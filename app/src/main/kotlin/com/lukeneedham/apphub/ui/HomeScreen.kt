@@ -268,7 +268,9 @@ private fun RepoNavigation(repos: List<String>, selectedIndex: Int, onSelect: (I
             } else if (userScroll) {
                 userScroll = false
                 val centred = rowState.centredIndex()
-                if (centred != null && centred != selectedIndex) onSelect(centred)
+                // Even when it is the selected one already: at the top of the list the first project counts as selected
+                // while the summary above it is still showing, and selecting it scrolls the project itself to the top
+                if (centred != null) onSelect(centred)
             }
         }
     }
