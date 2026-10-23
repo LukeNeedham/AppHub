@@ -11,7 +11,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.snapping.SnapPosition
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -24,7 +29,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,13 +50,24 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -108,21 +128,67 @@ internal fun HomeContent(
     onOpenSettings: () -> Unit,
 ) {
     val background = MaterialTheme.colorScheme.background
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    var jumping by remember { mutableStateOf(false) }
+    var jumpId by remember { mutableIntStateOf(0) }
+    // Items before the repo cards: the summary, and the error card if there is one
+    val headerCount = if (state.error != null) 2 else 1
+    val selectedIndex by remember(headerCount, state.repos.size) {
+        derivedStateOf { (listState.firstVisibleItemIndex - headerCount).coerceIn(0, (state.repos.size - 1).coerceAtLeast(0)) }
+    }
+    // Room after the last project, so that it too can be scrolled to the top and selected
+    val density = LocalDensity.current
+    var lastRepoHeight by remember { mutableIntStateOf(0) }
+    val lastRepo = state.repos.lastOrNull()?.repo
+    LaunchedEffect(lastRepo) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == lastRepo }?.size }
+            .collect { if (it != null) lastRepoHeight = it }
+    }
+    val trailingSpace by remember {
+        derivedStateOf {
+            // What the viewport holds beyond the last project, less the padding and spacing around it
+            (with(density) { (listState.layoutInfo.viewportSize.height - lastRepoHeight).toDp() } -
+                ListTopPadding - ListItemSpacing - ListBottomPadding).coerceAtLeast(0.dp)
+        }
+    }
     Scaffold(
         containerColor = background,
         topBar = {
-            TopAppBar(
-                title = { Text("AppHub", fontWeight = FontWeight.Bold) },
-                actions = {
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = background,
-                    scrolledContainerColor = background,
-                ),
-            )
+            Column {
+                TopAppBar(
+                    title = { Text("AppHub", fontWeight = FontWeight.Bold) },
+                    actions = {
+                        IconButton(onClick = onOpenSettings) {
+                            Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = background,
+                        scrolledContainerColor = background,
+                    ),
+                )
+                if (state.repos.isNotEmpty()) {
+                    RepoNavigation(
+                        repos = state.repos.map { it.repo },
+                        selectedIndex = selectedIndex,
+                        // The row has already settled on the project it jumps to, so it ignores the list passing the ones between
+                        followList = !jumping,
+                        onSelect = { index ->
+                            val id = ++jumpId
+                            scope.launch {
+                                jumping = true
+                                try {
+                                    listState.animateScrollToItem(headerCount + index)
+                                } finally {
+                                    // A later jump has taken over if the id moved on
+                                    if (id == jumpId) jumping = false
+                                }
+                            }
+                        },
+                    )
+                }
+            }
         },
     ) { padding ->
         PullToRefreshBox(
@@ -131,9 +197,10 @@ internal fun HomeContent(
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             LazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = ListTopPadding, bottom = ListBottomPadding),
+                verticalArrangement = Arrangement.spacedBy(ListItemSpacing),
             ) {
                 item {
                     val prCount = state.repos.sumOf { it.pullRequests.size }
@@ -163,6 +230,114 @@ internal fun HomeContent(
                         mainBuild = mainBuild,
                         onOpenPullRequest = onOpenPullRequest,
                     )
+                }
+                item(key = "trailing-space") { Spacer(Modifier.height(trailingSpace)) }
+            }
+        }
+    }
+}
+
+private val ListTopPadding = 4.dp
+private val ListBottomPadding = 32.dp
+private val ListItemSpacing = 14.dp
+
+/** The index of the item whose middle is nearest to the middle of the row, or null while nothing is shown. */
+private fun LazyListState.centredIndex(): Int? {
+    val info = layoutInfo
+    val middle = (info.viewportStartOffset + info.viewportEndOffset) / 2
+    return info.visibleItemsInfo.minByOrNull { kotlin.math.abs(it.offset + it.size / 2 - middle) }?.index
+}
+
+/**
+ * A pinned row of round app icons, one per project. The selected one, which is the project at the top of the list,
+ * is centred and a little bigger. Scrolling the row snaps the nearest icon to the centre and selects it; a tap
+ * centres that icon and selects it.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun RepoNavigation(repos: List<String>, selectedIndex: Int, followList: Boolean, onSelect: (Int) -> Unit) {
+    val rowState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val itemSize = 44.dp
+    val gap = 14.dp
+    val gapPx = with(LocalDensity.current) { gap.toPx() }
+    var touched by remember { mutableStateOf(false) }
+    var userScroll by remember { mutableStateOf(false) }
+
+    LaunchedEffect(rowState) {
+        rowState.interactionSource.interactions.collect {
+            when (it) {
+                is DragInteraction.Start -> touched = true
+                // A touch that never moved the row leaves nothing to settle
+                is DragInteraction.Stop, is DragInteraction.Cancel -> if (!rowState.isScrollInProgress) touched = false
+                else -> Unit
+            }
+        }
+    }
+    // The list only follows once the user's scroll has settled with the finger up: the centred icon is then the one selected
+    LaunchedEffect(rowState) {
+        snapshotFlow { rowState.isScrollInProgress }.collect { scrolling ->
+            if (scrolling) {
+                userScroll = touched
+                touched = false
+            } else if (userScroll) {
+                userScroll = false
+                val centred = rowState.centredIndex()
+                // Even when it is the selected one already: at the top of the list the first project counts as selected
+                // while the summary above it is still showing, and selecting it scrolls the project itself to the top
+                if (centred != null) onSelect(centred)
+            }
+        }
+    }
+    // The list scrolling to another project moves the row to its icon
+    LaunchedEffect(selectedIndex, repos.size) {
+        if (followList && !userScroll && !rowState.isScrollInProgress) rowState.animateScrollToItem(selectedIndex)
+    }
+
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        // Padding of half the free width lets the first and the last icon reach the centre
+        val edge = (maxWidth - itemSize) / 2
+        LazyRow(
+            state = rowState,
+            modifier = Modifier.fillMaxWidth(),
+            flingBehavior = rememberSnapFlingBehavior(rowState, SnapPosition.Center),
+            contentPadding = PaddingValues(horizontal = edge, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(gap),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            itemsIndexed(repos, key = { _, repo -> repo }) { index, repo ->
+                val name = repo.substringAfter('/')
+                Surface(
+                    onClick = {
+                        scope.launch { rowState.animateScrollToItem(index) }
+                        onSelect(index)
+                    },
+                    modifier = Modifier
+                        .size(itemSize)
+                        .graphicsLayer {
+                            // Grows as the icon nears the centre, so the one under selection is clear while the row is still moving
+                            val info = rowState.layoutInfo
+                            val item = info.visibleItemsInfo.firstOrNull { it.index == index }
+                            val middle = (info.viewportStartOffset + info.viewportEndOffset) / 2f
+                            val distance = if (item == null) 1f else kotlin.math.abs(item.offset + item.size / 2f - middle) / (item.size + gapPx)
+                            val scale = 1.3f - 0.45f * distance.coerceIn(0f, 1f)
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                        .semantics { contentDescription = "Jump to $name" },
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        // The initial shows for repos without an icon, and under the icon while it loads
+                        Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        AsyncImage(
+                            model = repoIconUrl(repo),
+                            contentDescription = null,
+                            modifier = Modifier.padding(4.dp).fillMaxSize().clip(CircleShape),
+                        )
+                    }
                 }
             }
         }
