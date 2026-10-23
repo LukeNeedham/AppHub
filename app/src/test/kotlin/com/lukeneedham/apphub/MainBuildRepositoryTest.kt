@@ -17,6 +17,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.time.Instant
 
 class MainBuildRepositoryTest {
 
@@ -101,6 +102,15 @@ class MainBuildRepositoryTest {
             artifacts = mapOf(2L to apk(22, expired = true), 1L to apk(11, expired = true)),
         )
         assertNull(MainBuildRepository(api, FakeTokenStore()).status("o/r")!!.apk)
+    }
+
+    @Test
+    fun `an artifact past its expiry is not offered even if GitHub has not flagged it`() = runTest {
+        val expiry = "2026-10-23T10:00:00Z"
+        val api = FakeApi(runs = listOf(run(1, "aaa")), artifacts = mapOf(1L to listOf(ArtifactDto(11, "apk", false, expiry))))
+        val before = Instant.parse(expiry).toEpochMilli() - 1
+        assertEquals(MainApk(11, "aaa"), MainBuildRepository(api, FakeTokenStore()) { before }.status("o/r")!!.apk)
+        assertNull(MainBuildRepository(api, FakeTokenStore()) { before + 1 }.status("o/r")!!.apk)
     }
 
     @Test
