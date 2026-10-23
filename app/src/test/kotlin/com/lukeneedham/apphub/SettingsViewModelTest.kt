@@ -1,8 +1,10 @@
 package com.lukeneedham.apphub
 
+import com.lukeneedham.apphub.data.ArtifactDto
 import com.lukeneedham.apphub.data.CommentDto
 import com.lukeneedham.apphub.data.GithubApi
 import com.lukeneedham.apphub.data.IssueDto
+import com.lukeneedham.apphub.data.RunDto
 import com.lukeneedham.apphub.domain.InvalidTokenException
 import com.lukeneedham.apphub.domain.RateLimitInfo
 import com.lukeneedham.apphub.domain.TokenStore
@@ -39,6 +41,12 @@ class SettingsViewModelTest {
         override suspend fun repositories(): List<String> = emptyList()
         override suspend fun commonApps(): Set<String> = emptySet()
         override suspend fun comments(repo: String, number: Int): List<CommentDto> = emptyList()
+        override suspend fun mainRuns(repo: String): List<RunDto>? = null
+        override suspend fun runArtifacts(repo: String, runId: Long): List<ArtifactDto> = emptyList()
+        override suspend fun latestCommit(repo: String, branch: String): String = ""
+        override suspend fun commitsAhead(repo: String, base: String, head: String): Int = 0
+        override suspend fun startMainBuild(repo: String) = Unit
+        override suspend fun artifactDownloadUrl(repo: String, artifactId: Long): String = ""
         override suspend fun checkToken(token: String): RateLimitInfo =
             if (token in valid) RateLimitInfo(5000, 4990) else throw InvalidTokenException()
     }
