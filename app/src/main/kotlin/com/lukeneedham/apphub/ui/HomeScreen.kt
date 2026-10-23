@@ -11,7 +11,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.snapping.SnapPosition
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -47,6 +52,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -54,6 +62,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalUriHandler
@@ -194,38 +203,75 @@ internal fun HomeContent(
     }
 }
 
-/** A pinned row of round app icons, one per project: the one at the top of the list is selected, a tap jumps to its project. */
+/**
+ * A pinned row of round app icons, one per project. The selected one, which is the project at the top of the list,
+ * is centred and a little bigger. Scrolling the row snaps the nearest icon to the centre and selects it; a tap
+ * centres that icon and selects it.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RepoNavigation(repos: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit) {
     val rowState = rememberLazyListState()
-    LaunchedEffect(selectedIndex) {
-        if (rowState.layoutInfo.visibleItemsInfo.none { it.index == selectedIndex }) rowState.animateScrollToItem(selectedIndex)
+    val scope = rememberCoroutineScope()
+    val itemSize = 44.dp
+    var draggedByUser by remember { mutableStateOf(false) }
+
+    LaunchedEffect(rowState) {
+        rowState.interactionSource.interactions.collect { if (it is DragInteraction.Start) draggedByUser = true }
     }
-    LazyRow(
-        state = rowState,
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        itemsIndexed(repos, key = { _, repo -> repo }) { index, repo ->
-            val selected = index == selectedIndex
-            val primary = MaterialTheme.colorScheme.primary
-            val name = repo.substringAfter('/')
-            Surface(
-                onClick = { onSelect(index) },
-                modifier = Modifier.size(48.dp).semantics { contentDescription = "Jump to $name" },
-                shape = CircleShape,
-                color = if (selected) primary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceContainerLow,
-                border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) primary else MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    // The initial shows for repos without an icon, and under the icon while it loads
-                    Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    AsyncImage(
-                        model = repoIconUrl(repo),
-                        contentDescription = null,
-                        modifier = Modifier.padding(5.dp).fillMaxSize().clip(CircleShape),
-                    )
+    // Once a scroll by the user has settled, the icon in the centre is the one selected
+    LaunchedEffect(rowState) {
+        snapshotFlow { rowState.isScrollInProgress }.collect { scrolling ->
+            if (!scrolling && draggedByUser) {
+                draggedByUser = false
+                val info = rowState.layoutInfo
+                val middle = (info.viewportStartOffset + info.viewportEndOffset) / 2
+                val centred = info.visibleItemsInfo.minByOrNull { kotlin.math.abs(it.offset + it.size / 2 - middle) }
+                if (centred != null && centred.index != selectedIndex) onSelect(centred.index)
+            }
+        }
+    }
+    // The list scrolling to another project moves the row to its icon
+    LaunchedEffect(selectedIndex, repos.size) {
+        if (!draggedByUser && !rowState.isScrollInProgress) rowState.animateScrollToItem(selectedIndex)
+    }
+
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        // Padding of half the free width lets the first and the last icon reach the centre
+        val edge = (maxWidth - itemSize) / 2
+        LazyRow(
+            state = rowState,
+            modifier = Modifier.fillMaxWidth(),
+            flingBehavior = rememberSnapFlingBehavior(rowState, SnapPosition.Center),
+            contentPadding = PaddingValues(horizontal = edge, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            itemsIndexed(repos, key = { _, repo -> repo }) { index, repo ->
+                val scale by animateFloatAsState(if (index == selectedIndex) 1.3f else 0.85f, label = "navScale")
+                val name = repo.substringAfter('/')
+                Surface(
+                    onClick = {
+                        scope.launch { rowState.animateScrollToItem(index) }
+                        onSelect(index)
+                    },
+                    modifier = Modifier
+                        .size(itemSize)
+                        .graphicsLayer { scaleX = scale; scaleY = scale }
+                        .semantics { contentDescription = "Jump to $name" },
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        // The initial shows for repos without an icon, and under the icon while it loads
+                        Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        AsyncImage(
+                            model = repoIconUrl(repo),
+                            contentDescription = null,
+                            modifier = Modifier.padding(4.dp).fillMaxSize().clip(CircleShape),
+                        )
+                    }
                 }
             }
         }
