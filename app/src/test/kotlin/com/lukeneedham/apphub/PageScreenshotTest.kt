@@ -1,5 +1,6 @@
 package com.lukeneedham.apphub
 
+import android.app.Application
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -16,7 +17,8 @@ import sergio.sastre.composable.preview.scanner.core.preview.ComposablePreview
 /** Renders the preview of every PageContent composable to docs/screenshots/ (docs/screenshots.md in ci-workflows). */
 @RunWith(ParameterizedRobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [34], qualifiers = "w360dp-h800dp-xxhdpi")
+// A plain Application: the real one starts Koin, which fails the second time it is created
+@Config(sdk = [34], qualifiers = "w360dp-h800dp-xxhdpi", application = Application::class)
 class PageScreenshotTest(private val preview: ComposablePreview<AndroidPreviewInfo>) {
 
     @get:Rule
