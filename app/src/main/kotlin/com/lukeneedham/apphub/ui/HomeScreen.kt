@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
@@ -52,6 +53,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -65,6 +67,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -132,6 +135,21 @@ internal fun HomeContent(
     val selectedIndex by remember(headerCount, state.repos.size) {
         derivedStateOf { (listState.firstVisibleItemIndex - headerCount).coerceIn(0, (state.repos.size - 1).coerceAtLeast(0)) }
     }
+    // Room after the last project, so that it too can be scrolled to the top and selected
+    val density = LocalDensity.current
+    var lastRepoHeight by remember { mutableIntStateOf(0) }
+    val lastRepo = state.repos.lastOrNull()?.repo
+    LaunchedEffect(lastRepo) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == lastRepo }?.size }
+            .collect { if (it != null) lastRepoHeight = it }
+    }
+    val trailingSpace by remember {
+        derivedStateOf {
+            // What the viewport holds beyond the last project, less the padding and spacing around it
+            (with(density) { (listState.layoutInfo.viewportSize.height - lastRepoHeight).toDp() } -
+                ListTopPadding - ListItemSpacing - ListBottomPadding).coerceAtLeast(0.dp)
+        }
+    }
     Scaffold(
         containerColor = background,
         topBar = {
@@ -166,8 +184,8 @@ internal fun HomeContent(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = ListTopPadding, bottom = ListBottomPadding),
+                verticalArrangement = Arrangement.spacedBy(ListItemSpacing),
             ) {
                 item {
                     val prCount = state.repos.sumOf { it.pullRequests.size }
@@ -198,9 +216,21 @@ internal fun HomeContent(
                         onOpenPullRequest = onOpenPullRequest,
                     )
                 }
+                item(key = "trailing-space") { Spacer(Modifier.height(trailingSpace)) }
             }
         }
     }
+}
+
+private val ListTopPadding = 4.dp
+private val ListBottomPadding = 32.dp
+private val ListItemSpacing = 14.dp
+
+/** The index of the item whose middle is nearest to the middle of the row, or null while nothing is shown. */
+private fun LazyListState.centredIndex(): Int? {
+    val info = layoutInfo
+    val middle = (info.viewportStartOffset + info.viewportEndOffset) / 2
+    return info.visibleItemsInfo.minByOrNull { kotlin.math.abs(it.offset + it.size / 2 - middle) }?.index
 }
 
 /**
@@ -214,26 +244,37 @@ private fun RepoNavigation(repos: List<String>, selectedIndex: Int, onSelect: (I
     val rowState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val itemSize = 44.dp
-    var draggedByUser by remember { mutableStateOf(false) }
+    val gap = 14.dp
+    val gapPx = with(LocalDensity.current) { gap.toPx() }
+    var touched by remember { mutableStateOf(false) }
+    var userScroll by remember { mutableStateOf(false) }
 
     LaunchedEffect(rowState) {
-        rowState.interactionSource.interactions.collect { if (it is DragInteraction.Start) draggedByUser = true }
+        rowState.interactionSource.interactions.collect {
+            when (it) {
+                is DragInteraction.Start -> touched = true
+                // A touch that never moved the row leaves nothing to settle
+                is DragInteraction.Stop, is DragInteraction.Cancel -> if (!rowState.isScrollInProgress) touched = false
+                else -> Unit
+            }
+        }
     }
-    // Once a scroll by the user has settled, the icon in the centre is the one selected
+    // The list only follows once the user's scroll has settled with the finger up: the centred icon is then the one selected
     LaunchedEffect(rowState) {
         snapshotFlow { rowState.isScrollInProgress }.collect { scrolling ->
-            if (!scrolling && draggedByUser) {
-                draggedByUser = false
-                val info = rowState.layoutInfo
-                val middle = (info.viewportStartOffset + info.viewportEndOffset) / 2
-                val centred = info.visibleItemsInfo.minByOrNull { kotlin.math.abs(it.offset + it.size / 2 - middle) }
-                if (centred != null && centred.index != selectedIndex) onSelect(centred.index)
+            if (scrolling) {
+                userScroll = touched
+                touched = false
+            } else if (userScroll) {
+                userScroll = false
+                val centred = rowState.centredIndex()
+                if (centred != null && centred != selectedIndex) onSelect(centred)
             }
         }
     }
     // The list scrolling to another project moves the row to its icon
     LaunchedEffect(selectedIndex, repos.size) {
-        if (!draggedByUser && !rowState.isScrollInProgress) rowState.animateScrollToItem(selectedIndex)
+        if (!userScroll && !rowState.isScrollInProgress) rowState.animateScrollToItem(selectedIndex)
     }
 
     BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -244,11 +285,10 @@ private fun RepoNavigation(repos: List<String>, selectedIndex: Int, onSelect: (I
             modifier = Modifier.fillMaxWidth(),
             flingBehavior = rememberSnapFlingBehavior(rowState, SnapPosition.Center),
             contentPadding = PaddingValues(horizontal = edge, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(gap),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             itemsIndexed(repos, key = { _, repo -> repo }) { index, repo ->
-                val scale by animateFloatAsState(if (index == selectedIndex) 1.3f else 0.85f, label = "navScale")
                 val name = repo.substringAfter('/')
                 Surface(
                     onClick = {
@@ -257,7 +297,16 @@ private fun RepoNavigation(repos: List<String>, selectedIndex: Int, onSelect: (I
                     },
                     modifier = Modifier
                         .size(itemSize)
-                        .graphicsLayer { scaleX = scale; scaleY = scale }
+                        .graphicsLayer {
+                            // Grows as the icon nears the centre, so the one under selection is clear while the row is still moving
+                            val info = rowState.layoutInfo
+                            val item = info.visibleItemsInfo.firstOrNull { it.index == index }
+                            val middle = (info.viewportStartOffset + info.viewportEndOffset) / 2f
+                            val distance = if (item == null) 1f else kotlin.math.abs(item.offset + item.size / 2f - middle) / (item.size + gapPx)
+                            val scale = 1.3f - 0.45f * distance.coerceIn(0f, 1f)
+                            scaleX = scale
+                            scaleY = scale
+                        }
                         .semantics { contentDescription = "Jump to $name" },
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
