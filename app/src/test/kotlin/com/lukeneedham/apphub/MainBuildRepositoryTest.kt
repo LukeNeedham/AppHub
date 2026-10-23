@@ -30,6 +30,7 @@ class MainBuildRepositoryTest {
         val compared = mutableListOf<Pair<String, String>>()
         override suspend fun openPullRequests(): List<IssueDto> = emptyList()
         override suspend fun repositories(): List<String> = emptyList()
+        override suspend fun commonApps(): Set<String> = emptySet()
         override suspend fun comments(repo: String, number: Int): List<CommentDto> = emptyList()
         override suspend fun checkToken(token: String) = RateLimitInfo(5000, 5000)
         override suspend fun mainRuns(repo: String): List<RunDto>? {

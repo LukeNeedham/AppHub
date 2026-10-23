@@ -11,7 +11,7 @@ import kotlinx.coroutines.sync.withPermit
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * One request lists every open PR, then one more per PR reads its comments. The comments are read on
+ * Only apps listed in the common repo (ci-workflows `apps.json`) are shown. One request lists every open PR, then one more per PR reads its comments. The comments are read on
  * every refresh: the CI edits its comment in place, and GitHub does not bump a PR's `updated_at` for an
  * edited comment, so nothing cheap says whether a cached result is still right. The requests are
  * revalidated through the HTTP cache, and a `304` does not count against the rate limit, which is what
@@ -24,10 +24,15 @@ class PullRequestRepository(
 
     override fun cached(): List<PullRequest> = cache.load().values.map { it.pr }
 
-    override suspend fun repositories(): List<String> = api.repositories()
+    override suspend fun repositories(): List<String> {
+        val apps = api.commonApps()
+        return api.repositories().filter { it.lowercase() in apps }
+    }
 
     override suspend fun openPullRequests(): List<PullRequest> {
-        val issues = api.openPullRequests()
+        val apps = api.commonApps()
+        // Only the apps listed in the common repo: the search covers every repo of the owner
+        val issues = api.openPullRequests().filter { repoOf(it).lowercase() in apps }
         val known = cache.load()
         val resolved = ConcurrentHashMap<String, CachedPullRequest>()
         try {
