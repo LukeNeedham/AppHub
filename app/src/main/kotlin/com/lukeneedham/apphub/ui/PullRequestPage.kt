@@ -33,26 +33,37 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.lukeneedham.apphub.R
 import com.lukeneedham.apphub.domain.DownloadState
 import com.lukeneedham.apphub.ui.theme.StatusColors
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lukeneedham.apphub.ui.theme.AppTheme
+import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @Composable
-fun PullRequestScreen(
+fun PullRequestPage(
     repo: String,
     number: Int,
-    state: PullRequestUiState,
-    onRefresh: () -> Unit,
-    onResume: () -> Unit,
-    onDownload: () -> Unit,
-    onInstall: () -> Unit,
-    onOpen: () -> Unit,
     onBack: () -> Unit,
 ) {
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onResume() }
-    PullRequestContent(repo, number, state, onRefresh, onDownload, onInstall, onOpen, onBack)
+    val viewModel = koinViewModel<PullRequestViewModel>(parameters = { parametersOf(repo, number) })
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onResume() }
+    PullRequestPageContent(
+        repo = repo,
+        number = number,
+        state = state,
+        onRefresh = viewModel::refresh,
+        onDownload = viewModel::download,
+        onInstall = viewModel::install,
+        onOpen = viewModel::open,
+        onBack = onBack,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun PullRequestContent(
+internal fun PullRequestPageContent(
     repo: String,
     number: Int,
     state: PullRequestUiState,
@@ -184,5 +195,22 @@ internal fun PullRequestContent(
                 }
             }
         }
+    }
+}
+
+@Preview
+@Composable
+private fun PullRequestPageContentPreview() {
+    AppTheme {
+        PullRequestPageContent(
+            repo = samplePullRequest.repo,
+            number = samplePullRequest.number,
+            state = samplePullRequestState(),
+            onRefresh = {},
+            onDownload = {},
+            onInstall = {},
+            onOpen = {},
+            onBack = {},
+        )
     }
 }

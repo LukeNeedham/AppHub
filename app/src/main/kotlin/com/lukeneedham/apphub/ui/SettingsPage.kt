@@ -35,13 +35,36 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.lukeneedham.apphub.R
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lukeneedham.apphub.ui.theme.AppTheme
+import org.koin.compose.viewmodel.koinViewModel
+import com.lukeneedham.apphub.domain.RateLimitInfo
 
 private const val NEW_TOKEN_URL = "https://github.com/settings/personal-access-tokens/new"
 
 /** [onOpenDebug] is null when debugging is off (release builds), which hides the entry. */
+@Composable
+fun SettingsPage(
+    onBack: () -> Unit,
+    onOpenDebug: (() -> Unit)?,
+) {
+    val viewModel = koinViewModel<SettingsViewModel>()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    SettingsPageContent(
+        state = state,
+        onInputChange = viewModel::onInputChange,
+        onSave = viewModel::save,
+        onRemove = viewModel::remove,
+        onBack = onBack,
+        onOpenDebug = onOpenDebug,
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(
+internal fun SettingsPageContent(
     state: SettingsUiState,
     onInputChange: (String) -> Unit,
     onSave: () -> Unit,
@@ -195,5 +218,20 @@ private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+@Preview
+@Composable
+private fun SettingsPageContentPreview() {
+    AppTheme {
+        SettingsPageContent(
+            state = SettingsUiState(signedIn = true, rateLimit = RateLimitInfo(limit = 5000, remaining = 4873)),
+            onInputChange = {},
+            onSave = {},
+            onRemove = {},
+            onBack = {},
+            onOpenDebug = {},
+        )
     }
 }

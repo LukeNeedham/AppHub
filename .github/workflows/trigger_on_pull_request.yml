@@ -17,13 +17,15 @@ permissions:
 
 jobs:
   android:
-    uses: LukeNeedham/ci-workflows/.github/workflows/android_pr.yml@main
+    uses: LukeNeedham/ci-workflows/.github/workflows/android_pr.yml@claude/standard-readme-format-382cvu
     with:
       # CONFIGURE (required): path to the APK your build produces, relative to the repo root.
       # Find it by running the build locally.
       apk-path: app/build/outputs/apk/debug/app-debug.apk
 
       # CONFIGURE (optional): the rest are only needed if your project differs. Defaults shown.
+      # TEMPORARY, to try the screenshots job of ci-workflows#39 before it is on main: revert before merging
+      tools-ref: claude/standard-readme-format-382cvu
       # gradle-task: assembleDebug
       # java-version: '17'
       # java-distribution: zulu

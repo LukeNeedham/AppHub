@@ -1,0 +1,45 @@
+package com.lukeneedham.apphub
+
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onRoot
+import com.github.takahirom.roborazzi.captureRoboImage
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.ParameterizedRobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+import sergio.sastre.composable.preview.scanner.android.AndroidComposablePreviewScanner
+import sergio.sastre.composable.preview.scanner.android.AndroidPreviewInfo
+import sergio.sastre.composable.preview.scanner.core.preview.ComposablePreview
+
+/** Renders the preview of every PageContent composable to docs/screenshots/ (docs/screenshots.md in ci-workflows). */
+@RunWith(ParameterizedRobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(sdk = [34], qualifiers = "w360dp-h800dp-xxhdpi")
+class PageScreenshotTest(private val preview: ComposablePreview<AndroidPreviewInfo>) {
+
+    @get:Rule
+    val composeRule = createComposeRule()
+
+    @Test
+    fun render() {
+        composeRule.setContent { preview() }
+        // The tests run in the app module's directory
+        composeRule.onRoot().captureRoboImage("../docs/screenshots/${preview.methodName.removeSuffix(SUFFIX)}.png")
+    }
+
+    companion object {
+        private const val SUFFIX = "PageContentPreview"
+
+        @JvmStatic
+        @ParameterizedRobolectricTestRunner.Parameters(name = "{0}")
+        fun previews(): List<Array<Any>> =
+            AndroidComposablePreviewScanner()
+                .scanPackageTrees("com.lukeneedham.apphub")
+                .includePrivatePreviews()
+                .getPreviews()
+                .filter { it.methodName.endsWith(SUFFIX) }
+                .map { arrayOf(it) }
+    }
+}

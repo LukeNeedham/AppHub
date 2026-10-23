@@ -88,6 +88,10 @@ import com.lukeneedham.apphub.domain.MainPhase
 import com.lukeneedham.apphub.domain.PullRequestRef
 import com.lukeneedham.apphub.domain.repoIconUrl
 import com.lukeneedham.apphub.ui.theme.StatusColors
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lukeneedham.apphub.ui.theme.AppTheme
+import org.koin.compose.viewmodel.koinViewModel
 
 /** What the main build row of a repo can do; each takes the repo `owner/name`. */
 data class MainBuildActions(
@@ -98,25 +102,34 @@ data class MainBuildActions(
 )
 
 @Composable
-fun HomeScreen(
-    state: HomeUiState,
-    onRefresh: () -> Unit,
-    onResume: () -> Unit,
-    onToggleRepo: (String) -> Unit,
-    onDownload: (String) -> Unit,
-    onInstall: (String) -> Unit,
-    onOpen: (String) -> Unit,
-    mainBuild: MainBuildActions,
+fun HomePage(
     onOpenPullRequest: (PullRequestRef) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onResume() }
-    HomeContent(state, onRefresh, onToggleRepo, onDownload, onInstall, onOpen, mainBuild, onOpenPullRequest, onOpenSettings)
+    val viewModel = koinViewModel<HomeViewModel>()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onResume() }
+    HomePageContent(
+        state = state,
+        onRefresh = viewModel::refresh,
+        onToggleRepo = viewModel::toggleRepo,
+        onDownload = viewModel::download,
+        onInstall = viewModel::install,
+        onOpen = viewModel::open,
+        mainBuild = MainBuildActions(
+            build = viewModel::buildMain,
+            download = viewModel::downloadMain,
+            install = viewModel::installMain,
+            open = viewModel::openMain,
+        ),
+        onOpenPullRequest = onOpenPullRequest,
+        onOpenSettings = onOpenSettings,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun HomeContent(
+internal fun HomePageContent(
     state: HomeUiState,
     onRefresh: () -> Unit,
     onToggleRepo: (String) -> Unit,
@@ -789,3 +802,21 @@ internal fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: 
 }
 
 internal fun megabytes(bytes: Long): String = "%.1f".format(bytes / 1_000_000.0)
+
+@Preview
+@Composable
+private fun HomePageContentPreview() {
+    AppTheme {
+        HomePageContent(
+            state = sampleHomeState(),
+            onRefresh = {},
+            onToggleRepo = {},
+            onDownload = {},
+            onInstall = {},
+            onOpen = {},
+            mainBuild = MainBuildActions(build = {}, download = {}, install = {}, open = {}),
+            onOpenPullRequest = {},
+            onOpenSettings = {},
+        )
+    }
+}
