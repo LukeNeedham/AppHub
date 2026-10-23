@@ -35,6 +35,7 @@ class PullRequestRepositoryTest {
         var rateLimitedOn: Int? = null
         override suspend fun openPullRequests() = issues
         override suspend fun repositories(): List<String> = emptyList()
+        override suspend fun commonApps(): Set<String> = setOf("o/r")
         override suspend fun checkToken(token: String) = RateLimitInfo(5000, 5000)
         override suspend fun mainRuns(repo: String): List<RunDto>? = null
         override suspend fun runArtifacts(repo: String, runId: Long): List<ArtifactDto> = emptyList()
@@ -123,5 +124,14 @@ class PullRequestRepositoryTest {
 
         api.rateLimitedOn = null
         assertEquals(listOf(1, 2), repository.openPullRequests().map { it.number })
+    }
+
+    @Test
+    fun onlyAppsInTheCommonRepoAreListed() = runTest {
+        val other = issue(2, "t1").copy(repositoryUrl = "https://api.github.com/repos/o/other")
+        val api = FakeApi(listOf(issue(1, "t1"), other), comment)
+        val prs = PullRequestRepository(api, MemoryCache()).openPullRequests()
+
+        assertEquals(listOf(1), prs.map { it.number })
     }
 }

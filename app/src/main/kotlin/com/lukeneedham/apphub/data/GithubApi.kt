@@ -24,6 +24,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import java.io.IOException
+import java.util.Base64
 
 /**
  * GitHub REST calls. Without a token only public repos are visible and the limit is 60 requests an hour;
@@ -36,6 +37,9 @@ interface GithubApi {
 
     /** The `owner/name` of every non-archived repo of the owner, most recently updated first. */
     suspend fun repositories(): List<String>
+
+    /** The `owner/name` of every app listed in `apps.json` of the common repo, lower-cased. */
+    suspend fun commonApps(): Set<String>
 
     /** The first 100 comments of the PR, oldest first. */
     suspend fun comments(repo: String, number: Int): List<CommentDto>
@@ -89,6 +93,14 @@ class KtorGithubApi(
             if (batch.size < REPOS_PER_PAGE) return names
             page++
         }
+    }
+
+    override suspend fun commonApps(): Set<String> {
+        val file = get<ContentDto>("https://api.github.com/repos/$COMMON_REPO/contents/$COMMON_APPS_FILE", forceNetwork = true)
+        val json = String(Base64.getMimeDecoder().decode(file.content))
+        return Json { ignoreUnknownKeys = true }.decodeFromString<List<CommonAppDto>>(json)
+            .map { it.repo.lowercase() }
+            .toSet()
     }
 
     override suspend fun comments(repo: String, number: Int): List<CommentDto> =
@@ -162,6 +174,8 @@ class KtorGithubApi(
     private val withoutRedirects = client.config { followRedirects = false }
 
     private companion object {
+        const val COMMON_REPO = "LukeNeedham/ci-workflows"
+        const val COMMON_APPS_FILE = "apps.json"
         const val REPOS_PER_PAGE = 100
         const val MAIN_RUNS_PER_PAGE = 10
     }
@@ -218,6 +232,14 @@ data class RepoDto(
     @SerialName("full_name") val fullName: String,
     val archived: Boolean = false,
 )
+
+/** A file from the contents API; [content] is base64 with line breaks. */
+@Serializable
+data class ContentDto(val content: String = "")
+
+/** One entry of the common repo's `apps.json`. */
+@Serializable
+data class CommonAppDto(val repo: String)
 
 @Serializable
 data class UserDto(val login: String)
