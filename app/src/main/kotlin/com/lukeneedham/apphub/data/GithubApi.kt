@@ -276,7 +276,14 @@ data class RunDto(
 data class ArtifactsDto(val artifacts: List<ArtifactDto> = emptyList())
 
 @Serializable
-data class ArtifactDto(val id: Long, val name: String, val expired: Boolean = false)
+data class ArtifactDto(
+    val id: Long,
+    val name: String,
+    /** GitHub sets this only some time after [expiresAt] has passed, so [expiresAt] is checked too. */
+    val expired: Boolean = false,
+    /** ISO-8601 instant after which the artifact is gone; null when GitHub does not say. */
+    @SerialName("expires_at") val expiresAt: String? = null,
+)
 
 @Serializable
 data class CommitDto(val sha: String)

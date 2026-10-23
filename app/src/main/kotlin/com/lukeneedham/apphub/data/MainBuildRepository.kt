@@ -7,6 +7,7 @@ import com.lukeneedham.apphub.domain.MainBuildSource
 import com.lukeneedham.apphub.domain.MainRun
 import com.lukeneedham.apphub.domain.RunState
 import com.lukeneedham.apphub.domain.TokenStore
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 /** The artifact the shared workflow uploads (ci-workflows `android_main_build.yml`). */
@@ -38,7 +39,7 @@ class MainBuildRepository(
 
         val apk = runs.filter { stateOf(it) == RunState.Succeeded }.take(RUNS_CHECKED).firstNotNullOfOrNull { run ->
             api.runArtifacts(repo, run.id)
-                .firstOrNull { it.name == APK_ARTIFACT && !it.expired }
+                .firstOrNull { it.name == APK_ARTIFACT && !isExpired(it) }
                 ?.let { MainApk(it.id, run.headSha) }
         }
         val tip = api.latestCommit(repo, MAIN_BRANCH)
@@ -54,6 +55,10 @@ class MainBuildRepository(
     override suspend fun start(repo: String) = api.startMainBuild(repo)
 
     override suspend fun downloadUrl(repo: String, apk: MainApk): String = api.artifactDownloadUrl(repo, apk.artifactId)
+
+    /** A build that has expired is not offered: the main build then shows as not built. */
+    private fun isExpired(artifact: ArtifactDto): Boolean =
+        artifact.expired || artifact.expiresAt?.let { runCatching { Instant.parse(it).toEpochMilli() <= now() }.getOrNull() } == true
 
     private fun stateOf(run: RunDto): RunState =
         when {

@@ -33,9 +33,11 @@ Notes:
 The "Latest main" row of a repo uses the same pill, from `controlOf(MainBuildItem)`, and a **Build** button
 beside it. Its states are those above, with these meanings:
 
-- **Old build** (amber): the APK on offer lacks commits, because `main` has moved on or a newer build is running.
-- **Behind main** (amber, with the Open icon): the installed build is a main build, but `main` has newer commits.
+- **Old build** (grey): the APK on offer lacks commits, because `main` has moved on or a newer build is running.
+- **Behind main** (grey, with the Open icon): the installed build is a main build, but `main` has newer commits.
 - **Starting** (blue): the build was asked for and GitHub has not listed the run yet.
+- Both are grey, not amber: `main` is not built for every push, so lagging behind it is expected and should
+  draw little attention. Amber is only for a PR's old build.
 - **Installed** (green) means the installed build is the tip of `main`; the line under the row says which commit.
 
 ## The trailing icon

@@ -145,6 +145,14 @@ internal fun PullRequestContent(
                     }
                 }
 
+                pr.builtAt?.let { builtAt ->
+                    Text(
+                        "APK built $builtAt",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
                 if (target?.isStale == true) {
                     Text(
                         "Out of date: there are later changes, rebuilding now",

@@ -9,6 +9,7 @@ object CommentParser {
 
     private val apkUrl = Regex("""https://github\.com/[^\s)]+/releases/download/[^\s)]+\.apk""")
     private val commit = Regex("""\*\*Commit:\*\*\s*\[`([0-9a-fA-F]{7,40})`]""")
+    private val built = Regex("""\*\*Built:\*\*\s*(\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2})""")
     private val anyUrl = Regex("""https://[^\s)>\]"'<]+""")
 
     /** Hosts that serve web previews. A URL on one of these in a comment is taken as the deploy link. */
@@ -30,7 +31,7 @@ object CommentParser {
         val sha = commit.find(body)?.groupValues?.get(1) ?: return null
         val url = apkUrl.find(body)?.value
         return when {
-            body.contains("Build succeeded") -> url?.let { ApkBuild.Succeeded(it, sha) }
+            body.contains("Build succeeded") -> url?.let { ApkBuild.Succeeded(it, sha, built.find(body)?.groupValues?.get(1)) }
             body.contains("Build in progress") -> ApkBuild.InProgress(sha, url)
             body.contains("Build failed") -> ApkBuild.Failed(sha)
             body.contains("Build cancelled") -> ApkBuild.Cancelled(sha)

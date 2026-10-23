@@ -10,7 +10,8 @@ sealed interface ApkBuild {
     val commit: String?
 
     @Serializable
-    data class Succeeded(val url: String, override val commit: String?) : ApkBuild
+    /** [builtAt] is the time the CI comment states, as written (the CI's own timezone); null if absent. */
+    data class Succeeded(val url: String, override val commit: String?, val builtAt: String? = null) : ApkBuild
 
     /** [previousUrl] is the stale APK of the last build, kept in the comment while a new one builds. */
     @Serializable
@@ -52,6 +53,9 @@ data class PullRequest(
             is ApkBuild.InProgress -> build.previousUrl?.let { ApkTarget(it, "stale-${tagOf(it)}", isStale = true) }
             else -> null
         }
+
+    /** When the APK of the latest commit was built, as the CI comment states it; null while it is not known. */
+    val builtAt: String? get() = (apk as? ApkBuild.Succeeded)?.builtAt
 
     /** Unique per PR and build, so a new build is downloaded again and old files can be pruned. */
     val apkFileName: String
