@@ -18,6 +18,12 @@ whether the build you have installed is the latest, and build and install the la
 Every PR also has a link of its own, `https://www.lukeneedham.com/apphub/pr/<repo name>/<number>`, that opens it
 in the app.
 
+## Screenshots
+
+<img src="docs/screenshots/Home.png" width="240" alt="Home">
+<img src="docs/screenshots/PullRequest.png" width="240" alt="Pull Request">
+<img src="docs/screenshots/Settings.png" width="240" alt="Settings">
+
 ## Getting started as a user
 
 1. Download the debug APK from the comment that CI posts on any pull request of this repo, and install it. The first time, Android asks to allow AppHub to install apps.
