@@ -24,7 +24,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,7 +44,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -108,21 +116,37 @@ internal fun HomeContent(
     onOpenSettings: () -> Unit,
 ) {
     val background = MaterialTheme.colorScheme.background
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    // Items before the repo cards: the summary, and the error card if there is one
+    val headerCount = if (state.error != null) 2 else 1
+    val selectedIndex by remember(headerCount, state.repos.size) {
+        derivedStateOf { (listState.firstVisibleItemIndex - headerCount).coerceIn(0, (state.repos.size - 1).coerceAtLeast(0)) }
+    }
     Scaffold(
         containerColor = background,
         topBar = {
-            TopAppBar(
-                title = { Text("AppHub", fontWeight = FontWeight.Bold) },
-                actions = {
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = background,
-                    scrolledContainerColor = background,
-                ),
-            )
+            Column {
+                TopAppBar(
+                    title = { Text("AppHub", fontWeight = FontWeight.Bold) },
+                    actions = {
+                        IconButton(onClick = onOpenSettings) {
+                            Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = background,
+                        scrolledContainerColor = background,
+                    ),
+                )
+                if (state.repos.isNotEmpty()) {
+                    RepoNavigation(
+                        repos = state.repos.map { it.repo },
+                        selectedIndex = selectedIndex,
+                        onSelect = { index -> scope.launch { listState.animateScrollToItem(headerCount + index) } },
+                    )
+                }
+            }
         },
     ) { padding ->
         PullToRefreshBox(
@@ -131,6 +155,7 @@ internal fun HomeContent(
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             LazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -162,6 +187,44 @@ internal fun HomeContent(
                         onOpen = onOpen,
                         mainBuild = mainBuild,
                         onOpenPullRequest = onOpenPullRequest,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** A pinned row of round app icons, one per project: the one at the top of the list is selected, a tap jumps to its project. */
+@Composable
+private fun RepoNavigation(repos: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit) {
+    val rowState = rememberLazyListState()
+    LaunchedEffect(selectedIndex) {
+        if (rowState.layoutInfo.visibleItemsInfo.none { it.index == selectedIndex }) rowState.animateScrollToItem(selectedIndex)
+    }
+    LazyRow(
+        state = rowState,
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        itemsIndexed(repos, key = { _, repo -> repo }) { index, repo ->
+            val selected = index == selectedIndex
+            val primary = MaterialTheme.colorScheme.primary
+            val name = repo.substringAfter('/')
+            Surface(
+                onClick = { onSelect(index) },
+                modifier = Modifier.size(48.dp).semantics { contentDescription = "Jump to $name" },
+                shape = CircleShape,
+                color = if (selected) primary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) primary else MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    // The initial shows for repos without an icon, and under the icon while it loads
+                    Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    AsyncImage(
+                        model = repoIconUrl(repo),
+                        contentDescription = null,
+                        modifier = Modifier.padding(5.dp).fillMaxSize().clip(CircleShape),
                     )
                 }
             }
