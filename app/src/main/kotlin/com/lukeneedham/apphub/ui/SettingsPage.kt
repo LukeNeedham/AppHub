@@ -40,7 +40,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lukeneedham.apphub.ui.theme.AppTheme
 import org.koin.compose.viewmodel.koinViewModel
-import com.lukeneedham.apphub.domain.RateLimitInfo
 
 private const val NEW_TOKEN_URL = "https://github.com/settings/personal-access-tokens/new"
 
@@ -221,12 +220,29 @@ private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
     }
 }
 
+/** For Android Studio while building the page: signed out. */
 @Preview
 @Composable
 private fun SettingsPageContentPreview() {
     AppTheme {
         SettingsPageContent(
-            state = SettingsUiState(signedIn = true, rateLimit = RateLimitInfo(limit = 5000, remaining = 4873)),
+            state = SettingsUiState(),
+            onInputChange = {},
+            onSave = {},
+            onRemove = {},
+            onBack = {},
+            onOpenDebug = {},
+        )
+    }
+}
+
+/** The README screenshot of this page: rendered by CI, used for nothing else. */
+@Preview
+@Composable
+private fun SettingsPageContentScreenshot() {
+    AppTheme {
+        SettingsPageContent(
+            state = AppScreenshotMockData.settingsState,
             onInputChange = {},
             onSave = {},
             onRemove = {},

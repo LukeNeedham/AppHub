@@ -803,12 +803,32 @@ internal fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: 
 
 internal fun megabytes(bytes: Long): String = "%.1f".format(bytes / 1_000_000.0)
 
+/** For Android Studio while building the page: the empty page. */
 @Preview
 @Composable
 private fun HomePageContentPreview() {
     AppTheme {
         HomePageContent(
-            state = sampleHomeState(),
+            state = HomeUiState(isLoading = false),
+            onRefresh = {},
+            onToggleRepo = {},
+            onDownload = {},
+            onInstall = {},
+            onOpen = {},
+            mainBuild = MainBuildActions(build = {}, download = {}, install = {}, open = {}),
+            onOpenPullRequest = {},
+            onOpenSettings = {},
+        )
+    }
+}
+
+/** The README screenshot of this page: rendered by CI, used for nothing else. */
+@Preview
+@Composable
+private fun HomePageContentScreenshot() {
+    AppTheme {
+        HomePageContent(
+            state = AppScreenshotMockData.homeState,
             onRefresh = {},
             onToggleRepo = {},
             onDownload = {},

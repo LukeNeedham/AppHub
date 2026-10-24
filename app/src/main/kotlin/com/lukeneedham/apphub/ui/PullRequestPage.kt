@@ -198,14 +198,33 @@ internal fun PullRequestPageContent(
     }
 }
 
+/** For Android Studio while building the page: still loading. */
 @Preview
 @Composable
 private fun PullRequestPageContentPreview() {
     AppTheme {
         PullRequestPageContent(
-            repo = samplePullRequest.repo,
-            number = samplePullRequest.number,
-            state = samplePullRequestState(),
+            repo = "LukeNeedham/FlagTutor",
+            number = 12,
+            state = PullRequestUiState(),
+            onRefresh = {},
+            onDownload = {},
+            onInstall = {},
+            onOpen = {},
+            onBack = {},
+        )
+    }
+}
+
+/** The README screenshot of this page: rendered by CI, used for nothing else. */
+@Preview
+@Composable
+private fun PullRequestPageContentScreenshot() {
+    AppTheme {
+        PullRequestPageContent(
+            repo = AppScreenshotMockData.pullRequest.repo,
+            number = AppScreenshotMockData.pullRequest.number,
+            state = AppScreenshotMockData.pullRequestState,
             onRefresh = {},
             onDownload = {},
             onInstall = {},
