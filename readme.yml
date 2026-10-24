@@ -1,5 +1,6 @@
 # The data of this app's README.md. CI renders README.md from it (docs/readme.md in LukeNeedham/ci-workflows):
-# edit this file, never README.md.
+# edit this file, never README.md. Only what is specific to this app: the minimum Android version, the generic setup and
+# the architecture are supplied by the generator and the shared conventions.
 
 name: AppHub
 tagline: Install and try the pull request builds of my apps straight from my phone.
@@ -15,25 +16,12 @@ description: |
   in the app.
 
 user:
-  min-android: "8.0 (API 26)"
   install: Download the debug APK from the comment that CI posts on any pull request of this repo, and install it. The first time, Android asks to allow AppHub to install apps.
   steps:
     - "Optional: add a GitHub personal access token under Settings → GitHub, for a higher rate limit and for building main."
 
 developer:
   notes: |
-    See `CLAUDE.md` and the `lukeneedham-conventions` skill for the conventions of this repo. In debug builds, Settings
-    (top right) leads to the Debug page.
-
-structure:
-  - "`app/`: the app module (`com.lukeneedham.apphub`), with these packages in `app/src/main/kotlin/`:"
-  - "`domain`: pure Kotlin, unit-tested"
-  - "`data`: GitHub, downloads and installing"
-  - "`ui`: the screens (Compose), with `ui/theme`, the app's own theme"
-  - "`di`: Koin modules"
-  - "`docs/`: notes such as `status-colors.md`, the colours and icons of the PR status pill"
-
-architecture: |
-  Single activity with Compose, Navigation 3, MVVM and Koin.
+    In debug builds, Settings (top right) leads to the Debug page.
 
 license: All rights reserved

@@ -44,21 +44,9 @@ cd AppHub
 
 Every pull request is built by CI, which comments on it with a link to install the APK.
 
-See `CLAUDE.md` and the `lukeneedham-conventions` skill for the conventions of this repo. In debug builds, Settings
-(top right) leads to the Debug page.
+Like all my apps, it follows the shared architecture and conventions (single activity, Jetpack Compose, Navigation 3, MVVM with every page split into a `Page` and a `PageContent`, Koin): see [ci-workflows](https://github.com/LukeNeedham/ci-workflows/blob/main/docs/new-app.md).
 
-## Project structure
-
-- `app/`: the app module (`com.lukeneedham.apphub`), with these packages in `app/src/main/kotlin/`:
-- `domain`: pure Kotlin, unit-tested
-- `data`: GitHub, downloads and installing
-- `ui`: the screens (Compose), with `ui/theme`, the app's own theme
-- `di`: Koin modules
-- `docs/`: notes such as `status-colors.md`, the colours and icons of the PR status pill
-
-Single activity with Compose, Navigation 3, MVVM and Koin.
-
-See the [shared conventions](https://github.com/LukeNeedham/ci-workflows/blob/main/docs/app-conventions.md).
+In debug builds, Settings (top right) leads to the Debug page.
 
 ## Contributing
 
