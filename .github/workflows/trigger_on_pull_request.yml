@@ -13,4 +13,4 @@ permissions:
 
 jobs:
   android:
-    uses: LukeNeedham/ci-workflows/.github/workflows/android_pr.yml@main
+    uses: LukeNeedham/ci-workflows/.github/workflows/android_pr.yml@claude/standard-readme-format-382cvu  # TEMPORARY: trying ci-workflows#39, back to @main
