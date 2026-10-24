@@ -7,15 +7,14 @@ import com.lukeneedham.apphub.ui.SettingsPageContent
 import com.lukeneedham.apphub.ui.SettingsUiState
 import com.lukeneedham.apphub.ui.theme.AppTheme
 
-private val settingsState = SettingsUiState(signedIn = true, rateLimit = RateLimitInfo(limit = 5000, remaining = 4873))
-
 /** Rendered by CI to docs/screenshots/SettingsPage.png. */
 @Preview
 @Composable
 private fun SettingsPageScreenshot() {
+    val state = SettingsUiState(signedIn = true, rateLimit = RateLimitInfo(limit = 5000, remaining = 4873))
     AppTheme {
         SettingsPageContent(
-            state = settingsState,
+            state = state,
             onInputChange = {},
             onSave = {},
             onRemove = {},

@@ -24,59 +24,76 @@ import com.lukeneedham.apphub.ui.PullRequestItem
 import com.lukeneedham.apphub.ui.RepoSection
 import com.lukeneedham.apphub.ui.theme.AppTheme
 
-private val buildingPullRequest = PullRequest(
-    repo = "LukeNeedham/VideoDiary",
-    number = 7,
-    title = "Trim a clip before saving it",
-    author = "LukeNeedham",
-    url = "https://github.com/LukeNeedham/VideoDiary/pull/7",
-    isDraft = false,
-    apk = ApkBuild.InProgress(commit = "9f8e7d6", previousUrl = null),
-    webUrl = null,
-)
-
-private fun mainBuild(repo: String) = MainBuildItem(
-    repo = repo,
-    info = MainBuildInfo(
-        run = MainRun(id = 1, commit = "a1b2c3d", state = RunState.Succeeded),
-        apk = MainApk(artifactId = 1, commit = "a1b2c3d"),
-        tip = "a1b2c3d",
-        commitsBehind = 0,
-    ),
-    requested = false,
-    download = DownloadState.Idle,
-    install = InstallStatus.NotInstalled,
-)
-
-private val homeState = HomeUiState(
-    isLoading = false,
-    repos = listOf(
-        RepoSection(
-            repo = "LukeNeedham/FlagTutor",
-            pullRequests = listOf(SharedMockData.pullRequestItem),
-            mainBuild = mainBuild("LukeNeedham/FlagTutor"),
-        ),
-        RepoSection(
-            repo = "LukeNeedham/VideoDiary",
-            pullRequests = listOf(PullRequestItem(buildingPullRequest, DownloadState.Idle, InstallStatus.Unknown)),
-        ),
-    ),
-)
-
-/**
- * Shown in place of the repo icons, which the page loads from a URL: a screenshot must never need the network. A
- * flat colour per repo, like its icon.
- */
-@OptIn(ExperimentalCoilApi::class)
-private val iconPreviewHandler = AsyncImagePreviewHandler { request ->
-    ColorImage(if ("VideoDiary" in request.data.toString()) 0xFFE53935.toInt() else 0xFF1565C0.toInt())
-}
-
 /** Rendered by CI to docs/screenshots/HomePage.png. */
 @OptIn(ExperimentalCoilApi::class)
 @Preview
 @Composable
 private fun HomePageScreenshot() {
+    val state = HomeUiState(
+        isLoading = false,
+        repos = listOf(
+            RepoSection(
+                repo = "LukeNeedham/FlagTutor",
+                pullRequests = listOf(
+                    PullRequestItem(
+                        pr = PullRequest(
+                            repo = "LukeNeedham/FlagTutor",
+                            number = 12,
+                            title = "Add the flag quiz",
+                            author = "LukeNeedham",
+                            url = "https://github.com/LukeNeedham/FlagTutor/pull/12",
+                            isDraft = false,
+                            apk = ApkBuild.Succeeded(
+                                url = "https://github.com/LukeNeedham/FlagTutor/releases/download/quiz-12-1/app-debug.apk",
+                                commit = "a1b2c3d",
+                                builtAt = "23/10/2026 18:27:11",
+                            ),
+                            webUrl = null,
+                            sessionUrl = "https://claude.ai/code/session_sample",
+                        ),
+                        download = DownloadState.Idle,
+                        install = InstallStatus.NotInstalled,
+                    ),
+                ),
+                mainBuild = MainBuildItem(
+                    repo = "LukeNeedham/FlagTutor",
+                    info = MainBuildInfo(
+                        run = MainRun(id = 1, commit = "a1b2c3d", state = RunState.Succeeded),
+                        apk = MainApk(artifactId = 1, commit = "a1b2c3d"),
+                        tip = "a1b2c3d",
+                        commitsBehind = 0,
+                    ),
+                    requested = false,
+                    download = DownloadState.Idle,
+                    install = InstallStatus.NotInstalled,
+                ),
+            ),
+            RepoSection(
+                repo = "LukeNeedham/VideoDiary",
+                pullRequests = listOf(
+                    PullRequestItem(
+                        pr = PullRequest(
+                            repo = "LukeNeedham/VideoDiary",
+                            number = 7,
+                            title = "Trim a clip before saving it",
+                            author = "LukeNeedham",
+                            url = "https://github.com/LukeNeedham/VideoDiary/pull/7",
+                            isDraft = false,
+                            apk = ApkBuild.InProgress(commit = "9f8e7d6", previousUrl = null),
+                            webUrl = null,
+                        ),
+                        download = DownloadState.Idle,
+                        install = InstallStatus.Unknown,
+                    ),
+                ),
+            ),
+        ),
+    )
+    // Shown in place of the repo icons, which the page loads from a URL: a screenshot must never need the network.
+    // A flat colour per repo, like its icon.
+    val iconPreviewHandler = AsyncImagePreviewHandler { request ->
+        ColorImage(if ("VideoDiary" in request.data.toString()) 0xFFE53935.toInt() else 0xFF1565C0.toInt())
+    }
     // Coil shows its mock images only in inspection mode
     CompositionLocalProvider(
         LocalInspectionMode provides true,
@@ -84,7 +101,7 @@ private fun HomePageScreenshot() {
     ) {
         AppTheme {
             HomePageContent(
-                state = homeState,
+                state = state,
                 onRefresh = {},
                 onToggleRepo = {},
                 onDownload = {},
