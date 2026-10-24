@@ -1,0 +1,39 @@
+# The data of this app's README.md. CI renders README.md from it (docs/readme.md in LukeNeedham/ci-workflows):
+# edit this file, never README.md.
+
+name: AppHub
+tagline: Install and try the pull request builds of my apps straight from my phone.
+
+description: |
+  AppHub lists the open pull requests of the public repos of `LukeNeedham`, with each PR's debug APK and web test
+  deploy, so a PR build can be installed and tried on a phone without a computer. It reads the comment that the shared
+  CI ([ci-workflows](https://github.com/LukeNeedham/ci-workflows)) leaves on every PR.
+
+  Use it to install a PR's build in a tap, open its web preview, jump to the PR or its Claude Code session, see
+  whether the build you have installed is the latest, and build and install the latest `main` of any repo on demand.
+  Every PR also has a link of its own, `https://www.lukeneedham.com/apphub/pr/<repo name>/<number>`, that opens it
+  in the app.
+
+user:
+  min-android: "8.0 (API 26)"
+  install: Download the debug APK from the comment that CI posts on any pull request of this repo, and install it. The first time, Android asks to allow AppHub to install apps.
+  steps:
+    - "Optional: add a GitHub personal access token under Settings → GitHub, for a higher rate limit and for building main."
+
+developer:
+  notes: |
+    See `CLAUDE.md` and the `lukeneedham-conventions` skill for the conventions of this repo. In debug builds, Settings
+    (top right) leads to the Debug page.
+
+structure:
+  - "`app/`: the app module (`com.lukeneedham.apphub`), with these packages in `app/src/main/kotlin/`:"
+  - "`domain`: pure Kotlin, unit-tested"
+  - "`data`: GitHub, downloads and installing"
+  - "`ui`: the screens (Compose), with `ui/theme`, the app's own theme"
+  - "`di`: Koin modules"
+  - "`docs/`: notes such as `status-colors.md`, the colours and icons of the PR status pill"
+
+architecture: |
+  Single activity with Compose, Navigation 3, MVVM and Koin.
+
+license: All rights reserved

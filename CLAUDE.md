@@ -14,7 +14,7 @@
 - When the shared CI comment format changes in `LukeNeedham/ci-workflows`
   (`.github/workflows/android_pr_build.yml`), update `CommentParser` and its test to match.
 - The colours and icons of the PR status pill follow `docs/status-colors.md`; update it with any change to
-  `controlOf` in `ui/HomeScreen.kt`.
+  `controlOf` in `ui/HomePage.kt`.
 - Main builds are started through the caller `.github/workflows/build_main.yml`, which calls
   `android_main_build.yml` in `LukeNeedham/ci-workflows`. `MAIN_BUILD_WORKFLOW` and `APK_ARTIFACT` must match
   those two; change them together.
