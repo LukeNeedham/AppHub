@@ -92,6 +92,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lukeneedham.apphub.ui.theme.AppTheme
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalInspectionMode
+import coil3.annotation.ExperimentalCoilApi
+import coil3.compose.LocalAsyncImagePreviewHandler
 
 /** What the main build row of a repo can do; each takes the repo `owner/name`. */
 data class MainBuildActions(
@@ -823,20 +827,27 @@ private fun HomePageContentPreview() {
 }
 
 /** The README screenshot of this page: rendered by CI, used for nothing else. */
+@OptIn(ExperimentalCoilApi::class)
 @Preview
 @Composable
 private fun HomePageContentScreenshot() {
-    AppTheme {
-        HomePageContent(
-            state = AppScreenshotMockData.homeState,
-            onRefresh = {},
-            onToggleRepo = {},
-            onDownload = {},
-            onInstall = {},
-            onOpen = {},
-            mainBuild = MainBuildActions(build = {}, download = {}, install = {}, open = {}),
-            onOpenPullRequest = {},
-            onOpenSettings = {},
-        )
+    // The repo icons come from a URL: Coil shows the mock images only in inspection mode
+    CompositionLocalProvider(
+        LocalInspectionMode provides true,
+        LocalAsyncImagePreviewHandler provides AppScreenshotMockData.imagePreviewHandler,
+    ) {
+        AppTheme {
+            HomePageContent(
+                state = AppScreenshotMockData.homeState,
+                onRefresh = {},
+                onToggleRepo = {},
+                onDownload = {},
+                onInstall = {},
+                onOpen = {},
+                mainBuild = MainBuildActions(build = {}, download = {}, install = {}, open = {}),
+                onOpenPullRequest = {},
+                onOpenSettings = {},
+            )
+        }
     }
 }

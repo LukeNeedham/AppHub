@@ -1,5 +1,8 @@
 package com.lukeneedham.apphub.ui
 
+import coil3.ColorImage
+import coil3.annotation.ExperimentalCoilApi
+import coil3.compose.AsyncImagePreviewHandler
 import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.DownloadState
 import com.lukeneedham.apphub.domain.InstallStatus
@@ -16,7 +19,16 @@ import com.lukeneedham.apphub.domain.RunState
  * `…PageContentScreenshot` composables and nothing else. One place for the app's fake pull requests, so that the
  * screenshots tell one story.
  */
+@OptIn(ExperimentalCoilApi::class)
 internal object AppScreenshotMockData {
+
+    /**
+     * Shown in place of the images that the pages load from a URL (the icons of the repos), so that a screenshot
+     * never needs the network and comes out the same every time: a flat colour per repo, like its icon.
+     */
+    val imagePreviewHandler = AsyncImagePreviewHandler { request ->
+        ColorImage(if ("VideoDiary" in request.data.toString()) 0xFFE53935.toInt() else 0xFF1565C0.toInt())
+    }
 
     val pullRequest = PullRequest(
         repo = "LukeNeedham/FlagTutor",
