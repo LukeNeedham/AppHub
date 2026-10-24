@@ -14,23 +14,23 @@ import com.lukeneedham.common.ui.LogsPage
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object Home : NavKey
+data object HomeNavKey : NavKey
 
 /** The page of one pull request. [repo] is `owner/name`. */
 @Serializable
-data class PullRequestKey(val repo: String, val number: Int) : NavKey
+data class PullRequestNavKey(val repo: String, val number: Int) : NavKey
 
 @Serializable
-data object Settings : NavKey
+data object SettingsNavKey : NavKey
 
 @Serializable
-data object Debug : NavKey
+data object DebugNavKey : NavKey
 
 @Serializable
-data object Logs : NavKey
+data object LogsNavKey : NavKey
 
 @Serializable
-data object Crashes : NavKey
+data object CrashesNavKey : NavKey
 
 @Composable
 fun AppNavigation(backStack: NavBackStack<NavKey>) {
@@ -42,30 +42,30 @@ fun AppNavigation(backStack: NavBackStack<NavKey>) {
             rememberViewModelStoreNavEntryDecorator(),
         ),
         entryProvider = entryProvider {
-            entry<Home> {
+            entry<HomeNavKey> {
                 HomePage(
-                    onOpenPullRequest = { backStack.add(PullRequestKey(it.repo, it.number)) },
-                    onOpenSettings = { backStack.add(Settings) },
+                    onOpenPullRequest = { backStack.add(PullRequestNavKey(it.repo, it.number)) },
+                    onOpenSettings = { backStack.add(SettingsNavKey) },
                 )
             }
-            entry<PullRequestKey> { key ->
+            entry<PullRequestNavKey> { key ->
                 PullRequestPage(repo = key.repo, number = key.number, onBack = { backStack.removeLastOrNull() })
             }
-            entry<Settings> {
+            entry<SettingsNavKey> {
                 SettingsPage(
                     onBack = { backStack.removeLastOrNull() },
-                    onOpenDebug = if (DebugKit.enabled) ({ backStack.add(Debug) }) else null,
+                    onOpenDebug = if (DebugKit.enabled) ({ backStack.add(DebugNavKey) }) else null,
                 )
             }
-            entry<Debug> {
+            entry<DebugNavKey> {
                 DebugPage(
                     onBack = { backStack.removeLastOrNull() },
-                    onOpenLogs = { backStack.add(Logs) },
-                    onOpenCrashes = { backStack.add(Crashes) },
+                    onOpenLogs = { backStack.add(LogsNavKey) },
+                    onOpenCrashes = { backStack.add(CrashesNavKey) },
                 )
             }
-            entry<Logs> { LogsPage(onBack = { backStack.removeLastOrNull() }) }
-            entry<Crashes> { CrashesPage(onBack = { backStack.removeLastOrNull() }) }
+            entry<LogsNavKey> { LogsPage(onBack = { backStack.removeLastOrNull() }) }
+            entry<CrashesNavKey> { CrashesPage(onBack = { backStack.removeLastOrNull() }) }
         },
     )
 }
