@@ -215,21 +215,3 @@ private fun PullRequestPageContentPreview() {
         )
     }
 }
-
-/** The README screenshot of this page: rendered by CI, used for nothing else. */
-@Preview
-@Composable
-private fun PullRequestPageContentScreenshot() {
-    AppTheme {
-        PullRequestPageContent(
-            repo = AppScreenshotMockData.pullRequest.repo,
-            number = AppScreenshotMockData.pullRequest.number,
-            state = AppScreenshotMockData.pullRequestState,
-            onRefresh = {},
-            onDownload = {},
-            onInstall = {},
-            onOpen = {},
-            onBack = {},
-        )
-    }
-}

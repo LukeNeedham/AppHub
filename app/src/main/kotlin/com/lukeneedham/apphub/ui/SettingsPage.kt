@@ -235,19 +235,3 @@ private fun SettingsPageContentPreview() {
         )
     }
 }
-
-/** The README screenshot of this page: rendered by CI, used for nothing else. */
-@Preview
-@Composable
-private fun SettingsPageContentScreenshot() {
-    AppTheme {
-        SettingsPageContent(
-            state = AppScreenshotMockData.settingsState,
-            onInputChange = {},
-            onSave = {},
-            onRemove = {},
-            onBack = {},
-            onOpenDebug = {},
-        )
-    }
-}
