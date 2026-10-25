@@ -55,6 +55,7 @@ fun PullRequestPage(
         state = state,
         onRefresh = viewModel::refresh,
         onDownload = viewModel::download,
+        onCancelDownload = viewModel::cancelDownload,
         onInstall = viewModel::install,
         onOpen = viewModel::open,
         onBack = onBack,
@@ -69,6 +70,7 @@ internal fun PullRequestPageContent(
     state: PullRequestUiState,
     onRefresh: () -> Unit,
     onDownload: () -> Unit,
+    onCancelDownload: () -> Unit,
     onInstall: () -> Unit,
     onOpen: () -> Unit,
     onBack: () -> Unit,
@@ -118,7 +120,6 @@ internal fun PullRequestPageContent(
                 }
 
                 val pr = item.pr
-                val target = pr.downloadableApk
 
                 Text(pr.title, style = MaterialTheme.typography.headlineSmall)
                 Text(
@@ -128,7 +129,7 @@ internal fun PullRequestPageContent(
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    StatusControl(controlOf(item), onDownload = onDownload, onInstall = onInstall, onOpen = onOpen)
+                    PullRequestStatus(item, onDownload = onDownload, onCancel = onCancelDownload, onInstall = onInstall, onOpen = onOpen)
                     Spacer(Modifier.weight(1f))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (pr.webUrl != null) {
@@ -154,22 +155,6 @@ internal fun PullRequestPageContent(
                             size = 36.dp,
                         )
                     }
-                }
-
-                pr.builtAt?.let { builtAt ->
-                    Text(
-                        "APK built $builtAt",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                if (target?.isStale == true) {
-                    Text(
-                        "Out of date: there are later changes, rebuilding now",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = StatusColors.warning,
-                    )
                 }
 
                 (item.download as? DownloadState.Failed)?.let { failed ->
@@ -209,6 +194,7 @@ private fun Preview() {
             state = PullRequestUiState(),
             onRefresh = {},
             onDownload = {},
+            onCancelDownload = {},
             onInstall = {},
             onOpen = {},
             onBack = {},

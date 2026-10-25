@@ -10,12 +10,28 @@ sealed interface ApkBuild {
     val commit: String?
 
     @Serializable
-    /** [builtAt] is the time the CI comment states, as written (the CI's own timezone); null if absent. */
-    data class Succeeded(val url: String, override val commit: String?, val builtAt: String? = null) : ApkBuild
+    /**
+     * [builtAt] is the time the CI comment states, as written (the CI's own timezone); null if absent.
+     * [builtAtMillis] is the same moment as epoch milliseconds, from when the comment was last edited; null if unknown.
+     */
+    data class Succeeded(
+        val url: String,
+        override val commit: String?,
+        val builtAt: String? = null,
+        val builtAtMillis: Long? = null,
+    ) : ApkBuild
 
-    /** [previousUrl] is the stale APK of the last build, kept in the comment while a new one builds. */
+    /**
+     * [previousUrl] is the stale APK of the last build, kept in the comment while a new one builds, and
+     * [previousBuiltAtMillis] the moment it was built, if known.
+     */
     @Serializable
-    data class InProgress(override val commit: String?, val previousUrl: String?) : ApkBuild
+    data class InProgress(
+        override val commit: String?,
+        val previousUrl: String?,
+        val runUrl: String? = null,
+        val previousBuiltAtMillis: Long? = null,
+    ) : ApkBuild
 
     @Serializable
     data class Failed(override val commit: String?) : ApkBuild
@@ -56,6 +72,17 @@ data class PullRequest(
 
     /** When the APK of the latest commit was built, as the CI comment states it; null while it is not known. */
     val builtAt: String? get() = (apk as? ApkBuild.Succeeded)?.builtAt
+
+    /** The GitHub Actions run building the APK, while one does and the comment links it; null otherwise. */
+    val buildingRunUrl: String? get() = (apk as? ApkBuild.InProgress)?.runUrl
+
+    /** When the APK on offer was built, as epoch milliseconds: the latest build's, or the stale one's while a new one builds; null if not known. */
+    val apkBuiltAtMillis: Long?
+        get() = when (val build = apk) {
+            is ApkBuild.Succeeded -> build.builtAtMillis
+            is ApkBuild.InProgress -> build.previousBuiltAtMillis
+            else -> null
+        }
 
     /** Unique per PR and build, so a new build is downloaded again and old files can be pruned. */
     val apkFileName: String

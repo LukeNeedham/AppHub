@@ -20,7 +20,10 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,7 +44,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -54,11 +56,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,6 +80,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.lukeneedham.apphub.R
@@ -86,6 +91,8 @@ import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.MainBuildItem
 import com.lukeneedham.apphub.domain.MainPhase
 import com.lukeneedham.apphub.domain.PullRequestRef
+import com.lukeneedham.apphub.domain.ageText
+import com.lukeneedham.apphub.domain.formatTimestamp
 import com.lukeneedham.apphub.domain.repoIconUrl
 import com.lukeneedham.apphub.ui.theme.StatusColors
 import androidx.compose.ui.tooling.preview.Preview
@@ -97,6 +104,7 @@ import org.koin.compose.viewmodel.koinViewModel
 data class MainBuildActions(
     val build: (String) -> Unit,
     val download: (String) -> Unit,
+    val cancelDownload: (String) -> Unit,
     val install: (String) -> Unit,
     val open: (String) -> Unit,
 )
@@ -114,11 +122,13 @@ fun HomePage(
         onRefresh = viewModel::refresh,
         onToggleRepo = viewModel::toggleRepo,
         onDownload = viewModel::download,
+        onCancelDownload = viewModel::cancelDownload,
         onInstall = viewModel::install,
         onOpen = viewModel::open,
         mainBuild = MainBuildActions(
             build = viewModel::buildMain,
             download = viewModel::downloadMain,
+            cancelDownload = viewModel::cancelMain,
             install = viewModel::installMain,
             open = viewModel::openMain,
         ),
@@ -134,6 +144,7 @@ internal fun HomePageContent(
     onRefresh: () -> Unit,
     onToggleRepo: (String) -> Unit,
     onDownload: (String) -> Unit,
+    onCancelDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
     onOpen: (String) -> Unit,
     mainBuild: MainBuildActions,
@@ -184,6 +195,7 @@ internal fun HomePageContent(
                 if (state.repos.isNotEmpty()) {
                     RepoNavigation(
                         repos = state.repos.map { it.repo },
+                        prCounts = state.repos.map { it.pullRequests.size },
                         selectedIndex = selectedIndex,
                         // The row has already settled on the project it jumps to, so it ignores the list passing the ones between
                         followList = !jumping,
@@ -238,6 +250,7 @@ internal fun HomePageContent(
                         expanded = section.repo !in state.collapsedRepos,
                         onToggle = { onToggleRepo(section.repo) },
                         onDownload = onDownload,
+                        onCancelDownload = onCancelDownload,
                         onInstall = onInstall,
                         onOpen = onOpen,
                         mainBuild = mainBuild,
@@ -268,7 +281,7 @@ private fun LazyListState.centredIndex(): Int? {
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun RepoNavigation(repos: List<String>, selectedIndex: Int, followList: Boolean, onSelect: (Int) -> Unit) {
+private fun RepoNavigation(repos: List<String>, prCounts: List<Int>, selectedIndex: Int, followList: Boolean, onSelect: (Int) -> Unit) {
     val rowState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val itemSize = 44.dp
@@ -320,11 +333,8 @@ private fun RepoNavigation(repos: List<String>, selectedIndex: Int, followList: 
         ) {
             itemsIndexed(repos, key = { _, repo -> repo }) { index, repo ->
                 val name = repo.substringAfter('/')
-                Surface(
-                    onClick = {
-                        scope.launch { rowState.animateScrollToItem(index) }
-                        onSelect(index)
-                    },
+                val count = prCounts.getOrElse(index) { 0 }
+                Box(
                     modifier = Modifier
                         .size(itemSize)
                         .graphicsLayer {
@@ -336,20 +346,48 @@ private fun RepoNavigation(repos: List<String>, selectedIndex: Int, followList: 
                             val scale = 1.3f - 0.45f * distance.coerceIn(0f, 1f)
                             scaleX = scale
                             scaleY = scale
-                        }
-                        .semantics { contentDescription = "Jump to $name" },
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        },
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        // The initial shows for repos without an icon, and under the icon while it loads
-                        Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        AsyncImage(
-                            model = repoIconUrl(repo),
-                            contentDescription = null,
-                            modifier = Modifier.padding(4.dp).fillMaxSize().clip(CircleShape),
-                        )
+                    Surface(
+                        onClick = {
+                            scope.launch { rowState.animateScrollToItem(index) }
+                            onSelect(index)
+                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .semantics { contentDescription = "Jump to $name" },
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            // The initial shows for repos without an icon, and under the icon while it loads
+                            Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            AsyncImage(
+                                model = repoIconUrl(repo),
+                                contentDescription = null,
+                                modifier = Modifier.padding(4.dp).fillMaxSize().clip(CircleShape),
+                            )
+                        }
+                    }
+                    if (count > 0) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 5.dp, y = (-5).dp)
+                                .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
+                                .padding(horizontal = 4.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                count.toString(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
             }
@@ -377,6 +415,7 @@ private fun RepoCard(
     expanded: Boolean,
     onToggle: () -> Unit,
     onDownload: (String) -> Unit,
+    onCancelDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
     onOpen: (String) -> Unit,
     mainBuild: MainBuildActions,
@@ -418,7 +457,6 @@ private fun RepoCard(
                     } else {
                         MaterialTheme.colorScheme.primary
                     },
-                    dot = false,
                 )
                 Spacer(Modifier.width(4.dp))
                 Icon(
@@ -440,6 +478,7 @@ private fun RepoCard(
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         CircleIconButton(
                             icon = R.drawable.ic_github,
@@ -451,11 +490,19 @@ private fun RepoCard(
                             description = "Start a Claude session on ${section.repo}",
                             onClick = { uriHandler.openUri(section.claudeUrl) },
                         )
+                        section.mainBuild?.let { item ->
+                            StatusControl(
+                                controlOf(item),
+                                onDownload = { mainBuild.download(item.repo) },
+                                onCancel = { mainBuild.cancelDownload(item.repo) },
+                                onInstall = { mainBuild.install(item.repo) },
+                                onOpen = { mainBuild.open(item.repo) },
+                                onOpenRun = { item.runUrl?.let(uriHandler::openUri) },
+                                onBuild = { mainBuild.build(item.repo) },
+                            )
+                        }
                     }
-                    section.mainBuild?.let { item ->
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        MainBuildRow(item, mainBuild)
-                    }
+                    section.mainBuild?.let { item -> MainBuildErrors(item) }
                     if (section.pullRequests.isEmpty()) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         Text(
@@ -467,7 +514,7 @@ private fun RepoCard(
                     }
                     section.pullRequests.forEach { item ->
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        PullRequestRow(item, onDownload, onInstall, onOpen, onOpenPullRequest)
+                        PullRequestRow(item, onDownload, onCancelDownload, onInstall, onOpen, onOpenPullRequest)
                     }
                 }
             }
@@ -479,20 +526,19 @@ private fun RepoCard(
 private fun PullRequestRow(
     item: PullRequestItem,
     onDownload: (String) -> Unit,
+    onCancelDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
     onOpen: (String) -> Unit,
     onOpenPullRequest: (PullRequestRef) -> Unit,
 ) {
     val pr = item.pr
     val uriHandler = LocalUriHandler.current
-    val control = controlOf(item)
-    val target = pr.downloadableApk
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).padding(bottom = 14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // The whole upper section opens the page of the PR, as the details button does
+        // The whole upper section opens the page of the PR
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -509,7 +555,7 @@ private fun PullRequestRow(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            StatusControl(control, onDownload = { onDownload(pr.key) }, onInstall = { onInstall(pr.key) }, onOpen = { onOpen(pr.key) })
+            PullRequestStatus(item, onDownload = { onDownload(pr.key) }, onCancel = { onCancelDownload(pr.key) }, onInstall = { onInstall(pr.key) }, onOpen = { onOpen(pr.key) })
             Spacer(Modifier.weight(1f))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (pr.webUrl != null) {
@@ -534,29 +580,7 @@ private fun PullRequestRow(
                     onClick = { uriHandler.openUri(pr.url) },
                     size = 36.dp,
                 )
-                CircleIconButton(
-                    icon = R.drawable.ic_details,
-                    description = "Open the page of this pull request",
-                    onClick = { onOpenPullRequest(PullRequestRef(pr.repo, pr.number)) },
-                    size = 36.dp,
-                )
             }
-        }
-
-        pr.builtAt?.let { builtAt ->
-            Text(
-                "APK built $builtAt",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        if (target?.isStale == true) {
-            Text(
-                "Out of date: there are later changes, rebuilding now",
-                style = MaterialTheme.typography.labelMedium,
-                color = StatusColors.warning,
-            )
         }
 
         (item.download as? DownloadState.Failed)?.let { failed ->
@@ -569,41 +593,19 @@ private fun PullRequestRow(
     }
 }
 
-/**
- * The build of main on demand: its status pill (which also downloads, installs and opens it), a button that
- * asks for a new build, and a line saying whether the build is the latest main.
- */
+/** The errors of the main build, under the row of buttons. */
 @Composable
-private fun MainBuildRow(item: MainBuildItem, actions: MainBuildActions) {
-    val control = controlOf(item)
+private fun MainBuildErrors(item: MainBuildItem) {
+    val downloadFailed = item.download as? DownloadState.Failed
+    if (item.error == null && downloadFailed == null) return
     Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text("Latest main", style = MaterialTheme.typography.bodyLarge)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            StatusControl(
-                control,
-                onDownload = { actions.download(item.repo) },
-                onInstall = { actions.install(item.repo) },
-                onOpen = { actions.open(item.repo) },
-            )
-            Spacer(Modifier.weight(1f))
-            OutlinedButton(onClick = { actions.build(item.repo) }, enabled = item.canBuild, shape = CircleShape) {
-                Text(item.buildLabel)
-            }
-        }
-        item.note?.let { note ->
-            Text(
-                note.text,
-                style = MaterialTheme.typography.labelMedium,
-                color = if (note.warn) StatusColors.warning else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
         item.error?.let { error ->
             Text(error, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
         }
-        (item.download as? DownloadState.Failed)?.let { failed ->
+        downloadFailed?.let { failed ->
             Text(
                 "Download failed: ${failed.message}",
                 style = MaterialTheme.typography.labelMedium,
@@ -611,6 +613,106 @@ private fun MainBuildRow(item: MainBuildItem, actions: MainBuildActions) {
             )
         }
     }
+}
+
+/**
+ * What a status pill says of the APK it is about, on the two lines under the status: how old it is ([builtAtMillis],
+ * the moment it was built, if known) and a [detail] in much smaller text, which is the timestamp of a PR's build
+ * and how far the main build lags main.
+ */
+internal data class ApkDetail(val builtAtMillis: Long?, val detail: String?)
+
+/** What a status says is only about an APK when there is one: not while it is only building, or after it failed. */
+private fun Control.aboutApk(built: ApkDetail?): Control =
+    if (built == null || text == "Building" || text == "Starting") this else copy(built = built)
+
+/** The status pill of a PR, with a press on "Building" opening the run. */
+@Composable
+internal fun PullRequestStatus(
+    item: PullRequestItem,
+    onDownload: () -> Unit,
+    onCancel: () -> Unit,
+    onInstall: () -> Unit,
+    onOpen: () -> Unit,
+) {
+    val uriHandler = LocalUriHandler.current
+    val pr = item.pr
+    StatusControl(
+        controlOf(item),
+        onDownload = onDownload,
+        onCancel = onCancel,
+        onInstall = onInstall,
+        onOpen = onOpen,
+        onOpenRun = { pr.buildingRunUrl?.let(uriHandler::openUri) },
+    )
+}
+
+/**
+ * The three lines of a status pill, each always laid out and exactly one line tall, ellipsized if it does not fit:
+ *
+ * 1. **status**: what state it is in ("Ready", "Stale build", "No build").
+ * 2. **age**: how old the APK is ("2 minutes old"); while it downloads, how far it is ("42%").
+ * 3. **detail**: a fact about that APK in much smaller text: the timestamp of a PR's build, or how far the main
+ *    build lags main ("3 commits behind", "Up to date with main").
+ *
+ * With no APK there is no age and no detail, and the status is centred in the height of the three lines.
+ */
+@Composable
+private fun PillLines(
+    status: String,
+    statusColor: Color,
+    apk: ApkDetail?,
+    progressText: String?,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    val ageSize = 10.sp
+    val detailSize = 8.sp
+    val age = progressText ?: apk?.builtAtMillis?.let { ageText(it, rememberNowMillis(it)) }
+    val detail = apk?.detail
+    val statusSize = 13.sp
+    val statusStyle = MaterialTheme.typography.labelMedium.copy(fontSize = statusSize, lineHeight = statusSize * 1.25f)
+    val statusText = @Composable { text: String ->
+        Text(text, style = statusStyle, color = statusColor, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+    val alone = age == null && detail == null
+    Box(modifier, contentAlignment = Alignment.CenterStart) {
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            // Alone, the status is drawn over the lines below, which then only give the height
+            statusText(if (alone) Blank else status)
+            Text(
+                age ?: Blank,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = ageSize, lineHeight = ageSize * 1.25f),
+                color = color,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                detail ?: Blank,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = detailSize, lineHeight = detailSize * 1.25f),
+                color = color.copy(alpha = 0.75f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (alone) statusText(status)
+    }
+}
+
+/** A no-break space: a line of text with nothing to show still takes the height of a line. */
+private const val Blank = "\u00A0"
+
+/** The current time, brought up to date every second while [sinceMillis] is under a minute ago (it counts seconds), else every half minute. */
+@Composable
+private fun rememberNowMillis(sinceMillis: Long?): Long {
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(sinceMillis) {
+        while (true) {
+            now = System.currentTimeMillis()
+            delay(if (sinceMillis != null && now - sinceMillis < 60_000) 1_000 else 30_000)
+        }
+    }
+    return now
 }
 
 /** A round outlined button holding just an icon. */
@@ -634,9 +736,9 @@ internal fun CircleIconButton(icon: Int, description: String, onClick: () -> Uni
     }
 }
 
-/** A small rounded tag: [color] on a faint tint of itself, with an optional dot. */
+/** A small rounded tag: [color] on a faint tint of itself. */
 @Composable
-private fun Pill(text: String, color: Color, dot: Boolean = true) {
+private fun Pill(text: String, color: Color) {
     Row(
         modifier = Modifier
             .clip(CircleShape)
@@ -645,15 +747,30 @@ private fun Pill(text: String, color: Color, dot: Boolean = true) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        if (dot) Box(Modifier.size(6.dp).clip(CircleShape).background(color))
         Text(text, style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.SemiBold)
     }
 }
 
 /** The status tag of a PR, with what presses on from here ([trailing]) at its end. */
-internal data class Control(val text: String, val color: Color, val trailing: Trailing? = null)
+internal data class Control(
+    val text: String,
+    val color: Color,
+    val trailing: Trailing? = null,
+    val built: ApkDetail? = null,
+    /** A second action, next to [trailing]: with two actions only a press on an action's own icon runs it. */
+    val secondary: Trailing.Action? = null,
+    /** Shown on the second line in place of the age of the APK: how far a download is. */
+    val progressText: String? = null,
+)
 
-internal enum class ActionKind { Download, Install, Open }
+internal enum class ActionKind { Download, Install, Open, OpenRun, Build }
+
+/** What a press on a "Building" pill does: opens the run that builds the APK. */
+private const val STALE_BUILD = "Stale build"
+
+private val BuildAction = Trailing.Action(R.drawable.ic_build, "Build main", ActionKind.Build)
+
+private val OpenRunAction = Trailing.Action(R.drawable.ic_open, "Open the build run", ActionKind.OpenRun)
 
 internal sealed interface Trailing {
     /** A press on the tag downloads the APK, installs the one already downloaded, or opens the installed app ([kind]). */
@@ -669,7 +786,7 @@ internal fun controlOf(item: PullRequestItem): Control {
     val installed = item.install == InstallStatus.Installed
     val build = when (item.pr.apk) {
         null -> Control("No build", scheme.onSurfaceVariant)
-        is ApkBuild.InProgress -> Control("Building", StatusColors.info)
+        is ApkBuild.InProgress -> Control("Building", StatusColors.info, if (item.pr.buildingRunUrl != null) OpenRunAction else null)
         is ApkBuild.Failed -> Control("Build failed", scheme.error)
         is ApkBuild.Cancelled -> Control("Cancelled", scheme.onSurfaceVariant)
         is ApkBuild.Succeeded -> when (item.install) {
@@ -679,10 +796,21 @@ internal fun controlOf(item: PullRequestItem): Control {
         }
     }
     val target = item.pr.downloadableApk
-    // The APK on offer lacks the latest commits, so what is on offer is the old build, whatever the build says
-    val isOld = target?.isStale == true
-    val offered = if (isOld) Control("Old build", StatusColors.warning) else build
-    return transferControl(item.download, build, offered, installed, hasApk = target != null, isOld = isOld, error = scheme.error)
+    // The APK on offer lacks the latest commits, so what is on offer is the stale build, whatever the build says
+    val isStale = target?.isStale == true
+    val offered = if (isStale) Control(STALE_BUILD, StatusColors.warning) else build
+    val pr = item.pr
+    val millis = pr.apkBuiltAtMillis
+    val text = (pr.apk as? ApkBuild.Succeeded)?.builtAt
+    val built = if (millis != null || text != null) ApkDetail(millis, millis?.let(::formatTimestamp) ?: text) else null
+    val control = transferControl(item.download, build, offered, installed, hasApk = target != null, isStale = isStale, error = scheme.error)
+        .aboutApk(built)
+    // A stale build is installed by the first action; the second opens the run that is replacing it
+    return if (control.text == STALE_BUILD && control.trailing is Trailing.Action && pr.buildingRunUrl != null) {
+        control.copy(secondary = OpenRunAction)
+    } else {
+        control
+    }
 }
 
 /** The status of the main build; see docs/status-colors.md. */
@@ -694,17 +822,30 @@ internal fun controlOf(item: MainBuildItem): Control {
     val build = when (item.phase) {
         MainPhase.NoBuild -> Control("No build", scheme.onSurfaceVariant)
         MainPhase.Requested -> Control("Starting", StatusColors.info)
-        MainPhase.Building -> Control("Building", StatusColors.info)
+        MainPhase.Building -> Control("Building", StatusColors.info, if (item.runUrl != null) OpenRunAction else null)
         MainPhase.Failed -> Control("Build failed", scheme.error)
         MainPhase.Ready -> Control(if (item.install == InstallStatus.DifferentBuild) "Update ready" else "Ready", scheme.primary)
         MainPhase.Installed -> if (behind) Control("Behind main", scheme.onSurfaceVariant) else Control("Installed", StatusColors.success)
     }
     val building = item.phase == MainPhase.Requested || item.phase == MainPhase.Building
-    // An APK that lacks the latest commits, or that a newer build is about to replace, is the old build
-    val isOld = item.info.apk != null && !installed && (building || behind)
-    // Main is not built for every push, so an old build of it is routine: quiet grey, not the amber of a PR's
-    val offered = if (isOld) Control("Old build", scheme.onSurfaceVariant) else build
-    return transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isOld = isOld, error = scheme.error)
+    // An APK that lacks the latest commits, or that a newer build is about to replace, is the stale build
+    val isStale = item.info.apk != null && !installed && (building || behind)
+    // Main is not built for every push, so a stale build of it is routine: quiet grey, not the amber of a PR's
+    val offered = if (isStale) Control(STALE_BUILD, scheme.onSurfaceVariant) else build
+    val built = item.info.apk?.let { ApkDetail(it.builtAtMillis, item.behindText) }
+    val control = transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isStale = isStale, error = scheme.error)
+        .aboutApk(built)
+    // A stale build is installed by the first action; the second opens the run that is replacing it
+    if (control.text == STALE_BUILD && control.trailing is Trailing.Action && building && item.runUrl != null) {
+        return control.copy(secondary = OpenRunAction)
+    }
+    // Building main is the primary action when there is no other, else the second one
+    if (!item.offersBuild || !item.canBuild) return control
+    return when (control.trailing) {
+        null -> control.copy(trailing = BuildAction)
+        is Trailing.Action -> control.copy(secondary = BuildAction)
+        is Trailing.Progress -> control
+    }
 }
 
 /** [build] with what a press does next, given the state of the download of the APK on offer ([offered]). */
@@ -714,19 +855,19 @@ private fun transferControl(
     offered: Control,
     installed: Boolean,
     hasApk: Boolean,
-    isOld: Boolean,
+    isStale: Boolean,
     error: Color,
 ): Control =
     when (download) {
         is DownloadState.Downloading -> {
             val total = download.total
-            val text = if (total != null) "Downloading ${(download.bytes * 100 / total).toInt()}%" else "Downloading"
-            Control(text, StatusColors.info, Trailing.Progress(total?.let { download.bytes.toFloat() / it }))
+            val done = if (total != null) "${(download.bytes * 100 / total).toInt()}%" else "${megabytes(download.bytes)} MB"
+            Control("Downloading…", StatusColors.info, Trailing.Progress(total?.let { download.bytes.toFloat() / it }), progressText = done)
         }
         is DownloadState.Downloaded -> when {
             installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open app", ActionKind.Open))
             else -> offered.copy(
-                text = if (isOld) offered.text else "Ready to install",
+                text = if (isStale) offered.text else "Ready to install",
                 trailing = Trailing.Action(R.drawable.ic_install, "Install", ActionKind.Install),
             )
         }
@@ -743,58 +884,94 @@ private fun transferControl(
     }
 
 /**
- * The status of a PR as a coloured pill: a dot and the status, then after a divider the icon of what a
+ * The status of a PR as a coloured pill: the status, the age of the APK and a detail, then after a divider the icon of what a
  * press does next, or its progress. A press anywhere on the pill does that.
  */
 @Composable
-internal fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: () -> Unit, onOpen: () -> Unit) {
+internal fun StatusControl(
+    control: Control,
+    onDownload: () -> Unit,
+    onCancel: () -> Unit,
+    onInstall: () -> Unit,
+    onOpen: () -> Unit,
+    onOpenRun: () -> Unit = {},
+    onBuild: () -> Unit = {},
+) {
     val color = control.color
     // The pale status colours do not read as text on their own tint in light mode, so the text takes a darker shade
     val textColor = if (isSystemInDarkTheme()) color else lerp(color, Color.Black, 0.3f)
-    val action = control.trailing as? Trailing.Action
+    val progress = control.trailing as? Trailing.Progress
+    val actions = listOfNotNull(control.trailing as? Trailing.Action, control.secondary)
+    // One action, or a download to cancel: a press anywhere on the pill does it. With two, only a press on an action's own icon does
+    val wholePill = progress != null || actions.size == 1
+    val run = { kind: ActionKind ->
+        when (kind) {
+            ActionKind.Download -> onDownload()
+            ActionKind.Open -> onOpen()
+            ActionKind.OpenRun -> onOpenRun()
+            ActionKind.Build -> onBuild()
+            ActionKind.Install -> onInstall()
+        }
+    }
     Surface(
-        onClick = {
-            when (action?.kind) {
-                ActionKind.Download -> onDownload()
-                ActionKind.Open -> onOpen()
-                else -> onInstall()
+        modifier = Modifier.semantics(mergeDescendants = wholePill) {
+            if (wholePill) {
+                contentDescription = if (progress != null) "${control.text} ${control.progressText.orEmpty()}. Cancel the download" else "${control.text}. ${actions.single().description}"
             }
         },
-        enabled = action != null,
-        modifier = Modifier.semantics(mergeDescendants = true) { action?.let { contentDescription = "${control.text}. ${it.description}" } },
         shape = CircleShape,
         color = color.copy(alpha = 0.14f),
         border = BorderStroke(1.dp, color.copy(alpha = 0.45f)),
     ) {
-        Row(modifier = Modifier.height(32.dp), verticalAlignment = Alignment.CenterVertically) {
-            Row(
-                modifier = Modifier.padding(start = 12.dp, end = if (control.trailing == null) 12.dp else 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Box(Modifier.size(6.dp).clip(CircleShape).background(color))
-                Text(control.text, style = MaterialTheme.typography.labelMedium, color = textColor, fontWeight = FontWeight.SemiBold)
-            }
-            if (control.trailing != null) {
+        Row(
+            modifier = Modifier
+                .defaultMinSize(minHeight = 32.dp)
+                .height(IntrinsicSize.Min)
+                .then(
+                    if (wholePill) Modifier.clickable { if (progress != null) onCancel() else run(actions.single().kind) } else Modifier,
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Measured after the actions, so that a long line is ellipsized instead of pushing them out
+            PillLines(
+                status = control.text,
+                statusColor = textColor,
+                apk = control.built,
+                progressText = control.progressText,
+                color = textColor,
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .padding(start = 12.dp, end = if (control.trailing == null) 12.dp else 10.dp, top = 4.dp, bottom = 4.dp),
+            )
+            if (progress != null) {
                 Box(Modifier.width(1.dp).fillMaxHeight().background(color.copy(alpha = 0.3f)))
                 Box(Modifier.width(38.dp), contentAlignment = Alignment.Center) {
-                    when (val trailing = control.trailing) {
-                        is Trailing.Action -> Icon(
-                            painterResource(trailing.icon),
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = textColor,
-                        )
-                        is Trailing.Progress -> {
-                            val indicator = Modifier.size(16.dp)
-                            if (trailing.fraction != null) {
-                                CircularProgressIndicator(progress = { trailing.fraction }, modifier = indicator, strokeWidth = 2.5.dp, color = textColor)
-                            } else {
-                                CircularProgressIndicator(modifier = indicator, strokeWidth = 2.5.dp, color = textColor)
-                            }
-                        }
-                        null -> Unit
+                    val indicator = Modifier.size(16.dp)
+                    if (progress.fraction != null) {
+                        CircularProgressIndicator(progress = { progress.fraction }, modifier = indicator, strokeWidth = 2.5.dp, color = textColor)
+                    } else {
+                        CircularProgressIndicator(modifier = indicator, strokeWidth = 2.5.dp, color = textColor)
                     }
+                }
+            }
+            actions.forEach { action ->
+                Box(Modifier.width(1.dp).fillMaxHeight().background(color.copy(alpha = 0.3f)))
+                Box(
+                    modifier = Modifier
+                        .width(38.dp)
+                        .fillMaxHeight()
+                        .then(
+                            if (wholePill) {
+                                Modifier
+                            } else {
+                                Modifier
+                                    .clickable(onClickLabel = action.description) { run(action.kind) }
+                                    .semantics { contentDescription = action.description }
+                            },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(painterResource(action.icon), contentDescription = null, modifier = Modifier.size(18.dp), tint = textColor)
                 }
             }
         }
@@ -813,9 +990,10 @@ private fun Preview() {
             onRefresh = {},
             onToggleRepo = {},
             onDownload = {},
+            onCancelDownload = {},
             onInstall = {},
             onOpen = {},
-            mainBuild = MainBuildActions(build = {}, download = {}, install = {}, open = {}),
+            mainBuild = MainBuildActions(build = {}, download = {}, cancelDownload = {}, install = {}, open = {}),
             onOpenPullRequest = {},
             onOpenSettings = {},
         )

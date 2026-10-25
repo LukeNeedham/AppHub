@@ -45,6 +45,7 @@ private fun PullRequestPageScreenshot() {
             state = state,
             onRefresh = {},
             onDownload = {},
+            onCancelDownload = {},
             onInstall = {},
             onOpen = {},
             onBack = {},

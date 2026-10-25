@@ -10,6 +10,7 @@ object CommentParser {
     private val apkUrl = Regex("""https://github\.com/[^\s)]+/releases/download/[^\s)]+\.apk""")
     private val commit = Regex("""\*\*Commit:\*\*\s*\[`([0-9a-fA-F]{7,40})`]""")
     private val built = Regex("""\*\*Built:\*\*\s*(\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2})""")
+    private val run = Regex("""\*\*Run:\*\*\s*\[[^\]]*]\((https://github\.com/[^)\s]+/actions/runs/\d+)\)""")
     private val anyUrl = Regex("""https://[^\s)>\]"'<]+""")
 
     /** Hosts that serve web previews. A URL on one of these in a comment is taken as the deploy link. */
@@ -27,12 +28,12 @@ object CommentParser {
     )
 
     /** Null when the comment is not the APK comment. */
-    fun parseApkBuild(body: String): ApkBuild? {
+    fun parseApkBuild(body: String, updatedAtMillis: Long? = null): ApkBuild? {
         val sha = commit.find(body)?.groupValues?.get(1) ?: return null
         val url = apkUrl.find(body)?.value
         return when {
-            body.contains("Build succeeded") -> url?.let { ApkBuild.Succeeded(it, sha, built.find(body)?.groupValues?.get(1)) }
-            body.contains("Build in progress") -> ApkBuild.InProgress(sha, url)
+            body.contains("Build succeeded") -> url?.let { ApkBuild.Succeeded(it, sha, built.find(body)?.groupValues?.get(1), updatedAtMillis) }
+            body.contains("Build in progress") -> ApkBuild.InProgress(sha, url, run.find(body)?.groupValues?.get(1))
             body.contains("Build failed") -> ApkBuild.Failed(sha)
             body.contains("Build cancelled") -> ApkBuild.Cancelled(sha)
             else -> null
@@ -52,11 +53,15 @@ object CommentParser {
         texts.firstNotNullOfOrNull { text -> text?.let { sessionUrl.find(it)?.value } }
 
     /** The newest APK build and web link across a PR's comments, oldest first. */
-    fun parse(commentBodies: List<String>): Pair<ApkBuild?, String?> {
+    fun parse(commentBodies: List<String>): Pair<ApkBuild?, String?> = parse(commentBodies.map { it to null })
+
+    /** As above, each comment with the moment it was last edited (epoch milliseconds), which dates the build. */
+    @JvmName("parseDated")
+    fun parse(comments: List<Pair<String, Long?>>): Pair<ApkBuild?, String?> {
         var apk: ApkBuild? = null
         var web: String? = null
-        for (body in commentBodies) {
-            val build = parseApkBuild(body)
+        for ((body, updatedAt) in comments) {
+            val build = parseApkBuild(body, updatedAt)
             if (build != null) {
                 apk = build
             } else {

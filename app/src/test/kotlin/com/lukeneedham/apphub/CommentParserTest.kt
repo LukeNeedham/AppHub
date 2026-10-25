@@ -48,6 +48,19 @@ class CommentParserTest {
     }
 
     @Test
+    fun inProgressKeepsTheRunLink() {
+        val run = "https://github.com/x/y/actions/runs/40145571300"
+        val body = """
+            ### ⏳ Build in progress
+
+            - **Commit:** [`1234567`](https://github.com/x/y/commit/1234567)
+            - **Started:** 25/10/2026 02:09:25
+            - **Run:** [#108]($run)
+        """.trimIndent()
+        assertEquals(ApkBuild.InProgress("1234567", null, run), CommentParser.parseApkBuild(body))
+    }
+
+    @Test
     fun failedAndCancelled() {
         val commit = "- **Commit:** [`abcdef0`](https://github.com/x/y/commit/abcdef0)"
         assertEquals(ApkBuild.Failed("abcdef0"), CommentParser.parseApkBuild("### ❌ Build failed\n\n$commit"))

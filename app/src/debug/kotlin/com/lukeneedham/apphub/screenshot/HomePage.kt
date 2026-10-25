@@ -105,9 +105,10 @@ private fun HomePageScreenshot() {
                 onRefresh = {},
                 onToggleRepo = {},
                 onDownload = {},
+                onCancelDownload = {},
                 onInstall = {},
                 onOpen = {},
-                mainBuild = MainBuildActions(build = {}, download = {}, install = {}, open = {}),
+                mainBuild = MainBuildActions(build = {}, download = {}, cancelDownload = {}, install = {}, open = {}),
                 onOpenPullRequest = {},
                 onOpenSettings = {},
             )

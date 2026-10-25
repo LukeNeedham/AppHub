@@ -83,6 +83,13 @@ class ApkDownloads(
         }
     }
 
+    /** Stops the download of the build [key] (a PR's key, or the main key of a repo) and forgets its progress. */
+    fun cancel(key: String) {
+        jobs.remove(key)?.cancel()
+        if (states[key] is DownloadState.Downloading) states.remove(key)
+        notifyChanged()
+    }
+
     /** Opens the system installer for an APK that is already downloaded. */
     fun install(pr: PullRequest) {
         pr.offer?.let(::install)

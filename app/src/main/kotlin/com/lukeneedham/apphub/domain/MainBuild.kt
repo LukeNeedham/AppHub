@@ -11,8 +11,8 @@ enum class RunState { Active, Succeeded, Failed, Cancelled }
 /** One run of the main build workflow, of [commit]. */
 data class MainRun(val id: Long, val commit: String, val state: RunState)
 
-/** The APK artifact of a successful run: the CI keeps it for a day. */
-data class MainApk(val artifactId: Long, val commit: String)
+/** The APK artifact of a successful run: the CI keeps it for a day. [builtAtMillis] is when it was uploaded, if known. */
+data class MainApk(val artifactId: Long, val commit: String, val builtAtMillis: Long? = null)
 
 /**
  * What GitHub knows about the main builds of a repo. [run] is the newest run, [apk] the newest build whose
@@ -43,9 +43,6 @@ data class ApkOffer(val key: String, val repo: String, val buildId: String, val 
 
 enum class MainPhase { NoBuild, Requested, Building, Failed, Ready, Installed }
 
-/** A line under the main build: [warn] when it says something went wrong. A build that lags main is expected, so that is no warning. */
-data class MainNote(val text: String, val warn: Boolean = false)
-
 /**
  * The main build of one repo as the home screen shows it. [requested] is true from the press of the button
  * until the new run appears in GitHub's list.
@@ -59,6 +56,9 @@ data class MainBuildItem(
     val error: String? = null,
 ) {
     val key: String get() = mainKey(repo)
+
+    /** The GitHub Actions run of the newest build, which is the one on its way while [phase] is [MainPhase.Building]. */
+    val runUrl: String? get() = info.run?.let { "https://github.com/$repo/actions/runs/${it.id}" }
 
     val offer: ApkOffer?
         get() = info.apk?.let {
@@ -77,36 +77,18 @@ data class MainBuildItem(
     /** A build can be asked for unless one is already on its way. */
     val canBuild: Boolean get() = phase != MainPhase.Requested && phase != MainPhase.Building
 
-    val buildLabel: String
+    /** A new build is only worth offering when there is none, or the one there lacks commits of main. */
+    val offersBuild: Boolean get() = info.apk == null || info.commitsBehind > 0
+
+    /** How far the build in [info] lags main, short enough for a status pill; null while there is no build. */
+    val behindText: String?
         get() = when {
-            info.apk == null -> "Build main"
-            info.commitsBehind > 0 -> "Build latest main"
-            else -> "Rebuild"
+            info.apk == null -> null
+            info.commitsBehind > 0 -> "${commits(info.commitsBehind)} behind"
+            else -> "Up to date with main"
         }
 
-    val note: MainNote?
-        get() {
-            val behind = info.commitsBehind
-            val commit = info.apk?.commit?.let(::shortCommit)
-            val newerFailed = info.run?.state == RunState.Failed && info.apk != null
-            return when (phase) {
-                MainPhase.Requested -> MainNote("Starting the build of main…")
-                MainPhase.Building -> MainNote("Building main at ${shortCommit(info.run?.commit.orEmpty())}…")
-                MainPhase.Failed -> MainNote("The build of ${shortCommit(info.run?.commit.orEmpty())} failed", warn = true)
-                MainPhase.NoBuild -> MainNote("No build of main yet. A build is kept for a day.")
-                MainPhase.Installed -> when {
-                    behind > 0 -> MainNote("${commits(behind)} on main since the installed build ($commit)")
-                    else -> MainNote("Installed: this is the latest main ($commit)")
-                }
-                MainPhase.Ready -> when {
-                    newerFailed -> MainNote("The newest build failed; this is an older one ($commit)", warn = true)
-                    behind > 0 -> MainNote("${commits(behind)} on main since this build ($commit)")
-                    else -> MainNote("Built from the latest main ($commit)")
-                }
-            }
-        }
-
-    private fun commits(count: Int) = if (count == 1) "1 new commit" else "$count new commits"
+    private fun commits(count: Int) = if (count == 1) "1 commit" else "$count commits"
 }
 
 fun mainKey(repo: String) = "$repo@$MAIN_BRANCH"

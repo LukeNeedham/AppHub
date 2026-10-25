@@ -40,7 +40,7 @@ class MainBuildRepository(
         val apk = runs.filter { stateOf(it) == RunState.Succeeded }.take(RUNS_CHECKED).firstNotNullOfOrNull { run ->
             api.runArtifacts(repo, run.id)
                 .firstOrNull { it.name == APK_ARTIFACT && !isExpired(it) }
-                ?.let { MainApk(it.id, run.headSha) }
+                ?.let { MainApk(it.id, run.headSha, it.createdAt?.let { at -> runCatching { Instant.parse(at).toEpochMilli() }.getOrNull() }) }
         }
         val tip = api.latestCommit(repo, MAIN_BRANCH)
         val behind = if (apk == null || apk.commit == tip) 0 else api.commitsAhead(repo, apk.commit, tip)
