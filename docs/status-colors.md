@@ -30,8 +30,7 @@ Notes:
   published in. For an update it is the new build's age, not the installed one's. Pills about no APK (Building, No build,
   Build failed) have only the first line.
 - **Red is for failure** whoever's it is: a failed CI build or a failed download. The text tells them apart.
-- Amber on an stale build wins over the build's own state, as the build is still running in that case. The row
-  keeps its "Out of date: there are later changes, rebuilding now" note.
+- Amber on a stale build wins over the build's own state, as the build is still running in that case.
 
 ## The main build
 
