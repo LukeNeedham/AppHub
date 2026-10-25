@@ -32,7 +32,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.lukeneedham.apphub.R
 import com.lukeneedham.apphub.domain.DownloadState
-import com.lukeneedham.apphub.ui.theme.StatusColors
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle

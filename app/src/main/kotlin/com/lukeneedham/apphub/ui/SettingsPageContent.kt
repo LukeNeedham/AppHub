@@ -53,7 +53,7 @@ internal fun SettingsPageContent(
     onBack: () -> Unit,
     onOpenDebug: (() -> Unit)?,
 ) {
-    val background = MaterialTheme.colorScheme.background
+    val background = AppTheme.colors.background
     Scaffold(
         containerColor = background,
         topBar = {
@@ -99,11 +99,11 @@ private fun GithubCard(
                 Text(
                     "${it.remaining} of ${it.limit} requests left this hour",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = AppTheme.colors.textSecondary,
                 )
             }
             if (state.error != null) {
-                Text(state.error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                Text(state.error, style = MaterialTheme.typography.bodySmall, color = AppTheme.colors.failed)
             }
             OutlinedButton(onClick = onRemove, shape = CircleShape) { Text("Remove token") }
         } else {
@@ -113,7 +113,7 @@ private fun GithubCard(
                     "with its Build button, only shows when there is one. For that the token needs the Actions " +
                     "permission (read and write); for the rate limit alone it needs no permissions.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = AppTheme.colors.textSecondary,
             )
             TokenSteps()
             OutlinedTextField(
@@ -160,7 +160,7 @@ private fun TokenSteps() {
             "Come back here, paste it in the field and tap \"Save token\".",
         ).forEachIndexed { index, step ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("${index + 1}.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                Text("${index + 1}.", style = MaterialTheme.typography.bodySmall, color = AppTheme.colors.accent)
                 Text(step, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
             }
         }
@@ -171,8 +171,8 @@ private fun TokenSteps() {
 private fun Card(content: @Composable () -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = AppTheme.colors.card,
+        border = BorderStroke(1.dp, AppTheme.colors.border),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { content() }
@@ -183,20 +183,20 @@ private fun Card(content: @Composable () -> Unit) {
 private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = AppTheme.colors.card,
+        border = BorderStroke(1.dp, AppTheme.colors.border),
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
     ) {
         Row(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = AppTheme.colors.textSecondary)
             }
             Icon(
                 painterResource(R.drawable.ic_expand_more),
                 contentDescription = null,
                 modifier = Modifier.rotate(-90f),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = AppTheme.colors.textSecondary,
             )
         }
     }
