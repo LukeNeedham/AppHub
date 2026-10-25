@@ -47,7 +47,7 @@ With no APK (No build, Building, Build failed) lines 2 and 3 are empty and the s
 
 The main build of a repo sits in the row of buttons at the top of its card, after the GitHub and Claude buttons. It uses the
 same pill, from `controlOf(MainBuildItem)`. Its second line is the age of the build and its third how far the build is behind main
-("3 commits behind") or "Up to date", in place of the timestamp; with no build only the status shows. Building main is an action of the pill:
+("3 commits behind") or "Up to date with main", in place of the timestamp; with no build only the status shows. Building main is an action of the pill:
 the only one when there is no other (No build, Build failed), else the second one, next to the download, install or open
 action of a build that lags main. It is left out when the build is up to date or one is running. Its states are those above, with these meanings:
 

@@ -81,7 +81,7 @@ class MainBuildItemTest {
     fun `a ready apk of the latest main is up to date`() {
         val item = item()
         assertEquals(MainPhase.Ready, item.phase)
-        assertEquals("Up to date", item.behindText)
+        assertEquals("Up to date with main", item.behindText)
         assertFalse(item.offersBuild)
     }
 
@@ -96,7 +96,7 @@ class MainBuildItemTest {
     fun `the installed build is the latest main`() {
         val item = item(install = InstallStatus.Installed)
         assertEquals(MainPhase.Installed, item.phase)
-        assertEquals("Up to date", item.behindText)
+        assertEquals("Up to date with main", item.behindText)
     }
 
     @Test

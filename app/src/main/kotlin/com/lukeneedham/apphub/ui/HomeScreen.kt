@@ -639,7 +639,7 @@ internal fun PullRequestStatus(
  * 1. **status**: what state it is in ("Ready", "Stale build", "No build").
  * 2. **age**: how old the APK is ("2 minutes old"); while it downloads, how far it is ("42%").
  * 3. **detail**: a fact about that APK in much smaller text: the timestamp of a PR's build, or how far the main
- *    build lags main ("3 commits behind", "Up to date").
+ *    build lags main ("3 commits behind", "Up to date with main").
  *
  * With no APK there is no age and no detail, and the status is centred in the height of the three lines.
  */

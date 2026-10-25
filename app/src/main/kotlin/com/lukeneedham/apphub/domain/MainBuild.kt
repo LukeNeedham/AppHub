@@ -85,7 +85,7 @@ data class MainBuildItem(
         get() = when {
             info.apk == null -> null
             info.commitsBehind > 0 -> "${commits(info.commitsBehind)} behind"
-            else -> "Up to date"
+            else -> "Up to date with main"
         }
 
     private fun commits(count: Int) = if (count == 1) "1 commit" else "$count commits"
