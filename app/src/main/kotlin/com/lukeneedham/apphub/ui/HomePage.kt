@@ -377,14 +377,14 @@ private fun RepoNavigation(repos: List<String>, prCounts: List<Int>, selectedInd
                                 .offset(x = 5.dp, y = (-5).dp)
                                 .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary)
+                                .background(Color.White)
                                 .padding(horizontal = 4.dp),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
                                 count.toString(),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.White,
+                                color = Color.Black,
                                 fontWeight = FontWeight.Bold,
                             )
                         }
@@ -491,6 +491,7 @@ private fun RepoCard(
                             onClick = { uriHandler.openUri(section.claudeUrl) },
                         )
                         section.mainBuild?.let { item ->
+                            Spacer(Modifier.weight(1f))
                             StatusControl(
                                 controlOf(item),
                                 onDownload = { mainBuild.download(item.repo) },
