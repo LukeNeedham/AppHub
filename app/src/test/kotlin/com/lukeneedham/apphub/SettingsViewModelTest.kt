@@ -47,6 +47,7 @@ class SettingsViewModelTest {
         override suspend fun commitsAhead(repo: String, base: String, head: String): Int = 0
         override suspend fun startMainBuild(repo: String) = Unit
         override suspend fun artifactDownloadUrl(repo: String, artifactId: Long): String = ""
+        override suspend fun releasePublishedAt(repo: String, tag: String): String? = null
         override suspend fun checkToken(token: String): RateLimitInfo =
             if (token in valid) RateLimitInfo(5000, 4990) else throw InvalidTokenException()
     }
