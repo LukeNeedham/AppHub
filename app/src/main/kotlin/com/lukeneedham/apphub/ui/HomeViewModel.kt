@@ -151,6 +151,8 @@ class HomeViewModel(
         downloads.download(offer, fromZip = true) { mainBuilds.downloadUrl(repo, apk) }
     }
 
+    fun cancelMain(repo: String) = downloads.cancel(mainKey(repo))
+
     fun installMain(repo: String) {
         mainItem(repo)?.offer?.let(downloads::install)
     }
@@ -172,6 +174,8 @@ class HomeViewModel(
     fun download(key: String) {
         pullRequests.firstOrNull { it.key == key }?.let(downloads::download)
     }
+
+    fun cancelDownload(key: String) = downloads.cancel(key)
 
     /** Opens the system installer for an APK that is already downloaded. */
     fun install(key: String) {

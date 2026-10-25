@@ -103,6 +103,7 @@ import com.lukeneedham.apphub.ui.theme.StatusColors
 data class MainBuildActions(
     val build: (String) -> Unit,
     val download: (String) -> Unit,
+    val cancelDownload: (String) -> Unit,
     val install: (String) -> Unit,
     val open: (String) -> Unit,
 )
@@ -114,6 +115,7 @@ fun HomeScreen(
     onResume: () -> Unit,
     onToggleRepo: (String) -> Unit,
     onDownload: (String) -> Unit,
+    onCancelDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
     onOpen: (String) -> Unit,
     mainBuild: MainBuildActions,
@@ -121,7 +123,7 @@ fun HomeScreen(
     onOpenSettings: () -> Unit,
 ) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onResume() }
-    HomeContent(state, onRefresh, onToggleRepo, onDownload, onInstall, onOpen, mainBuild, onOpenPullRequest, onOpenSettings)
+    HomeContent(state, onRefresh, onToggleRepo, onDownload, onCancelDownload, onInstall, onOpen, mainBuild, onOpenPullRequest, onOpenSettings)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -131,6 +133,7 @@ internal fun HomeContent(
     onRefresh: () -> Unit,
     onToggleRepo: (String) -> Unit,
     onDownload: (String) -> Unit,
+    onCancelDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
     onOpen: (String) -> Unit,
     mainBuild: MainBuildActions,
@@ -236,6 +239,7 @@ internal fun HomeContent(
                         expanded = section.repo !in state.collapsedRepos,
                         onToggle = { onToggleRepo(section.repo) },
                         onDownload = onDownload,
+                        onCancelDownload = onCancelDownload,
                         onInstall = onInstall,
                         onOpen = onOpen,
                         mainBuild = mainBuild,
@@ -400,6 +404,7 @@ private fun RepoCard(
     expanded: Boolean,
     onToggle: () -> Unit,
     onDownload: (String) -> Unit,
+    onCancelDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
     onOpen: (String) -> Unit,
     mainBuild: MainBuildActions,
@@ -479,6 +484,7 @@ private fun RepoCard(
                             StatusControl(
                                 controlOf(item),
                                 onDownload = { mainBuild.download(item.repo) },
+                                onCancel = { mainBuild.cancelDownload(item.repo) },
                                 onInstall = { mainBuild.install(item.repo) },
                                 onOpen = { mainBuild.open(item.repo) },
                                 onOpenRun = { item.runUrl?.let(uriHandler::openUri) },
@@ -497,7 +503,7 @@ private fun RepoCard(
                     }
                     section.pullRequests.forEach { item ->
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        PullRequestRow(item, onDownload, onInstall, onOpen, onOpenPullRequest)
+                        PullRequestRow(item, onDownload, onCancelDownload, onInstall, onOpen, onOpenPullRequest)
                     }
                 }
             }
@@ -509,6 +515,7 @@ private fun RepoCard(
 private fun PullRequestRow(
     item: PullRequestItem,
     onDownload: (String) -> Unit,
+    onCancelDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
     onOpen: (String) -> Unit,
     onOpenPullRequest: (PullRequestRef) -> Unit,
@@ -538,7 +545,7 @@ private fun PullRequestRow(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            PullRequestStatus(item, onDownload = { onDownload(pr.key) }, onInstall = { onInstall(pr.key) }, onOpen = { onOpen(pr.key) })
+            PullRequestStatus(item, onDownload = { onDownload(pr.key) }, onCancel = { onCancelDownload(pr.key) }, onInstall = { onInstall(pr.key) }, onOpen = { onOpen(pr.key) })
             Spacer(Modifier.weight(1f))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (pr.webUrl != null) {
@@ -642,12 +649,19 @@ private fun builtLabel(built: BuiltInfo, now: Long): AnnotatedString {
 
 /** The status pill of a PR, with a press on "Building" opening the run and the build time shown inside. */
 @Composable
-internal fun PullRequestStatus(item: PullRequestItem, onDownload: () -> Unit, onInstall: () -> Unit, onOpen: () -> Unit) {
+internal fun PullRequestStatus(
+    item: PullRequestItem,
+    onDownload: () -> Unit,
+    onCancel: () -> Unit,
+    onInstall: () -> Unit,
+    onOpen: () -> Unit,
+) {
     val uriHandler = LocalUriHandler.current
     val pr = item.pr
     StatusControl(
         controlOf(item),
         onDownload = onDownload,
+        onCancel = onCancel,
         onInstall = onInstall,
         onOpen = onOpen,
         onOpenRun = { pr.buildingRunUrl?.let(uriHandler::openUri) },
@@ -808,6 +822,7 @@ private fun transferControl(
 internal fun StatusControl(
     control: Control,
     onDownload: () -> Unit,
+    onCancel: () -> Unit,
     onInstall: () -> Unit,
     onOpen: () -> Unit,
     onOpenRun: () -> Unit = {},
@@ -817,17 +832,22 @@ internal fun StatusControl(
     // The pale status colours do not read as text on their own tint in light mode, so the text takes a darker shade
     val textColor = if (isSystemInDarkTheme()) color else lerp(color, Color.Black, 0.3f)
     val action = control.trailing as? Trailing.Action
+    // A press on a download in progress cancels it
+    val downloading = control.trailing is Trailing.Progress
     Surface(
         onClick = {
-            when (action?.kind) {
+            if (downloading) onCancel() else when (action?.kind) {
                 ActionKind.Download -> onDownload()
                 ActionKind.Open -> onOpen()
                 ActionKind.OpenRun -> onOpenRun()
                 else -> onInstall()
             }
         },
-        enabled = action != null,
-        modifier = Modifier.semantics(mergeDescendants = true) { action?.let { contentDescription = "${control.text}. ${it.description}" } },
+        enabled = action != null || downloading,
+        modifier = Modifier.semantics(mergeDescendants = true) {
+            if (action != null) contentDescription = "${control.text}. ${action.description}"
+            if (downloading) contentDescription = "${control.text}. Cancel the download"
+        },
         shape = CircleShape,
         color = color.copy(alpha = 0.14f),
         border = BorderStroke(1.dp, color.copy(alpha = 0.45f)),
