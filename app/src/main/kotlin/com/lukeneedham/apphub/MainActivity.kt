@@ -13,8 +13,7 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import com.lukeneedham.apphub.domain.DeepLink
 import com.lukeneedham.apphub.domain.PullRequestRef
 import com.lukeneedham.apphub.ui.AppNavigation
-import com.lukeneedham.apphub.ui.HomeNavKey
-import com.lukeneedham.apphub.ui.PullRequestNavKey
+import com.lukeneedham.apphub.ui.Route
 import com.lukeneedham.apphub.ui.theme.AppTheme
 import com.lukeneedham.apphub.ui.theme.ProvideAppDebugSettings
 
@@ -32,11 +31,11 @@ class MainActivity : ComponentActivity() {
             AppTheme {
                 ProvideAppDebugSettings {
                     // The debug page is reached from Settings, so there is no floating DebugButton
-                    val backStack = rememberNavBackStack(HomeNavKey)
+                    val backStack = rememberNavBackStack(Route.Home)
                     LaunchedEffect(pendingLink) {
                         val link = pendingLink ?: return@LaunchedEffect
                         pendingLink = null
-                        val page = PullRequestNavKey(link.repo, link.number)
+                        val page = Route.PullRequest(link.repo, link.number)
                         if (backStack.lastOrNull() != page) backStack.add(page)
                     }
                     AppNavigation(backStack)

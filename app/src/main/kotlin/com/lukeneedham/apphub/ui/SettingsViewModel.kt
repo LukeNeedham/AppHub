@@ -14,14 +14,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class SettingsUiState(
-    val signedIn: Boolean = false,
-    val input: String = "",
-    val isChecking: Boolean = false,
-    val error: String? = null,
-    val rateLimit: RateLimitInfo? = null,
-)
-
 class SettingsViewModel(
     private val api: GithubApi,
     private val tokenStore: TokenStore,

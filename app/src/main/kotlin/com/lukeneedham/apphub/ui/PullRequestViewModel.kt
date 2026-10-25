@@ -16,15 +16,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 
-data class PullRequestUiState(
-    val isLoading: Boolean = true,
-    val error: String? = null,
-    /** Null until the PR is found: in the saved list, or the freshly loaded one. */
-    val item: PullRequestItem? = null,
-    /** The list loaded and has no such PR: it was merged or closed, or never existed. */
-    val notFound: Boolean = false,
-)
-
 /** The page of one pull request, [repo] being `owner/name`. */
 class PullRequestViewModel(
     private val repo: String,
