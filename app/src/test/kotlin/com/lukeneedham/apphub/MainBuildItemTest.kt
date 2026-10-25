@@ -39,7 +39,6 @@ class MainBuildItemTest {
     fun `no run and no apk is no build`() {
         val item = item(run = null, apk = null)
         assertEquals(MainPhase.NoBuild, item.phase)
-        assertEquals("Build main", item.buildLabel)
         assertTrue(item.offersBuild)
         assertNull(item.offer)
         assertNull(item.behindText)
@@ -90,7 +89,6 @@ class MainBuildItemTest {
     fun `a ready apk that lacks commits says how far and offers the latest`() {
         val item = item(behind = 3)
         assertEquals("3 commits behind", item.behindText)
-        assertEquals("Build latest main", item.buildLabel)
         assertTrue(item.offersBuild)
     }
 
@@ -105,7 +103,6 @@ class MainBuildItemTest {
     fun `the installed build behind main says how far`() {
         val item = item(install = InstallStatus.Installed, behind = 1)
         assertEquals("1 commit behind", item.behindText)
-        assertEquals("Build latest main", item.buildLabel)
         assertTrue(item.canBuild)
     }
 

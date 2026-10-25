@@ -36,8 +36,8 @@ Notes:
 
 The main build of a repo sits in the row of buttons at the top of its card, after the GitHub and Claude buttons. It uses the
 same pill, from `controlOf(MainBuildItem)`. Its second line is the age of the build and its third how far the build is behind main
-("3 commits behind") or "Up to date", in place of the timestamp; with no build only the status shows. Under the row, a **Build**
-button, right-aligned, is left out when the build is up to date. Its states are those above, with these meanings:
+("3 commits behind") or "Up to date", in place of the timestamp; with no build only the status shows. A **Build** button sits
+at the end of the same row, left out when the build is up to date. Its states are those above, with these meanings:
 
 - **Stale build** (grey): the APK on offer lacks commits, because `main` has moved on or a newer build is running.
 - **Behind main** (grey, with the Open icon): the installed build is a main build, but `main` has newer commits.

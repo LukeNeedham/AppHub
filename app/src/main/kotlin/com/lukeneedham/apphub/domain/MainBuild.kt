@@ -77,8 +77,6 @@ data class MainBuildItem(
     /** A build can be asked for unless one is already on its way. */
     val canBuild: Boolean get() = phase != MainPhase.Requested && phase != MainPhase.Building
 
-    val buildLabel: String get() = if (info.apk == null) "Build main" else "Build latest main"
-
     /** A new build is only worth offering when there is none, or the one there lacks commits of main. */
     val offersBuild: Boolean get() = info.apk == null || info.commitsBehind > 0
 

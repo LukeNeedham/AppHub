@@ -485,9 +485,21 @@ private fun RepoCard(
                                 onOpen = { mainBuild.open(item.repo) },
                                 onOpenRun = { item.runUrl?.let(uriHandler::openUri) },
                             )
+                            Spacer(Modifier.weight(1f))
+                            if (item.offersBuild) {
+                                OutlinedButton(
+                                    onClick = { mainBuild.build(item.repo) },
+                                    enabled = item.canBuild,
+                                    modifier = Modifier.height(36.dp),
+                                    shape = CircleShape,
+                                    contentPadding = PaddingValues(horizontal = 14.dp),
+                                ) {
+                                    Text("Build")
+                                }
+                            }
                         }
                     }
-                    section.mainBuild?.let { item -> MainBuildDetails(item, mainBuild) }
+                    section.mainBuild?.let { item -> MainBuildErrors(item) }
                     if (section.pullRequests.isEmpty()) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         Text(
@@ -578,25 +590,15 @@ private fun PullRequestRow(
     }
 }
 
-/**
- * What the status pill of the main build leaves to say, under the row of buttons: a button that builds main as
- * it is now, left out when the build is up to date, and the errors, if any.
- */
+/** The errors of the main build, under the row of buttons. */
 @Composable
-private fun MainBuildDetails(item: MainBuildItem, actions: MainBuildActions) {
+private fun MainBuildErrors(item: MainBuildItem) {
     val downloadFailed = item.download as? DownloadState.Failed
-    if (!item.offersBuild && item.error == null && downloadFailed == null) return
+    if (item.error == null && downloadFailed == null) return
     Column(
         modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        if (item.offersBuild) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                OutlinedButton(onClick = { actions.build(item.repo) }, enabled = item.canBuild, shape = CircleShape) {
-                    Text(item.buildLabel)
-                }
-            }
-        }
         item.error?.let { error ->
             Text(error, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
         }
