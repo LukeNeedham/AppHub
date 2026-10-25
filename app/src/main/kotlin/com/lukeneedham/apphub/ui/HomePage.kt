@@ -930,7 +930,6 @@ internal fun StatusControl(
     val sheetApk = control.built?.takeIf { it.builtAtMillis != null || it.builtAtText != null }
     var showSheet by remember { mutableStateOf(false) }
     if (showSheet && sheetApk != null) BuiltAtSheet(control.text, sheetApk) { showSheet = false }
-    val pillAction = { if (progress != null) onCancel() else run(actions.single().kind) }
     val run = { kind: ActionKind ->
         when (kind) {
             ActionKind.Download -> onDownload()
@@ -940,6 +939,7 @@ internal fun StatusControl(
             ActionKind.Install -> onInstall()
         }
     }
+    val pillAction = { if (progress != null) onCancel() else run(actions.single().kind) }
     Surface(
         modifier = Modifier.semantics(mergeDescendants = wholePill && sheetApk == null) {
             if (wholePill && sheetApk == null) {
