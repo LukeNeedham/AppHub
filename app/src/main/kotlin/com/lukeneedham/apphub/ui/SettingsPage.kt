@@ -223,7 +223,7 @@ private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
 /** For Android Studio while building the page: signed out. */
 @Preview
 @Composable
-private fun preview() {
+private fun Preview() {
     AppTheme {
         SettingsPageContent(
             state = SettingsUiState(),

@@ -806,7 +806,7 @@ internal fun megabytes(bytes: Long): String = "%.1f".format(bytes / 1_000_000.0)
 /** For Android Studio while building the page: the empty page. */
 @Preview
 @Composable
-private fun preview() {
+private fun Preview() {
     AppTheme {
         HomePageContent(
             state = HomeUiState(isLoading = false),
