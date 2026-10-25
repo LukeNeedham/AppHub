@@ -1,9 +1,6 @@
 package com.lukeneedham.apphub.ui
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import com.lukeneedham.apphub.domain.PullRequestRef
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
@@ -15,27 +12,25 @@ import com.lukeneedham.common.ui.CrashesPage
 import com.lukeneedham.common.ui.DebugPage
 import com.lukeneedham.common.ui.LogsPage
 import kotlinx.serialization.Serializable
-import org.koin.compose.viewmodel.koinViewModel
-import org.koin.core.parameter.parametersOf
 
 @Serializable
-data object Home : NavKey
+data object HomeNavKey : NavKey
 
 /** The page of one pull request. [repo] is `owner/name`. */
 @Serializable
-data class PullRequestPage(val repo: String, val number: Int) : NavKey
+data class PullRequestNavKey(val repo: String, val number: Int) : NavKey
 
 @Serializable
-data object Settings : NavKey
+data object SettingsNavKey : NavKey
 
 @Serializable
-data object Debug : NavKey
+data object DebugNavKey : NavKey
 
 @Serializable
-data object Logs : NavKey
+data object LogsNavKey : NavKey
 
 @Serializable
-data object Crashes : NavKey
+data object CrashesNavKey : NavKey
 
 @Composable
 fun AppNavigation(backStack: NavBackStack<NavKey>) {
@@ -47,66 +42,30 @@ fun AppNavigation(backStack: NavBackStack<NavKey>) {
             rememberViewModelStoreNavEntryDecorator(),
         ),
         entryProvider = entryProvider {
-            entry<Home> {
-                val viewModel = koinViewModel<HomeViewModel>()
-                val state by viewModel.uiState.collectAsStateWithLifecycle()
-                HomeScreen(
-                    state = state,
-                    onRefresh = viewModel::refresh,
-                    onResume = viewModel::onResume,
-                    onToggleRepo = viewModel::toggleRepo,
-                    onDownload = viewModel::download,
-                    onCancelDownload = viewModel::cancelDownload,
-                    onInstall = viewModel::install,
-                    onOpen = viewModel::open,
-                    mainBuild = MainBuildActions(
-                        build = viewModel::buildMain,
-                        download = viewModel::downloadMain,
-                        cancelDownload = viewModel::cancelMain,
-                        install = viewModel::installMain,
-                        open = viewModel::openMain,
-                    ),
-                    onOpenPullRequest = { backStack.add(PullRequestPage(it.repo, it.number)) },
-                    onOpenSettings = { backStack.add(Settings) },
+            entry<HomeNavKey> {
+                HomePage(
+                    onOpenPullRequest = { backStack.add(PullRequestNavKey(it.repo, it.number)) },
+                    onOpenSettings = { backStack.add(SettingsNavKey) },
                 )
             }
-            entry<PullRequestPage> { page ->
-                val viewModel = koinViewModel<PullRequestViewModel>(parameters = { parametersOf(page.repo, page.number) })
-                val state by viewModel.uiState.collectAsStateWithLifecycle()
-                PullRequestScreen(
-                    repo = page.repo,
-                    number = page.number,
-                    state = state,
-                    onRefresh = viewModel::refresh,
-                    onResume = viewModel::onResume,
-                    onDownload = viewModel::download,
-                    onCancelDownload = viewModel::cancelDownload,
-                    onInstall = viewModel::install,
-                    onOpen = viewModel::open,
+            entry<PullRequestNavKey> { key ->
+                PullRequestPage(repo = key.repo, number = key.number, onBack = { backStack.removeLastOrNull() })
+            }
+            entry<SettingsNavKey> {
+                SettingsPage(
                     onBack = { backStack.removeLastOrNull() },
+                    onOpenDebug = if (DebugKit.enabled) ({ backStack.add(DebugNavKey) }) else null,
                 )
             }
-            entry<Settings> {
-                val viewModel = koinViewModel<SettingsViewModel>()
-                val state by viewModel.uiState.collectAsStateWithLifecycle()
-                SettingsScreen(
-                    state = state,
-                    onInputChange = viewModel::onInputChange,
-                    onSave = viewModel::save,
-                    onRemove = viewModel::remove,
-                    onBack = { backStack.removeLastOrNull() },
-                    onOpenDebug = if (DebugKit.enabled) ({ backStack.add(Debug) }) else null,
-                )
-            }
-            entry<Debug> {
+            entry<DebugNavKey> {
                 DebugPage(
                     onBack = { backStack.removeLastOrNull() },
-                    onOpenLogs = { backStack.add(Logs) },
-                    onOpenCrashes = { backStack.add(Crashes) },
+                    onOpenLogs = { backStack.add(LogsNavKey) },
+                    onOpenCrashes = { backStack.add(CrashesNavKey) },
                 )
             }
-            entry<Logs> { LogsPage(onBack = { backStack.removeLastOrNull() }) }
-            entry<Crashes> { CrashesPage(onBack = { backStack.removeLastOrNull() }) }
+            entry<LogsNavKey> { LogsPage(onBack = { backStack.removeLastOrNull() }) }
+            entry<CrashesNavKey> { CrashesPage(onBack = { backStack.removeLastOrNull() }) }
         },
     )
 }

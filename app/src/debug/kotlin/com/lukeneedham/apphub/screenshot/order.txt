@@ -1,0 +1,4 @@
+# the order of the README: a first look, then the details
+HomePage
+PullRequestPage
+SettingsPage
