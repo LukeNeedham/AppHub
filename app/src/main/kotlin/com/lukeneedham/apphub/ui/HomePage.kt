@@ -88,6 +88,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.lukeneedham.apphub.R
 import coil3.compose.AsyncImage
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
+import coil3.request.ImageRequest
+import coil3.request.CachePolicy
+import androidx.compose.ui.platform.LocalContext
 import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.DownloadState
 import com.lukeneedham.apphub.domain.InstallStatus
@@ -367,7 +372,7 @@ private fun RepoNavigation(repos: List<String>, prCounts: List<Int>, selectedInd
                             // The initial shows for repos without an icon, and under the icon while it loads
                             Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             AsyncImage(
-                                model = repoIconUrl(repo, ICON_VERSION),
+                                model = freshIconRequest(repo),
                                 contentDescription = null,
                                 modifier = Modifier.padding(4.dp).fillMaxSize().clip(CircleShape),
                             )
@@ -440,7 +445,7 @@ private fun RepoCard(
             ) {
                 // Always takes its space, so names line up whether or not the repo has an icon
                 AsyncImage(
-                    model = repoIconUrl(section.repo, ICON_VERSION),
+                    model = freshIconRequest(section.repo),
                     contentDescription = null,
                     modifier = Modifier.size(40.dp),
                 )
@@ -767,8 +772,21 @@ private fun rememberNowMillis(sinceMillis: Long?): Long {
     return now
 }
 
-/** Fixed for the life of the process: icons are fetched fresh on each launch, never served from an earlier launch's cache. */
-private val ICON_VERSION = System.currentTimeMillis()
+/**
+ * The icon of [repo] as it is on its default branch now: the request always revalidates with GitHub (a cheap 304 when
+ * unchanged) and skips the in-memory cache, so a changed icon is never served stale.
+ */
+@Composable
+private fun freshIconRequest(repo: String): ImageRequest {
+    val context = LocalContext.current
+    return remember(repo) {
+        ImageRequest.Builder(context)
+            .data(repoIconUrl(repo))
+            .httpHeaders(NetworkHeaders.Builder().set("Cache-Control", "no-cache").build())
+            .memoryCachePolicy(CachePolicy.DISABLED)
+            .build()
+    }
+}
 
 /** A round outlined button holding just an icon. */
 @Composable

@@ -101,9 +101,8 @@ data class ApkTarget(val url: String, val buildId: String, val isStale: Boolean)
 /** The GitHub page of the repo `owner/name`. */
 fun repoUrl(repo: String) = "https://github.com/$repo"
 
-/** The app icon every app keeps at the root of its repo `owner/name`; absent (404) for repos without one.
- * [version] changes the URL, so an icon that has changed is fetched again instead of served from a cache. */
-fun repoIconUrl(repo: String, version: Long) = "https://raw.githubusercontent.com/$repo/HEAD/app-icon.png?v=$version"
+/** The app icon every app keeps at the root of its repo `owner/name`; absent (404) for repos without one. */
+fun repoIconUrl(repo: String) = "https://raw.githubusercontent.com/$repo/HEAD/app-icon.png"
 
 /** Opens Claude Code ready to start a new session on the repo `owner/name`. */
 fun newClaudeSessionUrl(repo: String) = "https://claude.ai/code/new?repo=" + URLEncoder.encode(repo, "UTF-8")
