@@ -1,9 +1,9 @@
 # PR status pill colours
 
-Each pull request row ends in one pill: three lines (see below), then, after a divider, the icon of
-what a press does next (or the progress of a download). Pressing anywhere on the pill does that action.
+Each pull request row ends in one pill: two lines (see below), then, after a divider, the icon of
+what a press does next (or the progress of a download). Pressing that icon does the action; pressing the text side opens a sheet.
 The code is `controlOf` and `StatusControl` in `ui/HomePage.kt`.
-The pill is a rounded rectangle (12dp corners), not a full circle shape: with three lines a stadium's end caps waste space.
+The pill is a rounded rectangle (12dp corners), not a full circle shape: a stadium's end caps waste space.
 
 ## The rule
 
@@ -25,30 +25,43 @@ Notes:
   opportunity, not a warning. Amber is kept for the stale build so that it always means "this APK lacks the
   latest commits".
 - **Blue is for progress.** Building (CI) and Downloading (this device) share it because in both you wait. A press on Building opens the GitHub Actions run (the Open icon); a press on Downloading cancels the download.
-- **The age of the APK** is shown inside every pill that is about an APK (Ready, Update ready, Installed, Stale build,
-  Downloading…): the second line says how old it is ("2 minutes old", "1 second old", "1 day old") and the third, much
-  smaller, gives the timestamp. For a stale build it is the stale APK's age, which a PR gets from the release the APK was
-  published in. For an update it is the new build's age, not the installed one's. Pills about no APK (Building, No build,
-  Build failed) have only the first line.
+- **The age of the APK** is the description (second line) of every pill that is about an APK (Ready, Update ready,
+  Installed, Stale build…): "2 minutes old", "1 second old", "1 day old". For a stale PR build it is the stale APK's
+  age, which a PR gets from the release the APK was published in. For an update it is the new build's age, not the
+  installed one's. The timestamp is not on the pill: see the bottom sheet below.
 - **Red is for failure** whoever's it is: a failed CI build or a failed download. The text tells them apart.
 - Amber on a stale build wins over the build's own state, as the build is still running in that case.
 
-## The three lines
+## The two lines
 
-Every pill lays out the same three lines, each exactly one line tall (ellipsized if too long), so all pills are
+Every pill lays out the same two lines, each exactly one line tall (ellipsized if too long), so all pills are
 equally tall:
 
 1. **Status**: the state, in the status colour ("Ready", "Stale build", "No build").
-2. **Age**: how old the APK is ("2 minutes old"). While downloading it is how far the download is ("42%", or "3.2 MB" when the size is unknown), and the status reads "Downloading…".
-3. **Detail**: a fact about that APK in much smaller text: a PR's build timestamp, or how far the main build lags main.
+2. **Description**: depends on the status. By default how old the APK is ("2 minutes old"); for a stale or
+   behind main build, how far it lags main ("3 commits behind"); while downloading, how far the download is ("42%",
+   or "3.2 MB" when the size is unknown), and the status reads "Downloading…".
 
-With no APK (No build, Building, Build failed) lines 2 and 3 are empty and the status is centred in their height.
+With no APK (No build, Building, Build failed) there is no description and the status is centred in the height of both lines.
+
+## The bottom sheet
+
+A press on the text side of a pill (left of the divider, not an action icon) always opens a bottom sheet and
+never does an action, whatever the status and however many actions there are. The sheet shows:
+
+1. The status as its title, and what the description says ("3 commits behind", "42%") when it says anything.
+2. When the APK was built, relative ("2 minutes old") and absolute ("23/10/2026 18:27:11"), when known.
+3. Every action of the pill (including cancelling a download), each a row with its icon and a short description
+   of what it does. A press anywhere on a row runs the action and closes the sheet.
+
+Pills with no APK (No build, Building, Cancelled…) open the sheet too, with just the status and the actions
+they have, if any. The pill's own action icons still run their action with one press.
 
 ## The main build
 
 The main build of a repo sits in the row of buttons at the top of its card, after the GitHub and Claude buttons. It uses the
-same pill, from `controlOf(MainBuildItem)`. Its second line is the age of the build and its third how far the build is behind main
-("3 commits behind") or "Up to date with main", in place of the timestamp; with no build only the status shows. Building main is an action of the pill:
+same pill, from `controlOf(MainBuildItem)`. Its description is the age of the build, or, for a stale build or one behind main, how far it is behind main
+("3 commits behind"); with no build only the status shows. Building main is an action of the pill:
 the only one when there is no other (No build, Build failed), else the second one, next to the download, install or open
 action of a build that lags main. It is left out when the build is up to date or one is running. Its states are those above, with these meanings:
 
@@ -72,8 +85,7 @@ action of a build that lags main. It is left out when the build is up to date or
 | Progress ring | Cancels the download | Downloading |
 | None | Nothing | No APK to act on: Building without an older APK, Cancelled, and a PR's No build or Build failed |
 
-With one action (or a download to cancel), a press anywhere on the pill runs it. With two, the pill itself does
-nothing: only a press on an action's own icon runs that action.
+Only a press on an action's own icon (or the progress ring, which cancels) runs it; the text side of the pill only opens the sheet.
 
 ## Contrast
 

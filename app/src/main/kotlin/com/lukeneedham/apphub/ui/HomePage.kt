@@ -8,6 +8,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +46,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -618,11 +620,11 @@ private fun MainBuildErrors(item: MainBuildItem) {
 }
 
 /**
- * What a status pill says of the APK it is about, on the two lines under the status: how old it is ([builtAtMillis],
- * the moment it was built, if known) and a [detail] in much smaller text, which is the timestamp of a PR's build
- * and how far the main build lags main.
+ * What a status pill says of the APK it is about: when it was built ([builtAtMillis], if known; [builtAtText] is the
+ * absolute time as text when only that is known). The pill shows the age on its second line, unless [behindText]
+ * (how far the build lags main) takes its place; a press on the text side shows both times in a bottom sheet.
  */
-internal data class ApkDetail(val builtAtMillis: Long?, val detail: String?)
+internal data class ApkDetail(val builtAtMillis: Long?, val builtAtText: String?, val behindText: String? = null)
 
 /** What a status says is only about an APK when there is one: not while it is only building, or after it failed. */
 private fun Control.aboutApk(built: ApkDetail?): Control =
@@ -650,14 +652,14 @@ internal fun PullRequestStatus(
 }
 
 /**
- * The three lines of a status pill, each always laid out and exactly one line tall, ellipsized if it does not fit:
+ * The two lines of a status pill, each always laid out and exactly one line tall, ellipsized if it does not fit:
  *
  * 1. **status**: what state it is in ("Ready", "Stale build", "No build").
- * 2. **age**: how old the APK is ("2 minutes old"); while it downloads, how far it is ("42%").
- * 3. **detail**: a fact about that APK in much smaller text: the timestamp of a PR's build, or how far the main
- *    build lags main ("3 commits behind", "Up to date with main").
+ * 2. **description**: what is most useful to know of that status: how old the APK is ("2 minutes old"), how many
+ *    commits a stale main build is behind ("3 commits behind"), or how far a download is ("42%").
  *
- * With no APK there is no age and no detail, and the status is centred in the height of the three lines.
+ * The timestamps are not here but in the bottom sheet of the pill. With no APK there is no description, and the
+ * status is centred in the height of the two lines.
  */
 @Composable
 private fun PillLines(
@@ -668,36 +670,84 @@ private fun PillLines(
     color: Color,
     modifier: Modifier = Modifier,
 ) {
-    val ageSize = 10.sp
-    val detailSize = 8.sp
-    val age = progressText ?: apk?.builtAtMillis?.let { ageText(it, rememberNowMillis(it)) }
-    val detail = apk?.detail
+    val descriptionSize = 11.sp
+    val description = progressText ?: apk?.behindText ?: apk?.builtAtMillis?.let { ageText(it, rememberNowMillis(it)) }
     val statusSize = 13.sp
     val statusStyle = MaterialTheme.typography.labelMedium.copy(fontSize = statusSize, lineHeight = statusSize * 1.25f)
     val statusText = @Composable { text: String ->
         Text(text, style = statusStyle, color = statusColor, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
-    val alone = age == null && detail == null
+    val alone = description == null
     Box(modifier, contentAlignment = Alignment.CenterStart) {
         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            // Alone, the status is drawn over the lines below, which then only give the height
+            // Alone, the status is drawn over the line below, which then only gives the height
             statusText(if (alone) Blank else status)
             Text(
-                age ?: Blank,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = ageSize, lineHeight = ageSize * 1.25f),
+                description ?: Blank,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = descriptionSize, lineHeight = descriptionSize * 1.25f),
                 color = color,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                detail ?: Blank,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = detailSize, lineHeight = detailSize * 1.25f),
-                color = color.copy(alpha = 0.75f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
         if (alone) statusText(status)
+    }
+}
+
+/** An action listed in the bottom sheet of a pill: a press anywhere on its row runs it. */
+private data class SheetAction(val icon: Int, val description: String, val onClick: () -> Unit)
+
+/**
+ * The bottom sheet of a pill: the status, what the description says, when the APK was built (as time ago and as the
+ * time itself, when known), then every action of the pill with what it does.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PillSheet(
+    status: String,
+    description: String?,
+    apk: ApkDetail?,
+    actions: List<SheetAction>,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(status, style = MaterialTheme.typography.titleMedium)
+            description?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+            apk?.builtAtMillis?.let { millis ->
+                SheetRow("Built", ageText(millis, rememberNowMillis(millis)))
+            }
+            apk?.builtAtText?.let { SheetRow("Built at", it) }
+            actions.forEach { action ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable {
+                            onDismiss()
+                            action.onClick()
+                        }
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(painterResource(action.icon), contentDescription = null, modifier = Modifier.size(20.dp))
+                    Text(action.description, style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SheetRow(label: String, value: String) {
+    Column {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyLarge)
     }
 }
 
@@ -770,9 +820,9 @@ internal enum class ActionKind { Download, Install, Open, OpenRun, Build }
 /** What a press on a "Building" pill does: opens the run that builds the APK. */
 private const val STALE_BUILD = "Stale build"
 
-private val BuildAction = Trailing.Action(R.drawable.ic_build, "Build main", ActionKind.Build)
+private val BuildAction = Trailing.Action(R.drawable.ic_build, "Build main now", ActionKind.Build)
 
-private val OpenRunAction = Trailing.Action(R.drawable.ic_open, "Open the build run", ActionKind.OpenRun)
+private val OpenRunAction = Trailing.Action(R.drawable.ic_open, "Open the build run on GitHub", ActionKind.OpenRun)
 
 internal sealed interface Trailing {
     /** A press on the tag downloads the APK, installs the one already downloaded, or opens the installed app ([kind]). */
@@ -834,7 +884,9 @@ internal fun controlOf(item: MainBuildItem): Control {
     val isStale = item.info.apk != null && !installed && (building || behind)
     // Main is not built for every push, so a stale build of it is routine: quiet grey, not the amber of a PR's
     val offered = if (isStale) Control(STALE_BUILD, scheme.onSurfaceVariant) else build
-    val built = item.info.apk?.let { ApkDetail(it.builtAtMillis, item.behindText) }
+    val built = item.info.apk?.let {
+        ApkDetail(it.builtAtMillis, it.builtAtMillis?.let(::formatTimestamp), item.behindText.takeIf { behind })
+    }
     val control = transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isStale = isStale, error = scheme.error)
         .aboutApk(built)
     // A stale build is installed by the first action; the second opens the run that is replacing it
@@ -867,27 +919,27 @@ private fun transferControl(
             Control("Downloading…", StatusColors.info, Trailing.Progress(total?.let { download.bytes.toFloat() / it }), progressText = done)
         }
         is DownloadState.Downloaded -> when {
-            installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open app", ActionKind.Open))
+            installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open the app", ActionKind.Open))
             else -> offered.copy(
                 text = if (isStale) offered.text else "Ready to install",
-                trailing = Trailing.Action(R.drawable.ic_install, "Install", ActionKind.Install),
+                trailing = Trailing.Action(R.drawable.ic_install, "Install the downloaded APK", ActionKind.Install),
             )
         }
         is DownloadState.Failed -> Control(
             "Download failed",
             error,
-            if (hasApk) Trailing.Action(R.drawable.ic_refresh, "Retry download", ActionKind.Download) else null,
+            if (hasApk) Trailing.Action(R.drawable.ic_refresh, "Download the APK again", ActionKind.Download) else null,
         )
         DownloadState.Idle -> when {
             !hasApk -> build
-            installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open app", ActionKind.Open))
-            else -> offered.copy(trailing = Trailing.Action(R.drawable.ic_download, "Download", ActionKind.Download))
+            installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open the app", ActionKind.Open))
+            else -> offered.copy(trailing = Trailing.Action(R.drawable.ic_download, "Download the APK", ActionKind.Download))
         }
     }
 
 /**
- * The status of a PR as a coloured pill: the status, the age of the APK and a detail, then after a divider the icon of what a
- * press does next, or its progress. A press anywhere on the pill does that.
+ * The status of a PR as a coloured pill: the status and a description, then after a divider the icon of what a press does
+ * next, or its progress. A press on the text side opens a sheet with the details and every action; a press on an action's icon runs it.
  */
 @Composable
 internal fun StatusControl(
@@ -904,8 +956,7 @@ internal fun StatusControl(
     val textColor = if (isSystemInDarkTheme()) color else lerp(color, Color.Black, 0.3f)
     val progress = control.trailing as? Trailing.Progress
     val actions = listOfNotNull(control.trailing as? Trailing.Action, control.secondary)
-    // One action, or a download to cancel: a press anywhere on the pill does it. With two, only a press on an action's own icon does
-    val wholePill = progress != null || actions.size == 1
+    var showSheet by remember { mutableStateOf(false) }
     val run = { kind: ActionKind ->
         when (kind) {
             ActionKind.Download -> onDownload()
@@ -915,26 +966,30 @@ internal fun StatusControl(
             ActionKind.Install -> onInstall()
         }
     }
+    val cancelDescription = "Cancel the download"
+    if (showSheet) {
+        val sheetActions = listOfNotNull(
+            progress?.let { SheetAction(R.drawable.ic_close, cancelDescription, onCancel) },
+        ) + actions.map { action -> SheetAction(action.icon, action.description) { run(action.kind) } }
+        PillSheet(
+            status = control.text,
+            description = control.progressText ?: control.built?.behindText,
+            apk = control.built,
+            actions = sheetActions,
+            onDismiss = { showSheet = false },
+        )
+    }
     Surface(
-        modifier = Modifier.semantics(mergeDescendants = wholePill) {
-            if (wholePill) {
-                contentDescription = if (progress != null) "${control.text} ${control.progressText.orEmpty()}. Cancel the download" else "${control.text}. ${actions.single().description}"
-            }
-        },
         shape = RoundedCornerShape(12.dp),
         color = color.copy(alpha = 0.14f),
         border = BorderStroke(1.dp, color.copy(alpha = 0.45f)),
     ) {
         Row(
-            modifier = Modifier
-                .defaultMinSize(minHeight = 32.dp)
-                .height(IntrinsicSize.Min)
-                .then(
-                    if (wholePill) Modifier.clickable { if (progress != null) onCancel() else run(actions.single().kind) } else Modifier,
-                ),
+            modifier = Modifier.defaultMinSize(minHeight = 32.dp).height(IntrinsicSize.Min),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Measured after the actions, so that a long line is ellipsized instead of pushing them out
+            // Measured after the actions, so that a long line is ellipsized instead of pushing them out.
+            // A press on this side never does an action: it always opens the sheet, which lists them
             PillLines(
                 status = control.text,
                 statusColor = textColor,
@@ -943,11 +998,19 @@ internal fun StatusControl(
                 color = textColor,
                 modifier = Modifier
                     .weight(1f, fill = false)
+                    .clickable(onClickLabel = "Show details and actions") { showSheet = true }
                     .padding(start = 12.dp, end = if (control.trailing == null) 12.dp else 10.dp, top = 4.dp, bottom = 4.dp),
             )
             if (progress != null) {
                 Box(Modifier.width(1.dp).fillMaxHeight().background(color.copy(alpha = 0.3f)))
-                Box(Modifier.width(38.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .width(38.dp)
+                        .fillMaxHeight()
+                        .clickable(onClickLabel = cancelDescription) { onCancel() }
+                        .semantics { contentDescription = "${control.text} ${control.progressText.orEmpty()}. $cancelDescription" },
+                    contentAlignment = Alignment.Center,
+                ) {
                     val indicator = Modifier.size(16.dp)
                     if (progress.fraction != null) {
                         CircularProgressIndicator(progress = { progress.fraction }, modifier = indicator, strokeWidth = 2.5.dp, color = textColor)
@@ -962,15 +1025,8 @@ internal fun StatusControl(
                     modifier = Modifier
                         .width(38.dp)
                         .fillMaxHeight()
-                        .then(
-                            if (wholePill) {
-                                Modifier
-                            } else {
-                                Modifier
-                                    .clickable(onClickLabel = action.description) { run(action.kind) }
-                                    .semantics { contentDescription = action.description }
-                            },
-                        ),
+                        .clickable(onClickLabel = action.description) { run(action.kind) }
+                        .semantics { contentDescription = action.description },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(painterResource(action.icon), contentDescription = null, modifier = Modifier.size(18.dp), tint = textColor)
