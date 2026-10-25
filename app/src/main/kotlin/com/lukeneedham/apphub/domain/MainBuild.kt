@@ -11,8 +11,8 @@ enum class RunState { Active, Succeeded, Failed, Cancelled }
 /** One run of the main build workflow, of [commit]. */
 data class MainRun(val id: Long, val commit: String, val state: RunState)
 
-/** The APK artifact of a successful run: the CI keeps it for a day. */
-data class MainApk(val artifactId: Long, val commit: String)
+/** The APK artifact of a successful run: the CI keeps it for a day. [builtAtMillis] is when it was uploaded, if known. */
+data class MainApk(val artifactId: Long, val commit: String, val builtAtMillis: Long? = null)
 
 /**
  * What GitHub knows about the main builds of a repo. [run] is the newest run, [apk] the newest build whose

@@ -39,6 +39,7 @@ class PullRequestRepositoryTest {
         override suspend fun checkToken(token: String) = RateLimitInfo(5000, 5000)
         override suspend fun mainRuns(repo: String): List<RunDto>? = null
         override suspend fun runArtifacts(repo: String, runId: Long): List<ArtifactDto> = emptyList()
+        override suspend fun releasePublishedAt(repo: String, tag: String): String? = null
         override suspend fun latestCommit(repo: String, branch: String) = ""
         override suspend fun commitsAhead(repo: String, base: String, head: String) = 0
         override suspend fun startMainBuild(repo: String) = Unit

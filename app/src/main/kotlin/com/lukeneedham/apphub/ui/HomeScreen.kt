@@ -77,11 +77,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -95,7 +91,8 @@ import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.MainBuildItem
 import com.lukeneedham.apphub.domain.MainPhase
 import com.lukeneedham.apphub.domain.PullRequestRef
-import com.lukeneedham.apphub.domain.relativeTime
+import com.lukeneedham.apphub.domain.ageText
+import com.lukeneedham.apphub.domain.formatTimestamp
 import com.lukeneedham.apphub.domain.repoIconUrl
 import com.lukeneedham.apphub.ui.theme.StatusColors
 
@@ -522,7 +519,6 @@ private fun PullRequestRow(
 ) {
     val pr = item.pr
     val uriHandler = LocalUriHandler.current
-    val target = pr.downloadableApk
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).padding(bottom = 14.dp),
@@ -573,15 +569,6 @@ private fun PullRequestRow(
             }
         }
 
-
-        if (target?.isStale == true) {
-            Text(
-                "Out of date: there are later changes, rebuilding now",
-                style = MaterialTheme.typography.labelMedium,
-                color = StatusColors.warning,
-            )
-        }
-
         (item.download as? DownloadState.Failed)?.let { failed ->
             Text(
                 "Download failed: ${failed.message}",
@@ -630,24 +617,17 @@ private fun MainBuildDetails(item: MainBuildItem, actions: MainBuildActions) {
     }
 }
 
-/** When an APK was built, as written by the CI, and the same moment as an instant if it is known. */
-internal data class BuiltInfo(val builtAt: String, val millis: Long?)
+/**
+ * When the APK a status is about was built: [millis] as an instant if known, [text] as the CI wrote it otherwise.
+ * It shows inside the status pill as how old the APK is, and the timestamp.
+ */
+internal data class BuiltInfo(val text: String?, val millis: Long?)
 
-/** How long ago the APK was built, then the timestamp the CI wrote in smaller text. */
-@Composable
-private fun builtLabel(built: BuiltInfo, now: Long): AnnotatedString {
-    val small = MaterialTheme.typography.labelSmall.fontSize * 0.85f
-    return buildAnnotatedString {
-        append("Built ")
-        if (built.millis != null) {
-            append(relativeTime(built.millis, now))
-            append(" · ")
-        }
-        withStyle(SpanStyle(fontSize = small)) { append(built.builtAt) }
-    }
-}
+/** What a status says is only about an APK when there is one: not while it is only building, or after it failed. */
+private fun Control.aboutApk(built: BuiltInfo?): Control =
+    if (built == null || text == "Building" || text == "Starting") this else copy(built = built)
 
-/** The status pill of a PR, with a press on "Building" opening the run and the build time shown inside. */
+/** The status pill of a PR, with a press on "Building" opening the run. */
 @Composable
 internal fun PullRequestStatus(
     item: PullRequestItem,
@@ -665,8 +645,20 @@ internal fun PullRequestStatus(
         onInstall = onInstall,
         onOpen = onOpen,
         onOpenRun = { pr.buildingRunUrl?.let(uriHandler::openUri) },
-        built = pr.builtAt?.let { BuiltInfo(it, pr.builtAtMillis) },
     )
+}
+
+/** How old the APK is, and under it, much smaller, the timestamp it was built at. */
+@Composable
+private fun BuiltLines(built: BuiltInfo, color: Color) {
+    val style = MaterialTheme.typography.labelSmall
+    if (built.millis != null) {
+        Text(ageText(built.millis, rememberNowMillis(built.millis)), style = style, color = color)
+    }
+    val timestamp = built.millis?.let(::formatTimestamp) ?: built.text
+    if (timestamp != null) {
+        Text(timestamp, style = style.copy(fontSize = style.fontSize * 0.8f), color = color.copy(alpha = 0.75f))
+    }
 }
 
 /** The current time, brought up to date every second while [sinceMillis] is under a minute ago (it counts seconds), else every half minute. */
@@ -720,7 +712,7 @@ private fun Pill(text: String, color: Color, dot: Boolean = true) {
 }
 
 /** The status tag of a PR, with what presses on from here ([trailing]) at its end. */
-internal data class Control(val text: String, val color: Color, val trailing: Trailing? = null)
+internal data class Control(val text: String, val color: Color, val trailing: Trailing? = null, val built: BuiltInfo? = null)
 
 internal enum class ActionKind { Download, Install, Open, OpenRun }
 
@@ -754,7 +746,12 @@ internal fun controlOf(item: PullRequestItem): Control {
     // The APK on offer lacks the latest commits, so what is on offer is the stale build, whatever the build says
     val isStale = target?.isStale == true
     val offered = if (isStale) Control("Stale build", StatusColors.warning) else build
+    val pr = item.pr
+    val millis = pr.apkBuiltAtMillis
+    val text = (pr.apk as? ApkBuild.Succeeded)?.builtAt
+    val built = if (millis != null || text != null) BuiltInfo(text, millis) else null
     return transferControl(item.download, build, offered, installed, hasApk = target != null, isStale = isStale, error = scheme.error)
+        .aboutApk(built)
 }
 
 /** The status of the main build; see docs/status-colors.md. */
@@ -774,9 +771,11 @@ internal fun controlOf(item: MainBuildItem): Control {
     val building = item.phase == MainPhase.Requested || item.phase == MainPhase.Building
     // An APK that lacks the latest commits, or that a newer build is about to replace, is the stale build
     val isStale = item.info.apk != null && !installed && (building || behind)
-    // Main is not built for every push, so an stale build of it is routine: quiet grey, not the amber of a PR's
+    // Main is not built for every push, so a stale build of it is routine: quiet grey, not the amber of a PR's
     val offered = if (isStale) Control("Stale build", scheme.onSurfaceVariant) else build
+    val built = item.info.apk?.builtAtMillis?.let { BuiltInfo(null, it) }
     return transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isStale = isStale, error = scheme.error)
+        .aboutApk(built)
 }
 
 /** [build] with what a press does next, given the state of the download of the APK on offer ([offered]). */
@@ -826,7 +825,6 @@ internal fun StatusControl(
     onInstall: () -> Unit,
     onOpen: () -> Unit,
     onOpenRun: () -> Unit = {},
-    built: BuiltInfo? = null,
 ) {
     val color = control.color
     // The pale status colours do not read as text on their own tint in light mode, so the text takes a darker shade
@@ -861,9 +859,7 @@ internal fun StatusControl(
                     Box(Modifier.size(6.dp).clip(CircleShape).background(color))
                     Text(control.text, style = MaterialTheme.typography.labelMedium, color = textColor, fontWeight = FontWeight.SemiBold)
                 }
-                if (built != null) {
-                    Text(builtLabel(built, rememberNowMillis(built.millis)), style = MaterialTheme.typography.labelSmall, color = textColor)
-                }
+                control.built?.let { BuiltLines(it, textColor) }
             }
             if (control.trailing != null) {
                 Box(Modifier.width(1.dp).fillMaxHeight().background(color.copy(alpha = 0.3f)))

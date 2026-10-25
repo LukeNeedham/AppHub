@@ -1,19 +1,29 @@
 package com.lukeneedham.apphub.domain
 
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
 private const val SECOND = 1_000L
 private const val MINUTE = 60 * SECOND
 private const val HOUR = 60 * MINUTE
 private const val DAY = 24 * HOUR
 
-/** How long before [nowMillis] [thenMillis] was, as "12 seconds ago", "2 minutes ago", "2 hours ago", "3 days ago"… */
-fun relativeTime(thenMillis: Long, nowMillis: Long): String {
+/** How long before [nowMillis] [thenMillis] was, as "12 seconds old", "2 minutes old", "1 hour old", "3 days old"… */
+fun ageText(thenMillis: Long, nowMillis: Long): String {
     val elapsed = (nowMillis - thenMillis).coerceAtLeast(0)
     return when {
-        elapsed < MINUTE -> unitsAgo(elapsed / SECOND, "second")
-        elapsed < HOUR -> unitsAgo(elapsed / MINUTE, "minute")
-        elapsed < DAY -> unitsAgo(elapsed / HOUR, "hour")
-        else -> unitsAgo(elapsed / DAY, "day")
+        elapsed < MINUTE -> unitsOld(elapsed / SECOND, "second")
+        elapsed < HOUR -> unitsOld(elapsed / MINUTE, "minute")
+        elapsed < DAY -> unitsOld(elapsed / HOUR, "hour")
+        else -> unitsOld(elapsed / DAY, "day")
     }
 }
 
-private fun unitsAgo(count: Long, unit: String) = "$count $unit${if (count == 1L) "" else "s"} ago"
+private fun unitsOld(count: Long, unit: String) = "$count $unit${if (count == 1L) "" else "s"} old"
+
+private val timestampFormat = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
+
+/** [millis] as "25/10/2026 02:21:44" in [zone]. */
+fun formatTimestamp(millis: Long, zone: ZoneId = ZoneId.systemDefault()): String =
+    timestampFormat.format(Instant.ofEpochMilli(millis).atZone(zone))

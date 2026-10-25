@@ -109,7 +109,6 @@ internal fun PullRequestContent(
                 }
 
                 val pr = item.pr
-                val target = pr.downloadableApk
 
                 Text(pr.title, style = MaterialTheme.typography.headlineSmall)
                 Text(
@@ -145,15 +144,6 @@ internal fun PullRequestContent(
                             size = 36.dp,
                         )
                     }
-                }
-
-
-                if (target?.isStale == true) {
-                    Text(
-                        "Out of date: there are later changes, rebuilding now",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = StatusColors.warning,
-                    )
                 }
 
                 (item.download as? DownloadState.Failed)?.let { failed ->

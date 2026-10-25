@@ -21,9 +21,17 @@ sealed interface ApkBuild {
         val builtAtMillis: Long? = null,
     ) : ApkBuild
 
-    /** [previousUrl] is the stale APK of the last build, kept in the comment while a new one builds. */
+    /**
+     * [previousUrl] is the stale APK of the last build, kept in the comment while a new one builds, and
+     * [previousBuiltAtMillis] the moment it was built, if known.
+     */
     @Serializable
-    data class InProgress(override val commit: String?, val previousUrl: String?, val runUrl: String? = null) : ApkBuild
+    data class InProgress(
+        override val commit: String?,
+        val previousUrl: String?,
+        val runUrl: String? = null,
+        val previousBuiltAtMillis: Long? = null,
+    ) : ApkBuild
 
     @Serializable
     data class Failed(override val commit: String?) : ApkBuild
@@ -68,8 +76,13 @@ data class PullRequest(
     /** The GitHub Actions run building the APK, while one does and the comment links it; null otherwise. */
     val buildingRunUrl: String? get() = (apk as? ApkBuild.InProgress)?.runUrl
 
-    /** The moment [builtAt] names, as epoch milliseconds; null while it is not known. */
-    val builtAtMillis: Long? get() = (apk as? ApkBuild.Succeeded)?.builtAtMillis
+    /** When the APK on offer was built, as epoch milliseconds: the latest build's, or the stale one's while a new one builds; null if not known. */
+    val apkBuiltAtMillis: Long?
+        get() = when (val build = apk) {
+            is ApkBuild.Succeeded -> build.builtAtMillis
+            is ApkBuild.InProgress -> build.previousBuiltAtMillis
+            else -> null
+        }
 
     /** Unique per PR and build, so a new build is downloaded again and old files can be pruned. */
     val apkFileName: String

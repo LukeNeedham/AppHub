@@ -39,6 +39,7 @@ class MainBuildRepositoryTest {
             return runs
         }
         override suspend fun runArtifacts(repo: String, runId: Long) = artifacts[runId].orEmpty()
+        override suspend fun releasePublishedAt(repo: String, tag: String): String? = null
         override suspend fun latestCommit(repo: String, branch: String) = tip
         override suspend fun commitsAhead(repo: String, base: String, head: String): Int {
             compared += base to head

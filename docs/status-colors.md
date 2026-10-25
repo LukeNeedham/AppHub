@@ -24,7 +24,11 @@ Notes:
   opportunity, not a warning. Amber is kept for the stale build so that it always means "this APK lacks the
   latest commits".
 - **Blue is for progress.** Building (CI) and Downloading (this device) share it because in both you wait. A press on Building opens the GitHub Actions run (the Open icon); a press on Downloading cancels the download.
-- **The build time** ("Built 2 hours ago · 09/10/2026 12:56:20") is the second line inside the pill, once an APK of the latest commit is built.
+- **The age of the APK** is shown inside every pill that is about an APK (Ready, Update ready, Installed, Stale build,
+  Downloading…): the second line says how old it is ("2 minutes old", "1 second old", "1 day old") and the third, much
+  smaller, gives the timestamp. For a stale build it is the stale APK's age, which a PR gets from the release the APK was
+  published in. For an update it is the new build's age, not the installed one's. Pills about no APK (Building, No build,
+  Build failed) have only the first line.
 - **Red is for failure** whoever's it is: a failed CI build or a failed download. The text tells them apart.
 - Amber on an stale build wins over the build's own state, as the build is still running in that case. The row
   keeps its "Out of date: there are later changes, rebuilding now" note.
