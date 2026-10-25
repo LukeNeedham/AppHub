@@ -45,6 +45,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -618,11 +619,11 @@ private fun MainBuildErrors(item: MainBuildItem) {
 }
 
 /**
- * What a status pill says of the APK it is about, on the two lines under the status: how old it is ([builtAtMillis],
- * the moment it was built, if known) and a [detail] in much smaller text, which is the timestamp of a PR's build
- * and how far the main build lags main.
+ * What a status pill says of the APK it is about: when it was built ([builtAtMillis], if known; [builtAtText] is the
+ * absolute time as text when only that is known). The pill shows the age on its second line, unless [behindText]
+ * (how far the build lags main) takes its place; a press on the text side shows both times in a bottom sheet.
  */
-internal data class ApkDetail(val builtAtMillis: Long?, val detail: String?)
+internal data class ApkDetail(val builtAtMillis: Long?, val builtAtText: String?, val behindText: String? = null)
 
 /** What a status says is only about an APK when there is one: not while it is only building, or after it failed. */
 private fun Control.aboutApk(built: ApkDetail?): Control =
@@ -650,14 +651,14 @@ internal fun PullRequestStatus(
 }
 
 /**
- * The three lines of a status pill, each always laid out and exactly one line tall, ellipsized if it does not fit:
+ * The two lines of a status pill, each always laid out and exactly one line tall, ellipsized if it does not fit:
  *
  * 1. **status**: what state it is in ("Ready", "Stale build", "No build").
- * 2. **age**: how old the APK is ("2 minutes old"); while it downloads, how far it is ("42%").
- * 3. **detail**: a fact about that APK in much smaller text: the timestamp of a PR's build, or how far the main
- *    build lags main ("3 commits behind", "Up to date with main").
+ * 2. **description**: what is most useful to know of that status: how old the APK is ("2 minutes old"), how many
+ *    commits a stale main build is behind ("3 commits behind"), or how far a download is ("42%").
  *
- * With no APK there is no age and no detail, and the status is centred in the height of the three lines.
+ * The timestamps are not here but in the bottom sheet of the pill. With no APK there is no description, and the
+ * status is centred in the height of the two lines.
  */
 @Composable
 private fun PillLines(
@@ -668,36 +669,53 @@ private fun PillLines(
     color: Color,
     modifier: Modifier = Modifier,
 ) {
-    val ageSize = 10.sp
-    val detailSize = 8.sp
-    val age = progressText ?: apk?.builtAtMillis?.let { ageText(it, rememberNowMillis(it)) }
-    val detail = apk?.detail
+    val descriptionSize = 11.sp
+    val description = progressText ?: apk?.behindText ?: apk?.builtAtMillis?.let { ageText(it, rememberNowMillis(it)) }
     val statusSize = 13.sp
     val statusStyle = MaterialTheme.typography.labelMedium.copy(fontSize = statusSize, lineHeight = statusSize * 1.25f)
     val statusText = @Composable { text: String ->
         Text(text, style = statusStyle, color = statusColor, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
-    val alone = age == null && detail == null
+    val alone = description == null
     Box(modifier, contentAlignment = Alignment.CenterStart) {
         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            // Alone, the status is drawn over the lines below, which then only give the height
+            // Alone, the status is drawn over the line below, which then only gives the height
             statusText(if (alone) Blank else status)
             Text(
-                age ?: Blank,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = ageSize, lineHeight = ageSize * 1.25f),
+                description ?: Blank,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = descriptionSize, lineHeight = descriptionSize * 1.25f),
                 color = color,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                detail ?: Blank,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = detailSize, lineHeight = detailSize * 1.25f),
-                color = color.copy(alpha = 0.75f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
         if (alone) statusText(status)
+    }
+}
+
+/** The bottom sheet of a pill: when the APK was built, as time ago and as the time itself. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BuiltAtSheet(status: String, apk: ApkDetail, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text("$status · APK built", style = MaterialTheme.typography.titleMedium)
+            apk.builtAtMillis?.let { millis ->
+                SheetRow("Relative", ageText(millis, rememberNowMillis(millis)))
+            }
+            apk.builtAtText?.let { SheetRow("Absolute", it) }
+        }
+    }
+}
+
+@Composable
+private fun SheetRow(label: String, value: String) {
+    Column {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyLarge)
     }
 }
 
@@ -834,7 +852,9 @@ internal fun controlOf(item: MainBuildItem): Control {
     val isStale = item.info.apk != null && !installed && (building || behind)
     // Main is not built for every push, so a stale build of it is routine: quiet grey, not the amber of a PR's
     val offered = if (isStale) Control(STALE_BUILD, scheme.onSurfaceVariant) else build
-    val built = item.info.apk?.let { ApkDetail(it.builtAtMillis, item.behindText) }
+    val built = item.info.apk?.let {
+        ApkDetail(it.builtAtMillis, it.builtAtMillis?.let(::formatTimestamp), item.behindText.takeIf { behind })
+    }
     val control = transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isStale = isStale, error = scheme.error)
         .aboutApk(built)
     // A stale build is installed by the first action; the second opens the run that is replacing it
@@ -906,6 +926,11 @@ internal fun StatusControl(
     val actions = listOfNotNull(control.trailing as? Trailing.Action, control.secondary)
     // One action, or a download to cancel: a press anywhere on the pill does it. With two, only a press on an action's own icon does
     val wholePill = progress != null || actions.size == 1
+    // The text side shows the timestamps when there are any; the icon side then holds the action alone
+    val sheetApk = control.built?.takeIf { it.builtAtMillis != null || it.builtAtText != null }
+    var showSheet by remember { mutableStateOf(false) }
+    if (showSheet && sheetApk != null) BuiltAtSheet(control.text, sheetApk) { showSheet = false }
+    val pillAction = { if (progress != null) onCancel() else run(actions.single().kind) }
     val run = { kind: ActionKind ->
         when (kind) {
             ActionKind.Download -> onDownload()
@@ -916,8 +941,8 @@ internal fun StatusControl(
         }
     }
     Surface(
-        modifier = Modifier.semantics(mergeDescendants = wholePill) {
-            if (wholePill) {
+        modifier = Modifier.semantics(mergeDescendants = wholePill && sheetApk == null) {
+            if (wholePill && sheetApk == null) {
                 contentDescription = if (progress != null) "${control.text} ${control.progressText.orEmpty()}. Cancel the download" else "${control.text}. ${actions.single().description}"
             }
         },
@@ -930,7 +955,7 @@ internal fun StatusControl(
                 .defaultMinSize(minHeight = 32.dp)
                 .height(IntrinsicSize.Min)
                 .then(
-                    if (wholePill) Modifier.clickable { if (progress != null) onCancel() else run(actions.single().kind) } else Modifier,
+                    if (wholePill && sheetApk == null) Modifier.clickable { pillAction() } else Modifier,
                 ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -943,11 +968,24 @@ internal fun StatusControl(
                 color = textColor,
                 modifier = Modifier
                     .weight(1f, fill = false)
+                    .then(
+                        if (sheetApk != null) {
+                            Modifier.clickable(onClickLabel = "Show when the APK was built") { showSheet = true }
+                        } else {
+                            Modifier
+                        },
+                    )
                     .padding(start = 12.dp, end = if (control.trailing == null) 12.dp else 10.dp, top = 4.dp, bottom = 4.dp),
             )
             if (progress != null) {
                 Box(Modifier.width(1.dp).fillMaxHeight().background(color.copy(alpha = 0.3f)))
-                Box(Modifier.width(38.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .width(38.dp)
+                        .fillMaxHeight()
+                        .then(if (sheetApk != null) Modifier.clickable(onClickLabel = "Cancel the download") { onCancel() } else Modifier),
+                    contentAlignment = Alignment.Center,
+                ) {
                     val indicator = Modifier.size(16.dp)
                     if (progress.fraction != null) {
                         CircularProgressIndicator(progress = { progress.fraction }, modifier = indicator, strokeWidth = 2.5.dp, color = textColor)
@@ -963,7 +1001,7 @@ internal fun StatusControl(
                         .width(38.dp)
                         .fillMaxHeight()
                         .then(
-                            if (wholePill) {
+                            if (wholePill && sheetApk == null) {
                                 Modifier
                             } else {
                                 Modifier
