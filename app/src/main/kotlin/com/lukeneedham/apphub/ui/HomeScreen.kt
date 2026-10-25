@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -171,6 +173,7 @@ internal fun HomeContent(
                 if (state.repos.isNotEmpty()) {
                     RepoNavigation(
                         repos = state.repos.map { it.repo },
+                        prCounts = state.repos.map { it.pullRequests.size },
                         selectedIndex = selectedIndex,
                         // The row has already settled on the project it jumps to, so it ignores the list passing the ones between
                         followList = !jumping,
@@ -255,7 +258,7 @@ private fun LazyListState.centredIndex(): Int? {
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun RepoNavigation(repos: List<String>, selectedIndex: Int, followList: Boolean, onSelect: (Int) -> Unit) {
+private fun RepoNavigation(repos: List<String>, prCounts: List<Int>, selectedIndex: Int, followList: Boolean, onSelect: (Int) -> Unit) {
     val rowState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val itemSize = 44.dp
@@ -307,11 +310,8 @@ private fun RepoNavigation(repos: List<String>, selectedIndex: Int, followList: 
         ) {
             itemsIndexed(repos, key = { _, repo -> repo }) { index, repo ->
                 val name = repo.substringAfter('/')
-                Surface(
-                    onClick = {
-                        scope.launch { rowState.animateScrollToItem(index) }
-                        onSelect(index)
-                    },
+                val count = prCounts.getOrElse(index) { 0 }
+                Box(
                     modifier = Modifier
                         .size(itemSize)
                         .graphicsLayer {
@@ -323,20 +323,48 @@ private fun RepoNavigation(repos: List<String>, selectedIndex: Int, followList: 
                             val scale = 1.3f - 0.45f * distance.coerceIn(0f, 1f)
                             scaleX = scale
                             scaleY = scale
-                        }
-                        .semantics { contentDescription = "Jump to $name" },
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        },
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        // The initial shows for repos without an icon, and under the icon while it loads
-                        Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        AsyncImage(
-                            model = repoIconUrl(repo),
-                            contentDescription = null,
-                            modifier = Modifier.padding(4.dp).fillMaxSize().clip(CircleShape),
-                        )
+                    Surface(
+                        onClick = {
+                            scope.launch { rowState.animateScrollToItem(index) }
+                            onSelect(index)
+                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .semantics { contentDescription = "Jump to $name" },
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            // The initial shows for repos without an icon, and under the icon while it loads
+                            Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            AsyncImage(
+                                model = repoIconUrl(repo),
+                                contentDescription = null,
+                                modifier = Modifier.padding(4.dp).fillMaxSize().clip(CircleShape),
+                            )
+                        }
+                    }
+                    if (count > 0) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 5.dp, y = (-5).dp)
+                                .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
+                                .padding(horizontal = 4.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                count.toString(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
             }
@@ -479,7 +507,7 @@ private fun PullRequestRow(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).padding(bottom = 14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // The whole upper section opens the page of the PR, as the details button does
+        // The whole upper section opens the page of the PR
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -519,12 +547,6 @@ private fun PullRequestRow(
                     icon = R.drawable.ic_pull_request,
                     description = "Open pull request on GitHub",
                     onClick = { uriHandler.openUri(pr.url) },
-                    size = 36.dp,
-                )
-                CircleIconButton(
-                    icon = R.drawable.ic_details,
-                    description = "Open the page of this pull request",
-                    onClick = { onOpenPullRequest(PullRequestRef(pr.repo, pr.number)) },
                     size = 36.dp,
                 )
             }
