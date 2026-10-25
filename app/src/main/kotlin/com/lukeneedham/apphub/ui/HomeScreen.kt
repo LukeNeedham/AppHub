@@ -752,6 +752,8 @@ internal data class Control(
 internal enum class ActionKind { Download, Install, Open, OpenRun, Build }
 
 /** What a press on a "Building" pill does: opens the run that builds the APK. */
+private const val STALE_BUILD = "Stale build"
+
 private val BuildAction = Trailing.Action(R.drawable.ic_build, "Build main", ActionKind.Build)
 
 private val OpenRunAction = Trailing.Action(R.drawable.ic_open, "Open the build run", ActionKind.OpenRun)
@@ -782,13 +784,19 @@ internal fun controlOf(item: PullRequestItem): Control {
     val target = item.pr.downloadableApk
     // The APK on offer lacks the latest commits, so what is on offer is the stale build, whatever the build says
     val isStale = target?.isStale == true
-    val offered = if (isStale) Control("Stale build", StatusColors.warning) else build
+    val offered = if (isStale) Control(STALE_BUILD, StatusColors.warning) else build
     val pr = item.pr
     val millis = pr.apkBuiltAtMillis
     val text = (pr.apk as? ApkBuild.Succeeded)?.builtAt
     val built = if (millis != null || text != null) ApkDetail(millis, millis?.let(::formatTimestamp) ?: text) else null
-    return transferControl(item.download, build, offered, installed, hasApk = target != null, isStale = isStale, error = scheme.error)
+    val control = transferControl(item.download, build, offered, installed, hasApk = target != null, isStale = isStale, error = scheme.error)
         .aboutApk(built)
+    // A stale build is installed by the first action; the second opens the run that is replacing it
+    return if (control.text == STALE_BUILD && control.trailing is Trailing.Action && pr.buildingRunUrl != null) {
+        control.copy(secondary = OpenRunAction)
+    } else {
+        control
+    }
 }
 
 /** The status of the main build; see docs/status-colors.md. */
@@ -809,10 +817,14 @@ internal fun controlOf(item: MainBuildItem): Control {
     // An APK that lacks the latest commits, or that a newer build is about to replace, is the stale build
     val isStale = item.info.apk != null && !installed && (building || behind)
     // Main is not built for every push, so a stale build of it is routine: quiet grey, not the amber of a PR's
-    val offered = if (isStale) Control("Stale build", scheme.onSurfaceVariant) else build
+    val offered = if (isStale) Control(STALE_BUILD, scheme.onSurfaceVariant) else build
     val built = item.info.apk?.let { ApkDetail(it.builtAtMillis, item.behindText) }
     val control = transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isStale = isStale, error = scheme.error)
         .aboutApk(built)
+    // A stale build is installed by the first action; the second opens the run that is replacing it
+    if (control.text == STALE_BUILD && control.trailing is Trailing.Action && building && item.runUrl != null) {
+        return control.copy(secondary = OpenRunAction)
+    }
     // Building main is the primary action when there is no other, else the second one
     if (!item.offersBuild || !item.canBuild) return control
     return when (control.trailing) {

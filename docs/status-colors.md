@@ -66,6 +66,7 @@ action of a build that lags main. It is left out when the build is up to date or
 | Install | Installs the APK already downloaded | Downloaded but not installed |
 | Open | Starts the installed app | Installed |
 | Circular arrow | Downloads again | **Retry** after a failed download, in red |
+| Open | (second action) Opens the run that is building the replacement | Stale build whose replacement is building: the first action downloads or installs the stale APK |
 | Wrench | Builds main as it is now | Main only: No build or Build failed (the only action), or a build behind main (the second action) |
 | Progress ring | Cancels the download | Downloading |
 | None | Nothing | No APK to act on: Building without an older APK, Cancelled, and a PR's No build or Build failed |
