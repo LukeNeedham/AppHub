@@ -23,7 +23,8 @@ Notes:
 - **Purple is for action.** "Update ready" is purple, not amber: a newer build than the installed one is an
   opportunity, not a warning. Amber is kept for the old build so that it always means "this APK lacks the
   latest commits".
-- **Blue is for progress.** Building (CI) and Downloading (this device) share it because in both you wait.
+- **Blue is for progress.** Building (CI) and Downloading (this device) share it because in both you wait. A press on Building opens the GitHub Actions run (the Open icon).
+- **The build time** ("Built 2 hours ago · 09/10/2026 12:56:20") is the second line inside the pill, once an APK of the latest commit is built.
 - **Red is for failure** whoever's it is: a failed CI build or a failed download. The text tells them apart.
 - Amber on an old build wins over the build's own state, as the build is still running in that case. The row
   keeps its "Out of date: there are later changes, rebuilding now" note.

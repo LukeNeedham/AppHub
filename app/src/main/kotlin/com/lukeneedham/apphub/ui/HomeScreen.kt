@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.offset
@@ -76,6 +77,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -479,6 +481,7 @@ private fun RepoCard(
                                 onDownload = { mainBuild.download(item.repo) },
                                 onInstall = { mainBuild.install(item.repo) },
                                 onOpen = { mainBuild.open(item.repo) },
+                                onOpenRun = { item.runUrl?.let(uriHandler::openUri) },
                             )
                         }
                     }
@@ -512,7 +515,6 @@ private fun PullRequestRow(
 ) {
     val pr = item.pr
     val uriHandler = LocalUriHandler.current
-    val control = controlOf(item)
     val target = pr.downloadableApk
 
     Column(
@@ -536,7 +538,7 @@ private fun PullRequestRow(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            StatusControl(control, onDownload = { onDownload(pr.key) }, onInstall = { onInstall(pr.key) }, onOpen = { onOpen(pr.key) })
+            PullRequestStatus(item, onDownload = { onDownload(pr.key) }, onInstall = { onInstall(pr.key) }, onOpen = { onOpen(pr.key) })
             Spacer(Modifier.weight(1f))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (pr.webUrl != null) {
@@ -564,7 +566,6 @@ private fun PullRequestRow(
             }
         }
 
-        pr.builtAt?.let { builtAt -> BuiltText(builtAt, pr.builtAtMillis) }
 
         if (target?.isStale == true) {
             Text(
@@ -622,22 +623,36 @@ private fun MainBuildDetails(item: MainBuildItem, actions: MainBuildActions) {
     }
 }
 
-/**
- * When an APK was built: how long ago, then the timestamp the CI wrote in smaller text. Without the moment
- * as an instant, only the timestamp is shown.
- */
+/** When an APK was built, as written by the CI, and the same moment as an instant if it is known. */
+internal data class BuiltInfo(val builtAt: String, val millis: Long?)
+
+/** How long ago the APK was built, then the timestamp the CI wrote in smaller text. */
 @Composable
-internal fun BuiltText(builtAt: String, builtAtMillis: Long?) {
-    val now = rememberNowMillis()
-    val text = buildAnnotatedString {
-        append("APK built ")
-        if (builtAtMillis != null) {
-            append(relativeTime(builtAtMillis, now))
+private fun builtLabel(built: BuiltInfo, now: Long): AnnotatedString {
+    val small = MaterialTheme.typography.labelSmall.fontSize * 0.85f
+    return buildAnnotatedString {
+        append("Built ")
+        if (built.millis != null) {
+            append(relativeTime(built.millis, now))
             append(" · ")
         }
-        withStyle(SpanStyle(fontSize = MaterialTheme.typography.labelSmall.fontSize)) { append(builtAt) }
+        withStyle(SpanStyle(fontSize = small)) { append(built.builtAt) }
     }
-    Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** The status pill of a PR, with a press on "Building" opening the run and the build time shown inside. */
+@Composable
+internal fun PullRequestStatus(item: PullRequestItem, onDownload: () -> Unit, onInstall: () -> Unit, onOpen: () -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    val pr = item.pr
+    StatusControl(
+        controlOf(item),
+        onDownload = onDownload,
+        onInstall = onInstall,
+        onOpen = onOpen,
+        onOpenRun = { pr.buildingRunUrl?.let(uriHandler::openUri) },
+        built = pr.builtAt?.let { BuiltInfo(it, pr.builtAtMillis) },
+    )
 }
 
 /** The current time, brought up to date every half minute so that "2 minutes ago" keeps counting. */
@@ -693,7 +708,10 @@ private fun Pill(text: String, color: Color, dot: Boolean = true) {
 /** The status tag of a PR, with what presses on from here ([trailing]) at its end. */
 internal data class Control(val text: String, val color: Color, val trailing: Trailing? = null)
 
-internal enum class ActionKind { Download, Install, Open }
+internal enum class ActionKind { Download, Install, Open, OpenRun }
+
+/** What a press on a "Building" pill does: opens the run that builds the APK. */
+private val OpenRunAction = Trailing.Action(R.drawable.ic_open, "Open the build run", ActionKind.OpenRun)
 
 internal sealed interface Trailing {
     /** A press on the tag downloads the APK, installs the one already downloaded, or opens the installed app ([kind]). */
@@ -709,7 +727,7 @@ internal fun controlOf(item: PullRequestItem): Control {
     val installed = item.install == InstallStatus.Installed
     val build = when (item.pr.apk) {
         null -> Control("No build", scheme.onSurfaceVariant)
-        is ApkBuild.InProgress -> Control("Building", StatusColors.info)
+        is ApkBuild.InProgress -> Control("Building", StatusColors.info, if (item.pr.buildingRunUrl != null) OpenRunAction else null)
         is ApkBuild.Failed -> Control("Build failed", scheme.error)
         is ApkBuild.Cancelled -> Control("Cancelled", scheme.onSurfaceVariant)
         is ApkBuild.Succeeded -> when (item.install) {
@@ -734,7 +752,7 @@ internal fun controlOf(item: MainBuildItem): Control {
     val build = when (item.phase) {
         MainPhase.NoBuild -> Control("No build", scheme.onSurfaceVariant)
         MainPhase.Requested -> Control("Starting", StatusColors.info)
-        MainPhase.Building -> Control("Building", StatusColors.info)
+        MainPhase.Building -> Control("Building", StatusColors.info, if (item.runUrl != null) OpenRunAction else null)
         MainPhase.Failed -> Control("Build failed", scheme.error)
         MainPhase.Ready -> Control(if (item.install == InstallStatus.DifferentBuild) "Update ready" else "Ready", scheme.primary)
         MainPhase.Installed -> if (behind) Control("Behind main", scheme.onSurfaceVariant) else Control("Installed", StatusColors.success)
@@ -787,7 +805,14 @@ private fun transferControl(
  * press does next, or its progress. A press anywhere on the pill does that.
  */
 @Composable
-internal fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: () -> Unit, onOpen: () -> Unit) {
+internal fun StatusControl(
+    control: Control,
+    onDownload: () -> Unit,
+    onInstall: () -> Unit,
+    onOpen: () -> Unit,
+    onOpenRun: () -> Unit = {},
+    built: BuiltInfo? = null,
+) {
     val color = control.color
     // The pale status colours do not read as text on their own tint in light mode, so the text takes a darker shade
     val textColor = if (isSystemInDarkTheme()) color else lerp(color, Color.Black, 0.3f)
@@ -797,6 +822,7 @@ internal fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: 
             when (action?.kind) {
                 ActionKind.Download -> onDownload()
                 ActionKind.Open -> onOpen()
+                ActionKind.OpenRun -> onOpenRun()
                 else -> onInstall()
             }
         },
@@ -806,14 +832,18 @@ internal fun StatusControl(control: Control, onDownload: () -> Unit, onInstall: 
         color = color.copy(alpha = 0.14f),
         border = BorderStroke(1.dp, color.copy(alpha = 0.45f)),
     ) {
-        Row(modifier = Modifier.height(32.dp), verticalAlignment = Alignment.CenterVertically) {
-            Row(
-                modifier = Modifier.padding(start = 12.dp, end = if (control.trailing == null) 12.dp else 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+        Row(modifier = Modifier.defaultMinSize(minHeight = 32.dp).height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
+            Column(
+                modifier = Modifier.padding(start = 12.dp, end = if (control.trailing == null) 12.dp else 10.dp, top = 4.dp, bottom = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(1.dp),
             ) {
-                Box(Modifier.size(6.dp).clip(CircleShape).background(color))
-                Text(control.text, style = MaterialTheme.typography.labelMedium, color = textColor, fontWeight = FontWeight.SemiBold)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(Modifier.size(6.dp).clip(CircleShape).background(color))
+                    Text(control.text, style = MaterialTheme.typography.labelMedium, color = textColor, fontWeight = FontWeight.SemiBold)
+                }
+                if (built != null) {
+                    Text(builtLabel(built, rememberNowMillis()), style = MaterialTheme.typography.labelSmall, color = textColor)
+                }
             }
             if (control.trailing != null) {
                 Box(Modifier.width(1.dp).fillMaxHeight().background(color.copy(alpha = 0.3f)))

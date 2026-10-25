@@ -60,6 +60,9 @@ data class MainBuildItem(
 ) {
     val key: String get() = mainKey(repo)
 
+    /** The GitHub Actions run of the newest build, which is the one on its way while [phase] is [MainPhase.Building]. */
+    val runUrl: String? get() = info.run?.let { "https://github.com/$repo/actions/runs/${it.id}" }
+
     val offer: ApkOffer?
         get() = info.apk?.let {
             ApkOffer(key, repo, it.commit, "${repo.replace('/', '_')}-main-${it.commit}.apk")

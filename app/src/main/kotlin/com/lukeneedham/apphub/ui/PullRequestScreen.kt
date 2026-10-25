@@ -117,7 +117,7 @@ internal fun PullRequestContent(
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    StatusControl(controlOf(item), onDownload = onDownload, onInstall = onInstall, onOpen = onOpen)
+                    PullRequestStatus(item, onDownload = onDownload, onInstall = onInstall, onOpen = onOpen)
                     Spacer(Modifier.weight(1f))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (pr.webUrl != null) {
@@ -145,7 +145,6 @@ internal fun PullRequestContent(
                     }
                 }
 
-                pr.builtAt?.let { builtAt -> BuiltText(builtAt, pr.builtAtMillis) }
 
                 if (target?.isStale == true) {
                     Text(

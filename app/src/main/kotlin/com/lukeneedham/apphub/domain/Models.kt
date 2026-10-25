@@ -23,7 +23,7 @@ sealed interface ApkBuild {
 
     /** [previousUrl] is the stale APK of the last build, kept in the comment while a new one builds. */
     @Serializable
-    data class InProgress(override val commit: String?, val previousUrl: String?) : ApkBuild
+    data class InProgress(override val commit: String?, val previousUrl: String?, val runUrl: String? = null) : ApkBuild
 
     @Serializable
     data class Failed(override val commit: String?) : ApkBuild
@@ -64,6 +64,9 @@ data class PullRequest(
 
     /** When the APK of the latest commit was built, as the CI comment states it; null while it is not known. */
     val builtAt: String? get() = (apk as? ApkBuild.Succeeded)?.builtAt
+
+    /** The GitHub Actions run building the APK, while one does and the comment links it; null otherwise. */
+    val buildingRunUrl: String? get() = (apk as? ApkBuild.InProgress)?.runUrl
 
     /** The moment [builtAt] names, as epoch milliseconds; null while it is not known. */
     val builtAtMillis: Long? get() = (apk as? ApkBuild.Succeeded)?.builtAtMillis

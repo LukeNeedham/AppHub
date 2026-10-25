@@ -46,6 +46,12 @@ class MainBuildItemTest {
     }
 
     @Test
+    fun `the run is linked on GitHub`() {
+        assertEquals("https://github.com/LukeNeedham/FlagTutor/actions/runs/1", item().runUrl)
+        assertNull(item(run = null).runUrl)
+    }
+
+    @Test
     fun `a press is requested until the run shows up, and cannot be repeated`() {
         val item = item(requested = true)
         assertEquals(MainPhase.Requested, item.phase)
