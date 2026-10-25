@@ -54,4 +54,4 @@ Branch from `main`, make the change, and open a pull request. CI must be green b
 
 ## License
 
-All rights reserved.
+All rights reserved. See [LICENSE](LICENSE).
