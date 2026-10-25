@@ -443,7 +443,6 @@ private fun RepoCard(
                     } else {
                         MaterialTheme.colorScheme.primary
                     },
-                    dot = false,
                 )
                 Spacer(Modifier.width(4.dp))
                 Icon(
@@ -580,25 +579,19 @@ private fun PullRequestRow(
 }
 
 /**
- * What the status pill of the main build leaves to say, under the row of buttons: how far the build lags
- * main (or that it is up to date), with a button to the right that builds main as it is now. The button
- * is left out when the build is up to date.
+ * What the status pill of the main build leaves to say, under the row of buttons: a button that builds main as
+ * it is now, left out when the build is up to date, and the errors, if any.
  */
 @Composable
 private fun MainBuildDetails(item: MainBuildItem, actions: MainBuildActions) {
+    val downloadFailed = item.download as? DownloadState.Failed
+    if (!item.offersBuild && item.error == null && downloadFailed == null) return
     Column(
         modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            val note = item.note
-            Text(
-                note?.text.orEmpty(),
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.labelMedium,
-                color = if (note?.warn == true) StatusColors.warning else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (item.offersBuild) {
+        if (item.offersBuild) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 OutlinedButton(onClick = { actions.build(item.repo) }, enabled = item.canBuild, shape = CircleShape) {
                     Text(item.buildLabel)
                 }
@@ -607,7 +600,7 @@ private fun MainBuildDetails(item: MainBuildItem, actions: MainBuildActions) {
         item.error?.let { error ->
             Text(error, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
         }
-        (item.download as? DownloadState.Failed)?.let { failed ->
+        downloadFailed?.let { failed ->
             Text(
                 "Download failed: ${failed.message}",
                 style = MaterialTheme.typography.labelMedium,
@@ -618,13 +611,14 @@ private fun MainBuildDetails(item: MainBuildItem, actions: MainBuildActions) {
 }
 
 /**
- * When the APK a status is about was built: [millis] as an instant if known, [text] as the CI wrote it otherwise.
- * It shows inside the status pill as how old the APK is, and the timestamp.
+ * What a status pill says of the APK it is about, on the two lines under the status: how old it is ([builtAtMillis],
+ * the moment it was built, if known) and a [detail] in much smaller text, which is the timestamp of a PR's build
+ * and how far the main build lags main.
  */
-internal data class BuiltInfo(val text: String?, val millis: Long?)
+internal data class ApkDetail(val builtAtMillis: Long?, val detail: String?)
 
 /** What a status says is only about an APK when there is one: not while it is only building, or after it failed. */
-private fun Control.aboutApk(built: BuiltInfo?): Control =
+private fun Control.aboutApk(built: ApkDetail?): Control =
     if (built == null || text == "Building" || text == "Starting") this else copy(built = built)
 
 /** The status pill of a PR, with a press on "Building" opening the run. */
@@ -648,18 +642,25 @@ internal fun PullRequestStatus(
     )
 }
 
-/** How old the APK is, and under it, much smaller, the timestamp it was built at. */
+/**
+ * The two lines under the status in a pill: how old the APK is, and under it, much smaller, its detail. Both
+ * lines are always laid out, empty or not, so that every pill is as tall as the others.
+ */
 @Composable
-private fun BuiltLines(built: BuiltInfo, color: Color) {
+private fun ApkLines(apk: ApkDetail?, color: Color) {
     val style = MaterialTheme.typography.labelSmall
-    if (built.millis != null) {
-        Text(ageText(built.millis, rememberNowMillis(built.millis)), style = style, color = color)
-    }
-    val timestamp = built.millis?.let(::formatTimestamp) ?: built.text
-    if (timestamp != null) {
-        Text(timestamp, style = style.copy(fontSize = style.fontSize * 0.8f), color = color.copy(alpha = 0.75f))
-    }
+    val age = apk?.builtAtMillis?.let { ageText(it, rememberNowMillis(it)) }
+    Text(age ?: Blank, style = style.copy(lineHeight = style.fontSize * 1.25f), color = color)
+    val small = style.fontSize * 0.8f
+    Text(
+        apk?.detail ?: Blank,
+        style = style.copy(fontSize = small, lineHeight = small * 1.25f),
+        color = color.copy(alpha = 0.75f),
+    )
 }
+
+/** A no-break space: a line of text with nothing to show still takes the height of a line. */
+private const val Blank = "\u00A0"
 
 /** The current time, brought up to date every second while [sinceMillis] is under a minute ago (it counts seconds), else every half minute. */
 @Composable
@@ -695,9 +696,9 @@ internal fun CircleIconButton(icon: Int, description: String, onClick: () -> Uni
     }
 }
 
-/** A small rounded tag: [color] on a faint tint of itself, with an optional dot. */
+/** A small rounded tag: [color] on a faint tint of itself. */
 @Composable
-private fun Pill(text: String, color: Color, dot: Boolean = true) {
+private fun Pill(text: String, color: Color) {
     Row(
         modifier = Modifier
             .clip(CircleShape)
@@ -706,13 +707,12 @@ private fun Pill(text: String, color: Color, dot: Boolean = true) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        if (dot) Box(Modifier.size(6.dp).clip(CircleShape).background(color))
         Text(text, style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.SemiBold)
     }
 }
 
 /** The status tag of a PR, with what presses on from here ([trailing]) at its end. */
-internal data class Control(val text: String, val color: Color, val trailing: Trailing? = null, val built: BuiltInfo? = null)
+internal data class Control(val text: String, val color: Color, val trailing: Trailing? = null, val built: ApkDetail? = null)
 
 internal enum class ActionKind { Download, Install, Open, OpenRun }
 
@@ -749,7 +749,7 @@ internal fun controlOf(item: PullRequestItem): Control {
     val pr = item.pr
     val millis = pr.apkBuiltAtMillis
     val text = (pr.apk as? ApkBuild.Succeeded)?.builtAt
-    val built = if (millis != null || text != null) BuiltInfo(text, millis) else null
+    val built = if (millis != null || text != null) ApkDetail(millis, millis?.let(::formatTimestamp) ?: text) else null
     return transferControl(item.download, build, offered, installed, hasApk = target != null, isStale = isStale, error = scheme.error)
         .aboutApk(built)
 }
@@ -773,7 +773,7 @@ internal fun controlOf(item: MainBuildItem): Control {
     val isStale = item.info.apk != null && !installed && (building || behind)
     // Main is not built for every push, so a stale build of it is routine: quiet grey, not the amber of a PR's
     val offered = if (isStale) Control("Stale build", scheme.onSurfaceVariant) else build
-    val built = item.info.apk?.builtAtMillis?.let { BuiltInfo(null, it) }
+    val built = item.info.apk?.let { ApkDetail(it.builtAtMillis, item.behindText) }
     return transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isStale = isStale, error = scheme.error)
         .aboutApk(built)
 }
@@ -814,7 +814,7 @@ private fun transferControl(
     }
 
 /**
- * The status of a PR as a coloured pill: a dot and the status, then after a divider the icon of what a
+ * The status of a PR as a coloured pill: the status, the age of the APK and a detail, then after a divider the icon of what a
  * press does next, or its progress. A press anywhere on the pill does that.
  */
 @Composable
@@ -855,11 +855,8 @@ internal fun StatusControl(
                 modifier = Modifier.padding(start = 12.dp, end = if (control.trailing == null) 12.dp else 10.dp, top = 4.dp, bottom = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(1.dp),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Box(Modifier.size(6.dp).clip(CircleShape).background(color))
-                    Text(control.text, style = MaterialTheme.typography.labelMedium, color = textColor, fontWeight = FontWeight.SemiBold)
-                }
-                control.built?.let { BuiltLines(it, textColor) }
+                Text(control.text, style = MaterialTheme.typography.labelMedium, color = textColor, fontWeight = FontWeight.SemiBold)
+                ApkLines(control.built, textColor)
             }
             if (control.trailing != null) {
                 Box(Modifier.width(1.dp).fillMaxHeight().background(color.copy(alpha = 0.3f)))

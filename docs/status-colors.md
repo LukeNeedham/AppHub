@@ -1,6 +1,6 @@
 # PR status pill colours
 
-Each pull request row ends in one pill: a coloured dot and the status, then, after a divider, the icon of
+Each pull request row ends in one pill: the status, two smaller lines under it (always laid out, so all pills are equally tall), then, after a divider, the icon of
 what a press does next (or the progress of a download). Pressing anywhere on the pill does that action.
 The code is `controlOf` and `StatusControl` in `ui/HomeScreen.kt`.
 
@@ -35,15 +35,16 @@ Notes:
 ## The main build
 
 The main build of a repo sits in the row of buttons at the top of its card, after the GitHub and Claude buttons. It uses the
-same pill, from `controlOf(MainBuildItem)`. Under the row, a line says how many commits the build is behind main (or that it is up
-to date), with a **Build** button to its right that is left out when the build is up to date. Its states are those above, with these meanings:
+same pill, from `controlOf(MainBuildItem)`. Its second line is the age of the build and its third how far the build is behind main
+("3 commits behind") or "Up to date", in place of the timestamp; with no build only the status shows. Under the row, a **Build**
+button, right-aligned, is left out when the build is up to date. Its states are those above, with these meanings:
 
 - **Stale build** (grey): the APK on offer lacks commits, because `main` has moved on or a newer build is running.
 - **Behind main** (grey, with the Open icon): the installed build is a main build, but `main` has newer commits.
 - **Starting** (blue): the build was asked for and GitHub has not listed the run yet.
 - Both are grey, not amber: `main` is not built for every push, so lagging behind it is expected and should
   draw little attention. Amber is only for a PR's stale build.
-- **Installed** (green) means the installed build is the tip of `main`; the line under the row says which commit.
+- **Installed** (green) means the installed build is the tip of `main`.
 
 ## The trailing icon
 
@@ -59,7 +60,7 @@ to date), with a **Build** button to its right that is left out when the build i
 ## Contrast
 
 The status colours are mid-tones that read on dark backgrounds. In light mode the text and icon use a darker
-shade of the status colour (30% towards black) so they stay readable on their own tint. The dot, border and
+shade of the status colour (30% towards black) so they stay readable on their own tint. The border and
 divider keep the plain colour.
 
 ## Changing it
