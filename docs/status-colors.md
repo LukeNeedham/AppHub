@@ -38,7 +38,7 @@ Every pill lays out the same three lines, each exactly one line tall (ellipsized
 equally tall:
 
 1. **Status**: the state, in the status colour ("Ready", "Stale build", "No build").
-2. **Age**: how old the APK is ("2 minutes old").
+2. **Age**: how old the APK is ("2 minutes old"). While downloading it is how far the download is ("42%", or "3.2 MB" when the size is unknown), and the status reads "Downloading…".
 3. **Detail**: a fact about that APK in much smaller text: a PR's build timestamp, or how far the main build lags main.
 
 With no APK (No build, Building, Build failed) lines 2 and 3 are empty and the status is centred in their height.

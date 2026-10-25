@@ -636,17 +636,24 @@ internal fun PullRequestStatus(
  * The three lines of a status pill, each always laid out and exactly one line tall, ellipsized if it does not fit:
  *
  * 1. **status**: what state it is in ("Ready", "Stale build", "No build").
- * 2. **age**: how old the APK is ("2 minutes old").
+ * 2. **age**: how old the APK is ("2 minutes old"); while it downloads, how far it is ("42%").
  * 3. **detail**: a fact about that APK in much smaller text: the timestamp of a PR's build, or how far the main
  *    build lags main ("3 commits behind", "Up to date").
  *
  * With no APK there is no age and no detail, and the status is centred in the height of the three lines.
  */
 @Composable
-private fun PillLines(status: String, statusColor: Color, apk: ApkDetail?, color: Color, modifier: Modifier = Modifier) {
+private fun PillLines(
+    status: String,
+    statusColor: Color,
+    apk: ApkDetail?,
+    progressText: String?,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
     val style = MaterialTheme.typography.labelSmall
     val small = style.fontSize * 0.8f
-    val age = apk?.builtAtMillis?.let { ageText(it, rememberNowMillis(it)) }
+    val age = progressText ?: apk?.builtAtMillis?.let { ageText(it, rememberNowMillis(it)) }
     val detail = apk?.detail
     val statusStyle = MaterialTheme.typography.labelMedium
     val statusText = @Composable { text: String ->
@@ -736,6 +743,8 @@ internal data class Control(
     val built: ApkDetail? = null,
     /** A second action, next to [trailing]: with two actions only a press on an action's own icon runs it. */
     val secondary: Trailing.Action? = null,
+    /** Shown on the second line in place of the age of the APK: how far a download is. */
+    val progressText: String? = null,
 )
 
 internal enum class ActionKind { Download, Install, Open, OpenRun, Build }
@@ -824,8 +833,8 @@ private fun transferControl(
     when (download) {
         is DownloadState.Downloading -> {
             val total = download.total
-            val text = if (total != null) "Downloading ${(download.bytes * 100 / total).toInt()}%" else "Downloading"
-            Control(text, StatusColors.info, Trailing.Progress(total?.let { download.bytes.toFloat() / it }))
+            val done = if (total != null) "${(download.bytes * 100 / total).toInt()}%" else "${megabytes(download.bytes)} MB"
+            Control("Downloading…", StatusColors.info, Trailing.Progress(total?.let { download.bytes.toFloat() / it }), progressText = done)
         }
         is DownloadState.Downloaded -> when {
             installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open app", ActionKind.Open))
@@ -879,7 +888,7 @@ internal fun StatusControl(
     Surface(
         modifier = Modifier.semantics(mergeDescendants = wholePill) {
             if (wholePill) {
-                contentDescription = if (progress != null) "${control.text}. Cancel the download" else "${control.text}. ${actions.single().description}"
+                contentDescription = if (progress != null) "${control.text} ${control.progressText.orEmpty()}. Cancel the download" else "${control.text}. ${actions.single().description}"
             }
         },
         shape = CircleShape,
@@ -900,6 +909,7 @@ internal fun StatusControl(
                 status = control.text,
                 statusColor = textColor,
                 apk = control.built,
+                progressText = control.progressText,
                 color = textColor,
                 modifier = Modifier
                     .weight(1f, fill = false)
