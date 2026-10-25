@@ -44,7 +44,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -484,19 +483,8 @@ private fun RepoCard(
                                 onInstall = { mainBuild.install(item.repo) },
                                 onOpen = { mainBuild.open(item.repo) },
                                 onOpenRun = { item.runUrl?.let(uriHandler::openUri) },
+                                onBuild = { mainBuild.build(item.repo) },
                             )
-                            Spacer(Modifier.weight(1f))
-                            if (item.offersBuild) {
-                                OutlinedButton(
-                                    onClick = { mainBuild.build(item.repo) },
-                                    enabled = item.canBuild,
-                                    modifier = Modifier.height(36.dp),
-                                    shape = CircleShape,
-                                    contentPadding = PaddingValues(horizontal = 14.dp),
-                                ) {
-                                    Text("Build")
-                                }
-                            }
                         }
                     }
                     section.mainBuild?.let { item -> MainBuildErrors(item) }
@@ -714,11 +702,20 @@ private fun Pill(text: String, color: Color) {
 }
 
 /** The status tag of a PR, with what presses on from here ([trailing]) at its end. */
-internal data class Control(val text: String, val color: Color, val trailing: Trailing? = null, val built: ApkDetail? = null)
+internal data class Control(
+    val text: String,
+    val color: Color,
+    val trailing: Trailing? = null,
+    val built: ApkDetail? = null,
+    /** A second action, next to [trailing]: with two actions only a press on an action's own icon runs it. */
+    val secondary: Trailing.Action? = null,
+)
 
-internal enum class ActionKind { Download, Install, Open, OpenRun }
+internal enum class ActionKind { Download, Install, Open, OpenRun, Build }
 
 /** What a press on a "Building" pill does: opens the run that builds the APK. */
+private val BuildAction = Trailing.Action(R.drawable.ic_build, "Build main", ActionKind.Build)
+
 private val OpenRunAction = Trailing.Action(R.drawable.ic_open, "Open the build run", ActionKind.OpenRun)
 
 internal sealed interface Trailing {
@@ -776,8 +773,15 @@ internal fun controlOf(item: MainBuildItem): Control {
     // Main is not built for every push, so a stale build of it is routine: quiet grey, not the amber of a PR's
     val offered = if (isStale) Control("Stale build", scheme.onSurfaceVariant) else build
     val built = item.info.apk?.let { ApkDetail(it.builtAtMillis, item.behindText) }
-    return transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isStale = isStale, error = scheme.error)
+    val control = transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isStale = isStale, error = scheme.error)
         .aboutApk(built)
+    // Building main is the primary action when there is no other, else the second one
+    if (!item.offersBuild || !item.canBuild) return control
+    return when (control.trailing) {
+        null -> control.copy(trailing = BuildAction)
+        is Trailing.Action -> control.copy(secondary = BuildAction)
+        is Trailing.Progress -> control
+    }
 }
 
 /** [build] with what a press does next, given the state of the download of the APK on offer ([offered]). */
@@ -827,32 +831,43 @@ internal fun StatusControl(
     onInstall: () -> Unit,
     onOpen: () -> Unit,
     onOpenRun: () -> Unit = {},
+    onBuild: () -> Unit = {},
 ) {
     val color = control.color
     // The pale status colours do not read as text on their own tint in light mode, so the text takes a darker shade
     val textColor = if (isSystemInDarkTheme()) color else lerp(color, Color.Black, 0.3f)
-    val action = control.trailing as? Trailing.Action
-    // A press on a download in progress cancels it
-    val downloading = control.trailing is Trailing.Progress
+    val progress = control.trailing as? Trailing.Progress
+    val actions = listOfNotNull(control.trailing as? Trailing.Action, control.secondary)
+    // One action, or a download to cancel: a press anywhere on the pill does it. With two, only a press on an action's own icon does
+    val wholePill = progress != null || actions.size == 1
+    val run = { kind: ActionKind ->
+        when (kind) {
+            ActionKind.Download -> onDownload()
+            ActionKind.Open -> onOpen()
+            ActionKind.OpenRun -> onOpenRun()
+            ActionKind.Build -> onBuild()
+            ActionKind.Install -> onInstall()
+        }
+    }
     Surface(
-        onClick = {
-            if (downloading) onCancel() else when (action?.kind) {
-                ActionKind.Download -> onDownload()
-                ActionKind.Open -> onOpen()
-                ActionKind.OpenRun -> onOpenRun()
-                else -> onInstall()
+        modifier = Modifier.semantics(mergeDescendants = wholePill) {
+            if (wholePill) {
+                contentDescription = if (progress != null) "${control.text}. Cancel the download" else "${control.text}. ${actions.single().description}"
             }
-        },
-        enabled = action != null || downloading,
-        modifier = Modifier.semantics(mergeDescendants = true) {
-            if (action != null) contentDescription = "${control.text}. ${action.description}"
-            if (downloading) contentDescription = "${control.text}. Cancel the download"
         },
         shape = CircleShape,
         color = color.copy(alpha = 0.14f),
         border = BorderStroke(1.dp, color.copy(alpha = 0.45f)),
     ) {
-        Row(modifier = Modifier.defaultMinSize(minHeight = 32.dp).height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier
+                .defaultMinSize(minHeight = 32.dp)
+                .height(IntrinsicSize.Min)
+                .then(
+                    if (wholePill) Modifier.clickable { if (progress != null) onCancel() else run(actions.single().kind) } else Modifier,
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Column(
                 modifier = Modifier.padding(start = 12.dp, end = if (control.trailing == null) 12.dp else 10.dp, top = 4.dp, bottom = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(1.dp),
@@ -860,26 +875,35 @@ internal fun StatusControl(
                 Text(control.text, style = MaterialTheme.typography.labelMedium, color = textColor, fontWeight = FontWeight.SemiBold)
                 ApkLines(control.built, textColor)
             }
-            if (control.trailing != null) {
+            if (progress != null) {
                 Box(Modifier.width(1.dp).fillMaxHeight().background(color.copy(alpha = 0.3f)))
                 Box(Modifier.width(38.dp), contentAlignment = Alignment.Center) {
-                    when (val trailing = control.trailing) {
-                        is Trailing.Action -> Icon(
-                            painterResource(trailing.icon),
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = textColor,
-                        )
-                        is Trailing.Progress -> {
-                            val indicator = Modifier.size(16.dp)
-                            if (trailing.fraction != null) {
-                                CircularProgressIndicator(progress = { trailing.fraction }, modifier = indicator, strokeWidth = 2.5.dp, color = textColor)
-                            } else {
-                                CircularProgressIndicator(modifier = indicator, strokeWidth = 2.5.dp, color = textColor)
-                            }
-                        }
-                        null -> Unit
+                    val indicator = Modifier.size(16.dp)
+                    if (progress.fraction != null) {
+                        CircularProgressIndicator(progress = { progress.fraction }, modifier = indicator, strokeWidth = 2.5.dp, color = textColor)
+                    } else {
+                        CircularProgressIndicator(modifier = indicator, strokeWidth = 2.5.dp, color = textColor)
                     }
+                }
+            }
+            actions.forEach { action ->
+                Box(Modifier.width(1.dp).fillMaxHeight().background(color.copy(alpha = 0.3f)))
+                Box(
+                    modifier = Modifier
+                        .width(38.dp)
+                        .fillMaxHeight()
+                        .then(
+                            if (wholePill) {
+                                Modifier
+                            } else {
+                                Modifier
+                                    .clickable(onClickLabel = action.description) { run(action.kind) }
+                                    .semantics { contentDescription = action.description }
+                            },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(painterResource(action.icon), contentDescription = null, modifier = Modifier.size(18.dp), tint = textColor)
                 }
             }
         }

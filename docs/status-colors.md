@@ -36,8 +36,9 @@ Notes:
 
 The main build of a repo sits in the row of buttons at the top of its card, after the GitHub and Claude buttons. It uses the
 same pill, from `controlOf(MainBuildItem)`. Its second line is the age of the build and its third how far the build is behind main
-("3 commits behind") or "Up to date", in place of the timestamp; with no build only the status shows. A **Build** button sits
-at the end of the same row, left out when the build is up to date. Its states are those above, with these meanings:
+("3 commits behind") or "Up to date", in place of the timestamp; with no build only the status shows. Building main is an action of the pill:
+the only one when there is no other (No build, Build failed), else the second one, next to the download, install or open
+action of a build that lags main. It is left out when the build is up to date or one is running. Its states are those above, with these meanings:
 
 - **Stale build** (grey): the APK on offer lacks commits, because `main` has moved on or a newer build is running.
 - **Behind main** (grey, with the Open icon): the installed build is a main build, but `main` has newer commits.
@@ -54,8 +55,12 @@ at the end of the same row, left out when the build is up to date. Its states ar
 | Install | Installs the APK already downloaded | Downloaded but not installed |
 | Open | Starts the installed app | Installed |
 | Circular arrow | Downloads again | **Retry** after a failed download, in red |
-| Progress ring | Nothing | Downloading |
-| None | Nothing | No APK to act on: No build, Building without an older APK, Build failed, Cancelled |
+| Wrench | Builds main as it is now | Main only: No build or Build failed (the only action), or a build behind main (the second action) |
+| Progress ring | Cancels the download | Downloading |
+| None | Nothing | No APK to act on: Building without an older APK, Cancelled, and a PR's No build or Build failed |
+
+With one action (or a download to cancel), a press anywhere on the pill runs it. With two, the pill itself does
+nothing: only a press on an action's own icon runs that action.
 
 ## Contrast
 
