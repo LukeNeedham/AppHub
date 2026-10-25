@@ -669,14 +669,14 @@ internal fun PullRequestStatus(
     )
 }
 
-/** The current time, brought up to date every half minute so that "2 minutes ago" keeps counting. */
+/** The current time, brought up to date every second while [sinceMillis] is under a minute ago (it counts seconds), else every half minute. */
 @Composable
-private fun rememberNowMillis(): Long {
+private fun rememberNowMillis(sinceMillis: Long?): Long {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(sinceMillis) {
         while (true) {
-            delay(30_000)
             now = System.currentTimeMillis()
+            delay(if (sinceMillis != null && now - sinceMillis < 60_000) 1_000 else 30_000)
         }
     }
     return now
@@ -862,7 +862,7 @@ internal fun StatusControl(
                     Text(control.text, style = MaterialTheme.typography.labelMedium, color = textColor, fontWeight = FontWeight.SemiBold)
                 }
                 if (built != null) {
-                    Text(builtLabel(built, rememberNowMillis()), style = MaterialTheme.typography.labelSmall, color = textColor)
+                    Text(builtLabel(built, rememberNowMillis(built.millis)), style = MaterialTheme.typography.labelSmall, color = textColor)
                 }
             }
             if (control.trailing != null) {

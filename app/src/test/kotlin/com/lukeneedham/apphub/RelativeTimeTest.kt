@@ -11,9 +11,11 @@ class RelativeTimeTest {
     private fun ago(elapsed: Long) = relativeTime(thenMillis = 1_000_000_000L, nowMillis = 1_000_000_000L + elapsed)
 
     @Test
-    fun `under a minute`() {
-        assertEquals("less than 1 minute ago", ago(0))
-        assertEquals("less than 1 minute ago", ago(minute - 1))
+    fun `under a minute counts the seconds`() {
+        assertEquals("0 seconds ago", ago(0))
+        assertEquals("1 second ago", ago(1_000))
+        assertEquals("12 seconds ago", ago(12_500))
+        assertEquals("59 seconds ago", ago(minute - 1))
     }
 
     @Test
@@ -34,6 +36,6 @@ class RelativeTimeTest {
 
     @Test
     fun `a time in the future counts as just now`() {
-        assertEquals("less than 1 minute ago", relativeTime(thenMillis = 5000, nowMillis = 1000))
+        assertEquals("0 seconds ago", relativeTime(thenMillis = 5000, nowMillis = 1000))
     }
 }
