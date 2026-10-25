@@ -14,14 +14,14 @@ it sits in that list, so a new state should be placed in it, not given a new col
 |---|---|---|
 | Grey | Nothing to do: there is no APK and none is coming | No build, Cancelled |
 | Blue | Something is running; wait | Building, Starting (main build asked for), Downloading |
-| Purple (the app's primary colour) | An APK is ready and you can act on it | Ready, Update ready, Ready to install |
+| Brown (the app's primary colour) | An APK is ready and you can act on it | Ready, Update ready, Ready to install |
 | Amber | What is on offer is out of date | Stale build: the new build has not finished, so only the previous APK can be offered. Behind main: the installed main build lacks later commits |
 | Green | Done | Installed |
 | Red | Broken | Build failed, Download failed |
 
 Notes:
 
-- **Purple is for action.** "Update ready" is purple, not amber: a newer build than the installed one is an
+- **Brown is for action.** "Update ready" is brown, not amber: a newer build than the installed one is an
   opportunity, not a warning. Amber is kept for the stale build so that it always means "this APK lacks the
   latest commits".
 - **Blue is for progress.** Building (CI) and Downloading (this device) share it because in both you wait. A press on Building opens the GitHub Actions run (the Open icon); a press on Downloading cancels the download.
