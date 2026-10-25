@@ -80,6 +80,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.lukeneedham.apphub.R
@@ -651,11 +652,12 @@ private fun PillLines(
     color: Color,
     modifier: Modifier = Modifier,
 ) {
-    val style = MaterialTheme.typography.labelSmall
-    val small = style.fontSize * 0.8f
+    val ageSize = 10.sp
+    val detailSize = 8.sp
     val age = progressText ?: apk?.builtAtMillis?.let { ageText(it, rememberNowMillis(it)) }
     val detail = apk?.detail
-    val statusStyle = MaterialTheme.typography.labelMedium
+    val statusSize = 13.sp
+    val statusStyle = MaterialTheme.typography.labelMedium.copy(fontSize = statusSize, lineHeight = statusSize * 1.25f)
     val statusText = @Composable { text: String ->
         Text(text, style = statusStyle, color = statusColor, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
@@ -666,14 +668,14 @@ private fun PillLines(
             statusText(if (alone) Blank else status)
             Text(
                 age ?: Blank,
-                style = style.copy(lineHeight = style.fontSize * 1.25f),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = ageSize, lineHeight = ageSize * 1.25f),
                 color = color,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 detail ?: Blank,
-                style = style.copy(fontSize = small, lineHeight = small * 1.25f),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = detailSize, lineHeight = detailSize * 1.25f),
                 color = color.copy(alpha = 0.75f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
