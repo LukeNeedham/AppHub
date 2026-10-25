@@ -633,20 +633,47 @@ internal fun PullRequestStatus(
 }
 
 /**
- * The two lines under the status in a pill: how old the APK is, and under it, much smaller, its detail. Both
- * lines are always laid out, empty or not, so that every pill is as tall as the others.
+ * The three lines of a status pill, each always laid out and exactly one line tall, ellipsized if it does not fit:
+ *
+ * 1. **status**: what state it is in ("Ready", "Stale build", "No build").
+ * 2. **age**: how old the APK is ("2 minutes old").
+ * 3. **detail**: a fact about that APK in much smaller text: the timestamp of a PR's build, or how far the main
+ *    build lags main ("3 commits behind", "Up to date").
+ *
+ * With no APK there is no age and no detail, and the status is centred in the height of the three lines.
  */
 @Composable
-private fun ApkLines(apk: ApkDetail?, color: Color) {
+private fun PillLines(status: String, statusColor: Color, apk: ApkDetail?, color: Color, modifier: Modifier = Modifier) {
     val style = MaterialTheme.typography.labelSmall
-    val age = apk?.builtAtMillis?.let { ageText(it, rememberNowMillis(it)) }
-    Text(age ?: Blank, style = style.copy(lineHeight = style.fontSize * 1.25f), color = color)
     val small = style.fontSize * 0.8f
-    Text(
-        apk?.detail ?: Blank,
-        style = style.copy(fontSize = small, lineHeight = small * 1.25f),
-        color = color.copy(alpha = 0.75f),
-    )
+    val age = apk?.builtAtMillis?.let { ageText(it, rememberNowMillis(it)) }
+    val detail = apk?.detail
+    val statusStyle = MaterialTheme.typography.labelMedium
+    val statusText = @Composable { text: String ->
+        Text(text, style = statusStyle, color = statusColor, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+    val alone = age == null && detail == null
+    Box(modifier, contentAlignment = Alignment.CenterStart) {
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            // Alone, the status is drawn over the lines below, which then only give the height
+            statusText(if (alone) Blank else status)
+            Text(
+                age ?: Blank,
+                style = style.copy(lineHeight = style.fontSize * 1.25f),
+                color = color,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                detail ?: Blank,
+                style = style.copy(fontSize = small, lineHeight = small * 1.25f),
+                color = color.copy(alpha = 0.75f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (alone) statusText(status)
+    }
 }
 
 /** A no-break space: a line of text with nothing to show still takes the height of a line. */
@@ -868,13 +895,16 @@ internal fun StatusControl(
                 ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(
-                modifier = Modifier.padding(start = 12.dp, end = if (control.trailing == null) 12.dp else 10.dp, top = 4.dp, bottom = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(1.dp),
-            ) {
-                Text(control.text, style = MaterialTheme.typography.labelMedium, color = textColor, fontWeight = FontWeight.SemiBold)
-                ApkLines(control.built, textColor)
-            }
+            // Measured after the actions, so that a long line is ellipsized instead of pushing them out
+            PillLines(
+                status = control.text,
+                statusColor = textColor,
+                apk = control.built,
+                color = textColor,
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .padding(start = 12.dp, end = if (control.trailing == null) 12.dp else 10.dp, top = 4.dp, bottom = 4.dp),
+            )
             if (progress != null) {
                 Box(Modifier.width(1.dp).fillMaxHeight().background(color.copy(alpha = 0.3f)))
                 Box(Modifier.width(38.dp), contentAlignment = Alignment.Center) {

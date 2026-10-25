@@ -1,6 +1,6 @@
 # PR status pill colours
 
-Each pull request row ends in one pill: the status, two smaller lines under it (always laid out, so all pills are equally tall), then, after a divider, the icon of
+Each pull request row ends in one pill: three lines (see below), then, after a divider, the icon of
 what a press does next (or the progress of a download). Pressing anywhere on the pill does that action.
 The code is `controlOf` and `StatusControl` in `ui/HomeScreen.kt`.
 
@@ -31,6 +31,17 @@ Notes:
   Build failed) have only the first line.
 - **Red is for failure** whoever's it is: a failed CI build or a failed download. The text tells them apart.
 - Amber on a stale build wins over the build's own state, as the build is still running in that case.
+
+## The three lines
+
+Every pill lays out the same three lines, each exactly one line tall (ellipsized if too long), so all pills are
+equally tall:
+
+1. **Status**: the state, in the status colour ("Ready", "Stale build", "No build").
+2. **Age**: how old the APK is ("2 minutes old").
+3. **Detail**: a fact about that APK in much smaller text: a PR's build timestamp, or how far the main build lags main.
+
+With no APK (No build, Building, Build failed) lines 2 and 3 are empty and the status is centred in their height.
 
 ## The main build
 
