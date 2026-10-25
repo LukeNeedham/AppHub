@@ -201,7 +201,7 @@ internal fun PullRequestPageContent(
 /** For Android Studio while building the page: still loading. */
 @Preview
 @Composable
-private fun PullRequestPageContentPreview() {
+private fun preview() {
     AppTheme {
         PullRequestPageContent(
             repo = "LukeNeedham/FlagTutor",
