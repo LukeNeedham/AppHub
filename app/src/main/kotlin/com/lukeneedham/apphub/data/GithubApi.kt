@@ -50,6 +50,9 @@ interface GithubApi {
     /** The artifacts of the workflow run [runId]. */
     suspend fun runArtifacts(repo: String, runId: Long): List<ArtifactDto>
 
+    /** The ISO-8601 instant the release tagged [tag] was published; null when there is no such release. */
+    suspend fun releasePublishedAt(repo: String, tag: String): String?
+
     /** The sha of the newest commit of [branch]. */
     suspend fun latestCommit(repo: String, branch: String): String
 
@@ -121,6 +124,14 @@ class KtorGithubApi(
 
     override suspend fun runArtifacts(repo: String, runId: Long): List<ArtifactDto> =
         get<ArtifactsDto>("https://api.github.com/repos/$repo/actions/runs/$runId/artifacts", forceNetwork = true).artifacts
+
+    override suspend fun releasePublishedAt(repo: String, tag: String): String? =
+        try {
+            // A release does not change once published, so the HTTP cache may keep it
+            get<ReleaseDto>("https://api.github.com/repos/$repo/releases/tags/$tag").let { it.publishedAt ?: it.createdAt }
+        } catch (e: NotFoundException) {
+            null
+        }
 
     override suspend fun latestCommit(repo: String, branch: String): String =
         get<CommitDto>("https://api.github.com/repos/$repo/commits/$branch", forceNetwork = true).sha
@@ -245,7 +256,10 @@ data class CommonAppDto(val repo: String)
 data class UserDto(val login: String)
 
 @Serializable
-data class CommentDto(val body: String = "")
+data class CommentDto(
+    val body: String = "",
+    @SerialName("updated_at") val updatedAt: String = "",
+)
 
 @Serializable
 data class RateLimitDto(val resources: RateLimitResourcesDto)
@@ -283,6 +297,14 @@ data class ArtifactDto(
     val expired: Boolean = false,
     /** ISO-8601 instant after which the artifact is gone; null when GitHub does not say. */
     @SerialName("expires_at") val expiresAt: String? = null,
+    /** ISO-8601 instant the artifact was uploaded, which is when its build finished. */
+    @SerialName("created_at") val createdAt: String? = null,
+)
+
+@Serializable
+data class ReleaseDto(
+    @SerialName("published_at") val publishedAt: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
 )
 
 @Serializable

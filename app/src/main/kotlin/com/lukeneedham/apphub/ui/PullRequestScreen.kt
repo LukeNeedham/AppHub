@@ -42,12 +42,13 @@ fun PullRequestScreen(
     onRefresh: () -> Unit,
     onResume: () -> Unit,
     onDownload: () -> Unit,
+    onCancelDownload: () -> Unit,
     onInstall: () -> Unit,
     onOpen: () -> Unit,
     onBack: () -> Unit,
 ) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onResume() }
-    PullRequestContent(repo, number, state, onRefresh, onDownload, onInstall, onOpen, onBack)
+    PullRequestContent(repo, number, state, onRefresh, onDownload, onCancelDownload, onInstall, onOpen, onBack)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,6 +59,7 @@ internal fun PullRequestContent(
     state: PullRequestUiState,
     onRefresh: () -> Unit,
     onDownload: () -> Unit,
+    onCancelDownload: () -> Unit,
     onInstall: () -> Unit,
     onOpen: () -> Unit,
     onBack: () -> Unit,
@@ -107,7 +109,6 @@ internal fun PullRequestContent(
                 }
 
                 val pr = item.pr
-                val target = pr.downloadableApk
 
                 Text(pr.title, style = MaterialTheme.typography.headlineSmall)
                 Text(
@@ -117,7 +118,7 @@ internal fun PullRequestContent(
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    StatusControl(controlOf(item), onDownload = onDownload, onInstall = onInstall, onOpen = onOpen)
+                    PullRequestStatus(item, onDownload = onDownload, onCancel = onCancelDownload, onInstall = onInstall, onOpen = onOpen)
                     Spacer(Modifier.weight(1f))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (pr.webUrl != null) {
@@ -143,22 +144,6 @@ internal fun PullRequestContent(
                             size = 36.dp,
                         )
                     }
-                }
-
-                pr.builtAt?.let { builtAt ->
-                    Text(
-                        "APK built $builtAt",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                if (target?.isStale == true) {
-                    Text(
-                        "Out of date: there are later changes, rebuilding now",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = StatusColors.warning,
-                    )
                 }
 
                 (item.download as? DownloadState.Failed)?.let { failed ->

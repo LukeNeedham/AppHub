@@ -1,13 +1,16 @@
 package com.lukeneedham.apphub.data
 
+import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.CommentParser
 import com.lukeneedham.apphub.domain.PullRequest
 import com.lukeneedham.apphub.domain.PullRequestSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -56,8 +59,10 @@ class PullRequestRepository(
 
     private suspend fun fetch(issue: IssueDto): CachedPullRequest {
         val repo = repoOf(issue)
-        val bodies = api.comments(repo, issue.number).map { it.body }
-        val (apk, web) = CommentParser.parse(bodies)
+        val comments = api.comments(repo, issue.number)
+        val bodies = comments.map { it.body }
+        val (parsed, web) = CommentParser.parse(comments.map { it.body to runCatching { Instant.parse(it.updatedAt).toEpochMilli() }.getOrNull() })
+        val apk = parsed.withPreviousBuildTime(repo)
         return CachedPullRequest(
             updatedAt = issue.updatedAt,
             pr = PullRequest(
@@ -74,6 +79,22 @@ class PullRequestRepository(
                 description = issue.body?.trim()?.takeIf { it.isNotEmpty() },
             ),
         )
+    }
+
+    /** A stale APK is dated by the release it was published in: the comment says nothing of when it was built. */
+    private suspend fun ApkBuild?.withPreviousBuildTime(repo: String): ApkBuild? {
+        if (this !is ApkBuild.InProgress || previousUrl == null) return this
+        val tag = previousUrl.substringAfter("/releases/download/").substringBefore('/')
+        val publishedAt = try {
+            api.releasePublishedAt(repo, tag)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Without the date the stale build still shows, just undated
+            null
+        }
+        val millis = publishedAt?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
+        return copy(previousBuiltAtMillis = millis)
     }
 
     private fun repoOf(issue: IssueDto) = issue.repositoryUrl.substringAfter("/repos/")

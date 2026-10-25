@@ -78,6 +78,10 @@ class PullRequestViewModel(
         pullRequest?.let(downloads::download)
     }
 
+    fun cancelDownload() {
+        pullRequest?.let { downloads.cancel(it.key) }
+    }
+
     fun install() {
         pullRequest?.let(downloads::install)
     }
