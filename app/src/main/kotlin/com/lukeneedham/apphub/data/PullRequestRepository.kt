@@ -8,6 +8,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -56,8 +57,9 @@ class PullRequestRepository(
 
     private suspend fun fetch(issue: IssueDto): CachedPullRequest {
         val repo = repoOf(issue)
-        val bodies = api.comments(repo, issue.number).map { it.body }
-        val (apk, web) = CommentParser.parse(bodies)
+        val comments = api.comments(repo, issue.number)
+        val bodies = comments.map { it.body }
+        val (apk, web) = CommentParser.parse(comments.map { it.body to runCatching { Instant.parse(it.updatedAt).toEpochMilli() }.getOrNull() })
         return CachedPullRequest(
             updatedAt = issue.updatedAt,
             pr = PullRequest(

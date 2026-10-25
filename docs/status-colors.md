@@ -30,8 +30,9 @@ Notes:
 
 ## The main build
 
-The "Latest main" row of a repo uses the same pill, from `controlOf(MainBuildItem)`, and a **Build** button
-beside it. Its states are those above, with these meanings:
+The main build of a repo sits in the row of buttons at the top of its card, after the GitHub and Claude buttons. It uses the
+same pill, from `controlOf(MainBuildItem)`. Under the row, a line says how many commits the build is behind main (or that it is up
+to date), with a **Build** button to its right that is left out when the build is up to date. Its states are those above, with these meanings:
 
 - **Old build** (grey): the APK on offer lacks commits, because `main` has moved on or a newer build is running.
 - **Behind main** (grey, with the Open icon): the installed build is a main build, but `main` has newer commits.

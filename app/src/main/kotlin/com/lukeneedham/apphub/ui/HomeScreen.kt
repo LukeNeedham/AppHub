@@ -56,11 +56,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,7 +76,10 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -88,6 +93,7 @@ import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.MainBuildItem
 import com.lukeneedham.apphub.domain.MainPhase
 import com.lukeneedham.apphub.domain.PullRequestRef
+import com.lukeneedham.apphub.domain.relativeTime
 import com.lukeneedham.apphub.domain.repoIconUrl
 import com.lukeneedham.apphub.ui.theme.StatusColors
 
@@ -455,6 +461,7 @@ private fun RepoCard(
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         CircleIconButton(
                             icon = R.drawable.ic_github,
@@ -466,11 +473,16 @@ private fun RepoCard(
                             description = "Start a Claude session on ${section.repo}",
                             onClick = { uriHandler.openUri(section.claudeUrl) },
                         )
+                        section.mainBuild?.let { item ->
+                            StatusControl(
+                                controlOf(item),
+                                onDownload = { mainBuild.download(item.repo) },
+                                onInstall = { mainBuild.install(item.repo) },
+                                onOpen = { mainBuild.open(item.repo) },
+                            )
+                        }
                     }
-                    section.mainBuild?.let { item ->
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        MainBuildRow(item, mainBuild)
-                    }
+                    section.mainBuild?.let { item -> MainBuildDetails(item, mainBuild) }
                     if (section.pullRequests.isEmpty()) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         Text(
@@ -552,13 +564,7 @@ private fun PullRequestRow(
             }
         }
 
-        pr.builtAt?.let { builtAt ->
-            Text(
-                "APK built $builtAt",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        pr.builtAt?.let { builtAt -> BuiltText(builtAt, pr.builtAtMillis) }
 
         if (target?.isStale == true) {
             Text(
@@ -579,35 +585,29 @@ private fun PullRequestRow(
 }
 
 /**
- * The build of main on demand: its status pill (which also downloads, installs and opens it), a button that
- * asks for a new build, and a line saying whether the build is the latest main.
+ * What the status pill of the main build leaves to say, under the row of buttons: how far the build lags
+ * main (or that it is up to date), with a button to the right that builds main as it is now. The button
+ * is left out when the build is up to date.
  */
 @Composable
-private fun MainBuildRow(item: MainBuildItem, actions: MainBuildActions) {
-    val control = controlOf(item)
+private fun MainBuildDetails(item: MainBuildItem, actions: MainBuildActions) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Latest main", style = MaterialTheme.typography.bodyLarge)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            StatusControl(
-                control,
-                onDownload = { actions.download(item.repo) },
-                onInstall = { actions.install(item.repo) },
-                onOpen = { actions.open(item.repo) },
-            )
-            Spacer(Modifier.weight(1f))
-            OutlinedButton(onClick = { actions.build(item.repo) }, enabled = item.canBuild, shape = CircleShape) {
-                Text(item.buildLabel)
-            }
-        }
-        item.note?.let { note ->
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            val note = item.note
             Text(
-                note.text,
+                note?.text.orEmpty(),
+                modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelMedium,
-                color = if (note.warn) StatusColors.warning else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (note?.warn == true) StatusColors.warning else MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (item.offersBuild) {
+                OutlinedButton(onClick = { actions.build(item.repo) }, enabled = item.canBuild, shape = CircleShape) {
+                    Text(item.buildLabel)
+                }
+            }
         }
         item.error?.let { error ->
             Text(error, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
@@ -620,6 +620,37 @@ private fun MainBuildRow(item: MainBuildItem, actions: MainBuildActions) {
             )
         }
     }
+}
+
+/**
+ * When an APK was built: how long ago, then the timestamp the CI wrote in smaller text. Without the moment
+ * as an instant, only the timestamp is shown.
+ */
+@Composable
+internal fun BuiltText(builtAt: String, builtAtMillis: Long?) {
+    val now = rememberNowMillis()
+    val text = buildAnnotatedString {
+        append("APK built ")
+        if (builtAtMillis != null) {
+            append(relativeTime(builtAtMillis, now))
+            append(" · ")
+        }
+        withStyle(SpanStyle(fontSize = MaterialTheme.typography.labelSmall.fontSize)) { append(builtAt) }
+    }
+    Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** The current time, brought up to date every half minute so that "2 minutes ago" keeps counting. */
+@Composable
+private fun rememberNowMillis(): Long {
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30_000)
+            now = System.currentTimeMillis()
+        }
+    }
+    return now
 }
 
 /** A round outlined button holding just an icon. */

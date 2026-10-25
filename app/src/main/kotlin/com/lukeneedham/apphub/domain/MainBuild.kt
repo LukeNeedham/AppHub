@@ -77,12 +77,10 @@ data class MainBuildItem(
     /** A build can be asked for unless one is already on its way. */
     val canBuild: Boolean get() = phase != MainPhase.Requested && phase != MainPhase.Building
 
-    val buildLabel: String
-        get() = when {
-            info.apk == null -> "Build main"
-            info.commitsBehind > 0 -> "Build latest main"
-            else -> "Rebuild"
-        }
+    val buildLabel: String get() = if (info.apk == null) "Build main" else "Build latest main"
+
+    /** A new build is only worth offering when there is none, or the one there lacks commits of main. */
+    val offersBuild: Boolean get() = info.apk == null || info.commitsBehind > 0
 
     val note: MainNote?
         get() {
@@ -95,18 +93,18 @@ data class MainBuildItem(
                 MainPhase.Failed -> MainNote("The build of ${shortCommit(info.run?.commit.orEmpty())} failed", warn = true)
                 MainPhase.NoBuild -> MainNote("No build of main yet. A build is kept for a day.")
                 MainPhase.Installed -> when {
-                    behind > 0 -> MainNote("${commits(behind)} on main since the installed build ($commit)")
-                    else -> MainNote("Installed: this is the latest main ($commit)")
+                    behind > 0 -> MainNote("This build is ${commits(behind)} behind main ($commit)")
+                    else -> MainNote("This build is up to date with main ($commit)")
                 }
                 MainPhase.Ready -> when {
                     newerFailed -> MainNote("The newest build failed; this is an older one ($commit)", warn = true)
-                    behind > 0 -> MainNote("${commits(behind)} on main since this build ($commit)")
-                    else -> MainNote("Built from the latest main ($commit)")
+                    behind > 0 -> MainNote("This build is ${commits(behind)} behind main ($commit)")
+                    else -> MainNote("This build is up to date with main ($commit)")
                 }
             }
         }
 
-    private fun commits(count: Int) = if (count == 1) "1 new commit" else "$count new commits"
+    private fun commits(count: Int) = if (count == 1) "1 commit" else "$count commits"
 }
 
 fun mainKey(repo: String) = "$repo@$MAIN_BRANCH"

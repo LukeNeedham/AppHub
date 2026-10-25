@@ -245,7 +245,10 @@ data class CommonAppDto(val repo: String)
 data class UserDto(val login: String)
 
 @Serializable
-data class CommentDto(val body: String = "")
+data class CommentDto(
+    val body: String = "",
+    @SerialName("updated_at") val updatedAt: String = "",
+)
 
 @Serializable
 data class RateLimitDto(val resources: RateLimitResourcesDto)
