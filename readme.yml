@@ -23,5 +23,3 @@ user:
 developer:
   notes: |
     In debug builds, Settings (top right) leads to the Debug page.
-
-license: All rights reserved
