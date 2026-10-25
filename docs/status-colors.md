@@ -14,7 +14,7 @@ it sits in that list, so a new state should be placed in it, not given a new col
 |---|---|---|
 | Grey | Nothing to do: there is no APK and none is coming | No build, Cancelled |
 | Blue | Something is running; wait | Building, Starting (main build asked for), Downloading |
-| Purple (the app's primary colour) | An APK is ready and you can act on it | Ready, Update ready, Ready to install |
+| Purple (the action colour, `AppColors.action`) | An APK is ready and you can act on it | Ready, Update ready, Ready to install |
 | Amber | What is on offer is out of date | Stale build: the new build has not finished, so only the previous APK can be offered. Behind main: the installed main build lacks later commits |
 | Green | Done | Installed |
 | Red | Broken | Build failed, Download failed |
