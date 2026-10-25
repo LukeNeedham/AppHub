@@ -7,23 +7,23 @@ import com.lukeneedham.common.ui.DebugTheme
 import com.lukeneedham.common.ui.ProvideDebugSettings
 
 /**
- * [ProvideDebugSettings] with the shared library's debug pages themed to match the app's Material
+ * [ProvideDebugSettings] with the shared library's debug pages themed to match the app's
  * theme. Place it inside the app's theme, since it reads the colours and font from there.
  */
 @Composable
 fun ProvideAppDebugSettings(content: @Composable () -> Unit) {
-    val colors = MaterialTheme.colorScheme
+    val colors = AppTheme.colors
     ProvideDebugSettings(
         theme = DebugTheme(
             background = colors.background,
-            onBackground = colors.onBackground,
-            surface = colors.surfaceVariant,
-            onSurface = colors.onSurfaceVariant,
-            primary = colors.primary,
-            onPrimary = colors.onPrimary,
-            outline = colors.outline,
-            error = colors.error,
-            warning = colors.tertiary,
+            onBackground = colors.textPrimary,
+            surface = colors.card,
+            onSurface = colors.textSecondary,
+            primary = colors.accent,
+            onPrimary = colors.onAccent,
+            outline = colors.border,
+            error = colors.failed,
+            warning = colors.stale,
             fontFamily = MaterialTheme.typography.bodyMedium.fontFamily ?: FontFamily.Default,
         ),
         content = content,

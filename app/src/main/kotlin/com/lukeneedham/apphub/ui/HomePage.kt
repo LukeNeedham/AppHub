@@ -100,9 +100,9 @@ import com.lukeneedham.apphub.domain.PullRequestRef
 import com.lukeneedham.apphub.domain.ageText
 import com.lukeneedham.apphub.domain.formatTimestamp
 import com.lukeneedham.apphub.domain.repoIconUrl
-import com.lukeneedham.apphub.ui.theme.StatusColors
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lukeneedham.apphub.ui.theme.AppColors
 import com.lukeneedham.apphub.ui.theme.AppTheme
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -157,7 +157,7 @@ internal fun HomePageContent(
     onOpenPullRequest: (PullRequestRef) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
-    val background = MaterialTheme.colorScheme.background
+    val background = AppTheme.colors.background
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var jumping by remember { mutableStateOf(false) }
@@ -243,7 +243,7 @@ internal fun HomePageContent(
                                 "$projectCount project${if (projectCount == 1) "" else "s"}"
                         },
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = AppTheme.colors.textSecondary,
                         modifier = Modifier.padding(horizontal = 4.dp),
                     )
                 }
@@ -363,12 +363,12 @@ private fun RepoNavigation(repos: List<String>, prCounts: List<Int>, selectedInd
                             .fillMaxSize()
                             .semantics { contentDescription = "Jump to $name" },
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        color = AppTheme.colors.card,
+                        border = BorderStroke(1.dp, AppTheme.colors.border),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             // The initial shows for repos without an icon, and under the icon while it loads
-                            Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = AppTheme.colors.textSecondary)
                             AsyncImage(
                                 model = freshIconRequest(repo),
                                 contentDescription = null,
@@ -405,10 +405,10 @@ private fun RepoNavigation(repos: List<String>, prCounts: List<Int>, selectedInd
 internal fun ErrorCard(message: String, onRetry: () -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+        color = AppTheme.colors.failed.copy(alpha = 0.12f),
     ) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            Text(message, color = AppTheme.colors.failed, style = MaterialTheme.typography.bodyMedium)
             TextButton(onClick = onRetry, contentPadding = PaddingValues(0.dp)) { Text("Try again") }
         }
     }
@@ -430,8 +430,8 @@ private fun RepoCard(
     val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
     Surface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = AppTheme.colors.card,
+        border = BorderStroke(1.dp, AppTheme.colors.border),
     ) {
         Column {
             Row(
@@ -459,9 +459,9 @@ private fun RepoCard(
                 Pill(
                     text = section.pullRequests.size.toString(),
                     color = if (section.pullRequests.isEmpty()) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                        AppTheme.colors.textSecondary
                     } else {
-                        MaterialTheme.colorScheme.primary
+                        AppTheme.colors.accent
                     },
                 )
                 Spacer(Modifier.width(4.dp))
@@ -469,7 +469,7 @@ private fun RepoCard(
                     painterResource(R.drawable.ic_expand_more),
                     contentDescription = if (expanded) "Collapse" else "Expand",
                     modifier = Modifier.rotate(rotation),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = AppTheme.colors.textSecondary,
                 )
             }
             // One animation for card and content together: the size follows the content, which fades with it
@@ -480,7 +480,7 @@ private fun RepoCard(
             ) {
                 Column {
                     val uriHandler = LocalUriHandler.current
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    HorizontalDivider(color = AppTheme.colors.border)
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -511,16 +511,16 @@ private fun RepoCard(
                     }
                     section.mainBuild?.let { item -> MainBuildErrors(item) }
                     if (section.pullRequests.isEmpty()) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        HorizontalDivider(color = AppTheme.colors.border)
                         Text(
                             "No open pull requests",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = AppTheme.colors.textSecondary,
                             modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
                         )
                     }
                     section.pullRequests.forEach { item ->
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        HorizontalDivider(color = AppTheme.colors.border)
                         PullRequestRow(item, onDownload, onCancelDownload, onInstall, onOpen, onOpenPullRequest)
                     }
                 }
@@ -557,7 +557,7 @@ private fun PullRequestRow(
             Text(
                 "#${pr.number} · ${pr.author}" + if (pr.isDraft) " · draft" else "",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = AppTheme.colors.textSecondary,
             )
         }
 
@@ -594,7 +594,7 @@ private fun PullRequestRow(
             Text(
                 "Download failed: ${failed.message}",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.error,
+                color = AppTheme.colors.failed,
             )
         }
     }
@@ -610,13 +610,13 @@ private fun MainBuildErrors(item: MainBuildItem) {
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         item.error?.let { error ->
-            Text(error, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+            Text(error, style = MaterialTheme.typography.labelMedium, color = AppTheme.colors.failed)
         }
         downloadFailed?.let { failed ->
             Text(
                 "Download failed: ${failed.message}",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.error,
+                color = AppTheme.colors.failed,
             )
         }
     }
@@ -733,7 +733,7 @@ private fun PillSheet(
                             onDismiss()
                             action.onClick()
                         }
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                        .border(1.dp, AppTheme.colors.border, RoundedCornerShape(12.dp))
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -749,7 +749,7 @@ private fun PillSheet(
 @Composable
 private fun SheetRow(label: String, value: String) {
     Column {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = AppTheme.colors.textSecondary)
         Text(value, style = MaterialTheme.typography.bodyLarge)
     }
 }
@@ -794,14 +794,14 @@ internal fun CircleIconButton(icon: Int, description: String, onClick: () -> Uni
         modifier = Modifier.size(size),
         shape = CircleShape,
         color = Color.Transparent,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(1.dp, AppTheme.colors.border),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 painterResource(icon),
                 contentDescription = description,
                 modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurface,
+                tint = AppTheme.colors.textPrimary,
             )
         }
     }
@@ -853,28 +853,28 @@ internal sealed interface Trailing {
 
 @Composable
 internal fun controlOf(item: PullRequestItem): Control {
-    val scheme = MaterialTheme.colorScheme
+    val colors = AppTheme.colors
     val installed = item.install == InstallStatus.Installed
     val build = when (item.pr.apk) {
-        null -> Control("No build", scheme.onSurfaceVariant)
-        is ApkBuild.InProgress -> Control("Building", StatusColors.info, if (item.pr.buildingRunUrl != null) OpenRunAction else null)
-        is ApkBuild.Failed -> Control("Build failed", scheme.error)
-        is ApkBuild.Cancelled -> Control("Cancelled", scheme.onSurfaceVariant)
+        null -> Control("No build", colors.idle)
+        is ApkBuild.InProgress -> Control("Building", colors.building, if (item.pr.buildingRunUrl != null) OpenRunAction else null)
+        is ApkBuild.Failed -> Control("Build failed", colors.failed)
+        is ApkBuild.Cancelled -> Control("Cancelled", colors.idle)
         is ApkBuild.Succeeded -> when (item.install) {
-            InstallStatus.Installed -> Control("Installed", StatusColors.success)
-            InstallStatus.DifferentBuild -> Control("Update ready", scheme.primary)
-            InstallStatus.NotInstalled, InstallStatus.Unknown -> Control("Ready", scheme.primary)
+            InstallStatus.Installed -> Control("Installed", colors.installed)
+            InstallStatus.DifferentBuild -> Control("Update ready", colors.action)
+            InstallStatus.NotInstalled, InstallStatus.Unknown -> Control("Ready", colors.action)
         }
     }
     val target = item.pr.downloadableApk
     // The APK on offer lacks the latest commits, so what is on offer is the stale build, whatever the build says
     val isStale = target?.isStale == true
-    val offered = if (isStale) Control(STALE_BUILD, StatusColors.warning) else build
+    val offered = if (isStale) Control(STALE_BUILD, colors.stale) else build
     val pr = item.pr
     val millis = pr.apkBuiltAtMillis
     val text = (pr.apk as? ApkBuild.Succeeded)?.builtAt
     val built = if (millis != null || text != null) ApkDetail(millis, millis?.let(::formatTimestamp) ?: text) else null
-    val control = transferControl(item.download, build, offered, installed, hasApk = target != null, isStale = isStale, error = scheme.error)
+    val control = transferControl(item.download, build, offered, installed, hasApk = target != null, isStale = isStale, colors = colors)
         .aboutApk(built)
     // A stale build is installed by the first action; the second opens the run that is replacing it
     return if (control.text == STALE_BUILD && control.trailing is Trailing.Action && pr.buildingRunUrl != null) {
@@ -887,26 +887,26 @@ internal fun controlOf(item: PullRequestItem): Control {
 /** The status of the main build; see docs/status-colors.md. */
 @Composable
 internal fun controlOf(item: MainBuildItem): Control {
-    val scheme = MaterialTheme.colorScheme
+    val colors = AppTheme.colors
     val installed = item.install == InstallStatus.Installed
     val behind = item.info.commitsBehind > 0
     val build = when (item.phase) {
-        MainPhase.NoBuild -> Control("No build", scheme.onSurfaceVariant)
-        MainPhase.Requested -> Control("Starting", StatusColors.info)
-        MainPhase.Building -> Control("Building", StatusColors.info, if (item.runUrl != null) OpenRunAction else null)
-        MainPhase.Failed -> Control("Build failed", scheme.error)
-        MainPhase.Ready -> Control(if (item.install == InstallStatus.DifferentBuild) "Update ready" else "Ready", scheme.primary)
-        MainPhase.Installed -> if (behind) Control("Behind main", scheme.onSurfaceVariant) else Control("Installed", StatusColors.success)
+        MainPhase.NoBuild -> Control("No build", colors.idle)
+        MainPhase.Requested -> Control("Starting", colors.building)
+        MainPhase.Building -> Control("Building", colors.building, if (item.runUrl != null) OpenRunAction else null)
+        MainPhase.Failed -> Control("Build failed", colors.failed)
+        MainPhase.Ready -> Control(if (item.install == InstallStatus.DifferentBuild) "Update ready" else "Ready", colors.action)
+        MainPhase.Installed -> if (behind) Control("Behind main", colors.idle) else Control("Installed", colors.installed)
     }
     val building = item.phase == MainPhase.Requested || item.phase == MainPhase.Building
     // An APK that lacks the latest commits, or that a newer build is about to replace, is the stale build
     val isStale = item.info.apk != null && !installed && (building || behind)
     // Main is not built for every push, so a stale build of it is routine: quiet grey, not the amber of a PR's
-    val offered = if (isStale) Control(STALE_BUILD, scheme.onSurfaceVariant) else build
+    val offered = if (isStale) Control(STALE_BUILD, colors.idle) else build
     val built = item.info.apk?.let {
         ApkDetail(it.builtAtMillis, it.builtAtMillis?.let(::formatTimestamp), item.behindText.takeIf { behind })
     }
-    val control = transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isStale = isStale, error = scheme.error)
+    val control = transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isStale = isStale, colors = colors)
         .aboutApk(built)
     // A stale build is installed by the first action; the second opens the run that is replacing it
     if (control.text == STALE_BUILD && control.trailing is Trailing.Action && building && item.runUrl != null) {
@@ -929,13 +929,13 @@ private fun transferControl(
     installed: Boolean,
     hasApk: Boolean,
     isStale: Boolean,
-    error: Color,
+    colors: AppColors,
 ): Control =
     when (download) {
         is DownloadState.Downloading -> {
             val total = download.total
             val done = if (total != null) "${(download.bytes * 100 / total).toInt()}%" else "${megabytes(download.bytes)} MB"
-            Control("Downloading…", StatusColors.info, Trailing.Progress(total?.let { download.bytes.toFloat() / it }), progressText = done)
+            Control("Downloading…", colors.building, Trailing.Progress(total?.let { download.bytes.toFloat() / it }), progressText = done)
         }
         is DownloadState.Downloaded -> when {
             installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open the app", ActionKind.Open))
@@ -946,7 +946,7 @@ private fun transferControl(
         }
         is DownloadState.Failed -> Control(
             "Download failed",
-            error,
+            colors.failed,
             if (hasApk) Trailing.Action(R.drawable.ic_refresh, "Download the APK again", ActionKind.Download) else null,
         )
         DownloadState.Idle -> when {

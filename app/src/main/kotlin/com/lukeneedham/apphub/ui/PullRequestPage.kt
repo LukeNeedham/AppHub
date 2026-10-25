@@ -32,7 +32,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.lukeneedham.apphub.R
 import com.lukeneedham.apphub.domain.DownloadState
-import com.lukeneedham.apphub.ui.theme.StatusColors
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -75,7 +74,7 @@ internal fun PullRequestPageContent(
     onOpen: () -> Unit,
     onBack: () -> Unit,
 ) {
-    val background = MaterialTheme.colorScheme.background
+    val background = AppTheme.colors.background
     val uriHandler = LocalUriHandler.current
     Scaffold(
         containerColor = background,
@@ -113,7 +112,7 @@ internal fun PullRequestPageContent(
                             else -> "Could not find this pull request."
                         },
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = AppTheme.colors.textSecondary,
                     )
                     OutlinedButton(onClick = { uriHandler.openUri("https://github.com/$repo/pull/$number") }) { Text("Open on GitHub") }
                     return@Column
@@ -125,7 +124,7 @@ internal fun PullRequestPageContent(
                 Text(
                     "#${pr.number} · ${pr.author}" + if (pr.isDraft) " · draft" else "",
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = AppTheme.colors.textSecondary,
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -161,11 +160,11 @@ internal fun PullRequestPageContent(
                     Text(
                         "Download failed: ${failed.message}",
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.error,
+                        color = AppTheme.colors.failed,
                     )
                 }
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                HorizontalDivider(color = AppTheme.colors.border)
                 Text("Description", style = MaterialTheme.typography.titleMedium)
                 if (pr.description != null) {
                     SelectionContainer(Modifier.fillMaxWidth()) {
@@ -175,7 +174,7 @@ internal fun PullRequestPageContent(
                     Text(
                         "No description",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = AppTheme.colors.textSecondary,
                     )
                 }
             }
