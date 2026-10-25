@@ -88,6 +88,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.lukeneedham.apphub.R
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.CachePolicy
+import androidx.compose.ui.platform.LocalContext
 import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.DownloadState
 import com.lukeneedham.apphub.domain.InstallStatus
@@ -367,7 +370,7 @@ private fun RepoNavigation(repos: List<String>, prCounts: List<Int>, selectedInd
                             // The initial shows for repos without an icon, and under the icon while it loads
                             Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             AsyncImage(
-                                model = repoIconUrl(repo),
+                                model = freshIconRequest(repo),
                                 contentDescription = null,
                                 modifier = Modifier.padding(4.dp).fillMaxSize().clip(CircleShape),
                             )
@@ -440,7 +443,7 @@ private fun RepoCard(
             ) {
                 // Always takes its space, so names line up whether or not the repo has an icon
                 AsyncImage(
-                    model = repoIconUrl(section.repo),
+                    model = freshIconRequest(section.repo),
                     contentDescription = null,
                     modifier = Modifier.size(40.dp),
                 )
@@ -765,6 +768,22 @@ private fun rememberNowMillis(sinceMillis: Long?): Long {
         }
     }
     return now
+}
+
+/**
+ * The icon of [repo] as it is on its default branch now. Neither Coil cache is read, and the URL changes every minute,
+ * so GitHub's own CDN cache (five minutes, keyed by URL) cannot serve an old icon for long either.
+ */
+@Composable
+private fun freshIconRequest(repo: String): ImageRequest {
+    val context = LocalContext.current
+    return remember(repo) {
+        ImageRequest.Builder(context)
+            .data(repoIconUrl(repo) + "?t=" + System.currentTimeMillis() / 60_000)
+            .memoryCachePolicy(CachePolicy.DISABLED)
+            .diskCachePolicy(CachePolicy.DISABLED)
+            .build()
+    }
 }
 
 /** A round outlined button holding just an icon. */
