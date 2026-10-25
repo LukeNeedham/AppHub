@@ -3,6 +3,7 @@
 Each pull request row ends in one pill: three lines (see below), then, after a divider, the icon of
 what a press does next (or the progress of a download). Pressing anywhere on the pill does that action.
 The code is `controlOf` and `StatusControl` in `ui/HomePage.kt`.
+The pill is a rounded rectangle (12dp corners), not a full circle shape: with three lines a stadium's end caps waste space.
 
 ## The rule
 

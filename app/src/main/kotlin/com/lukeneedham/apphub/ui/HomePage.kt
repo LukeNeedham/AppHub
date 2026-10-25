@@ -38,6 +38,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -377,14 +378,14 @@ private fun RepoNavigation(repos: List<String>, prCounts: List<Int>, selectedInd
                                 .offset(x = 5.dp, y = (-5).dp)
                                 .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary)
+                                .background(Color.White)
                                 .padding(horizontal = 4.dp),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
                                 count.toString(),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.White,
+                                color = Color.Black,
                                 fontWeight = FontWeight.Bold,
                             )
                         }
@@ -491,6 +492,7 @@ private fun RepoCard(
                             onClick = { uriHandler.openUri(section.claudeUrl) },
                         )
                         section.mainBuild?.let { item ->
+                            Spacer(Modifier.weight(1f))
                             StatusControl(
                                 controlOf(item),
                                 onDownload = { mainBuild.download(item.repo) },
@@ -919,7 +921,7 @@ internal fun StatusControl(
                 contentDescription = if (progress != null) "${control.text} ${control.progressText.orEmpty()}. Cancel the download" else "${control.text}. ${actions.single().description}"
             }
         },
-        shape = CircleShape,
+        shape = RoundedCornerShape(12.dp),
         color = color.copy(alpha = 0.14f),
         border = BorderStroke(1.dp, color.copy(alpha = 0.45f)),
     ) {
