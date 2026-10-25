@@ -20,9 +20,9 @@ in the app.
 
 ## Screenshots
 
-<img src="docs/screenshots/HomePage.png" width="240" alt="Home Page">
-<img src="docs/screenshots/PullRequestPage.png" width="240" alt="Pull Request Page">
-<img src="docs/screenshots/SettingsPage.png" width="240" alt="Settings Page">
+<img src="docs/screenshots/01-HomePage.png" width="240" alt="Home Page">
+<img src="docs/screenshots/02-PullRequestPage.png" width="240" alt="Pull Request Page">
+<img src="docs/screenshots/03-SettingsPage.png" width="240" alt="Settings Page">
 
 ## Getting started as a user
 
