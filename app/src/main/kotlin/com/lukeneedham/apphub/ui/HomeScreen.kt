@@ -751,10 +751,10 @@ internal fun controlOf(item: PullRequestItem): Control {
         }
     }
     val target = item.pr.downloadableApk
-    // The APK on offer lacks the latest commits, so what is on offer is the old build, whatever the build says
-    val isOld = target?.isStale == true
-    val offered = if (isOld) Control("Old build", StatusColors.warning) else build
-    return transferControl(item.download, build, offered, installed, hasApk = target != null, isOld = isOld, error = scheme.error)
+    // The APK on offer lacks the latest commits, so what is on offer is the stale build, whatever the build says
+    val isStale = target?.isStale == true
+    val offered = if (isStale) Control("Stale build", StatusColors.warning) else build
+    return transferControl(item.download, build, offered, installed, hasApk = target != null, isStale = isStale, error = scheme.error)
 }
 
 /** The status of the main build; see docs/status-colors.md. */
@@ -772,11 +772,11 @@ internal fun controlOf(item: MainBuildItem): Control {
         MainPhase.Installed -> if (behind) Control("Behind main", scheme.onSurfaceVariant) else Control("Installed", StatusColors.success)
     }
     val building = item.phase == MainPhase.Requested || item.phase == MainPhase.Building
-    // An APK that lacks the latest commits, or that a newer build is about to replace, is the old build
-    val isOld = item.info.apk != null && !installed && (building || behind)
-    // Main is not built for every push, so an old build of it is routine: quiet grey, not the amber of a PR's
-    val offered = if (isOld) Control("Old build", scheme.onSurfaceVariant) else build
-    return transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isOld = isOld, error = scheme.error)
+    // An APK that lacks the latest commits, or that a newer build is about to replace, is the stale build
+    val isStale = item.info.apk != null && !installed && (building || behind)
+    // Main is not built for every push, so an stale build of it is routine: quiet grey, not the amber of a PR's
+    val offered = if (isStale) Control("Stale build", scheme.onSurfaceVariant) else build
+    return transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isStale = isStale, error = scheme.error)
 }
 
 /** [build] with what a press does next, given the state of the download of the APK on offer ([offered]). */
@@ -786,7 +786,7 @@ private fun transferControl(
     offered: Control,
     installed: Boolean,
     hasApk: Boolean,
-    isOld: Boolean,
+    isStale: Boolean,
     error: Color,
 ): Control =
     when (download) {
@@ -798,7 +798,7 @@ private fun transferControl(
         is DownloadState.Downloaded -> when {
             installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open app", ActionKind.Open))
             else -> offered.copy(
-                text = if (isOld) offered.text else "Ready to install",
+                text = if (isStale) offered.text else "Ready to install",
                 trailing = Trailing.Action(R.drawable.ic_install, "Install", ActionKind.Install),
             )
         }
