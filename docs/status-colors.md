@@ -1,7 +1,7 @@
 # PR status pill colours
 
 Each pull request row ends in one pill: two lines (see below), then, after a divider, the icon of
-what a press does next (or the progress of a download). Pressing anywhere on the pill does that action.
+what a press does next (or the progress of a download). Pressing that icon does the action; pressing the text side opens a sheet.
 The code is `controlOf` and `StatusControl` in `ui/HomePage.kt`.
 The pill is a rounded rectangle (12dp corners), not a full circle shape: a stadium's end caps waste space.
 
@@ -46,10 +46,16 @@ With no APK (No build, Building, Build failed) there is no description and the s
 
 ## The bottom sheet
 
-A press on the text side of a pill (left of the divider, not the action icon) opens a bottom sheet with when the
-APK was built, both relative ("2 minutes old") and absolute ("23/10/2026 18:27:11"). Pills with no APK have no
-sheet. Where the sheet exists, only the action icon (or the progress ring, which cancels) runs the action; where
-it does not, a press anywhere on a pill with one action runs it.
+A press on the text side of a pill (left of the divider, not an action icon) always opens a bottom sheet and
+never does an action, whatever the status and however many actions there are. The sheet shows:
+
+1. The status as its title, and what the description says ("3 commits behind", "42%") when it says anything.
+2. When the APK was built, relative ("2 minutes old") and absolute ("23/10/2026 18:27:11"), when known.
+3. Every action of the pill (including cancelling a download), each a row with its icon and a short description
+   of what it does. A press anywhere on a row runs the action and closes the sheet.
+
+Pills with no APK (No build, Building, Cancelled…) open the sheet too, with just the status and the actions
+they have, if any. The pill's own action icons still run their action with one press.
 
 ## The main build
 
@@ -79,8 +85,7 @@ action of a build that lags main. It is left out when the build is up to date or
 | Progress ring | Cancels the download | Downloading |
 | None | Nothing | No APK to act on: Building without an older APK, Cancelled, and a PR's No build or Build failed |
 
-With one action (or a download to cancel) and no bottom sheet, a press anywhere on the pill runs it. With two, the pill itself does
-nothing: only a press on an action's own icon runs that action.
+Only a press on an action's own icon (or the progress ring, which cancels) runs it; the text side of the pill only opens the sheet.
 
 ## Contrast
 

@@ -8,6 +8,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -693,20 +694,51 @@ private fun PillLines(
     }
 }
 
-/** The bottom sheet of a pill: when the APK was built, as time ago and as the time itself. */
+/** An action listed in the bottom sheet of a pill: a press anywhere on its row runs it. */
+private data class SheetAction(val icon: Int, val description: String, val onClick: () -> Unit)
+
+/**
+ * The bottom sheet of a pill: the status, what the description says, when the APK was built (as time ago and as the
+ * time itself, when known), then every action of the pill with what it does.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BuiltAtSheet(status: String, apk: ApkDetail, onDismiss: () -> Unit) {
+private fun PillSheet(
+    status: String,
+    description: String?,
+    apk: ApkDetail?,
+    actions: List<SheetAction>,
+    onDismiss: () -> Unit,
+) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("$status · APK built", style = MaterialTheme.typography.titleMedium)
-            apk.builtAtMillis?.let { millis ->
-                SheetRow("Relative", ageText(millis, rememberNowMillis(millis)))
+            Text(status, style = MaterialTheme.typography.titleMedium)
+            description?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+            apk?.builtAtMillis?.let { millis ->
+                SheetRow("Built", ageText(millis, rememberNowMillis(millis)))
             }
-            apk.builtAtText?.let { SheetRow("Absolute", it) }
+            apk?.builtAtText?.let { SheetRow("Built at", it) }
+            actions.forEach { action ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable {
+                            onDismiss()
+                            action.onClick()
+                        }
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(painterResource(action.icon), contentDescription = null, modifier = Modifier.size(20.dp))
+                    Text(action.description, style = MaterialTheme.typography.bodyLarge)
+                }
+            }
         }
     }
 }
@@ -788,9 +820,9 @@ internal enum class ActionKind { Download, Install, Open, OpenRun, Build }
 /** What a press on a "Building" pill does: opens the run that builds the APK. */
 private const val STALE_BUILD = "Stale build"
 
-private val BuildAction = Trailing.Action(R.drawable.ic_build, "Build main", ActionKind.Build)
+private val BuildAction = Trailing.Action(R.drawable.ic_build, "Build main now", ActionKind.Build)
 
-private val OpenRunAction = Trailing.Action(R.drawable.ic_open, "Open the build run", ActionKind.OpenRun)
+private val OpenRunAction = Trailing.Action(R.drawable.ic_open, "Open the build run on GitHub", ActionKind.OpenRun)
 
 internal sealed interface Trailing {
     /** A press on the tag downloads the APK, installs the one already downloaded, or opens the installed app ([kind]). */
@@ -887,27 +919,27 @@ private fun transferControl(
             Control("Downloading…", StatusColors.info, Trailing.Progress(total?.let { download.bytes.toFloat() / it }), progressText = done)
         }
         is DownloadState.Downloaded -> when {
-            installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open app", ActionKind.Open))
+            installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open the app", ActionKind.Open))
             else -> offered.copy(
                 text = if (isStale) offered.text else "Ready to install",
-                trailing = Trailing.Action(R.drawable.ic_install, "Install", ActionKind.Install),
+                trailing = Trailing.Action(R.drawable.ic_install, "Install the downloaded APK", ActionKind.Install),
             )
         }
         is DownloadState.Failed -> Control(
             "Download failed",
             error,
-            if (hasApk) Trailing.Action(R.drawable.ic_refresh, "Retry download", ActionKind.Download) else null,
+            if (hasApk) Trailing.Action(R.drawable.ic_refresh, "Download the APK again", ActionKind.Download) else null,
         )
         DownloadState.Idle -> when {
             !hasApk -> build
-            installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open app", ActionKind.Open))
-            else -> offered.copy(trailing = Trailing.Action(R.drawable.ic_download, "Download", ActionKind.Download))
+            installed -> build.copy(trailing = Trailing.Action(R.drawable.ic_open, "Open the app", ActionKind.Open))
+            else -> offered.copy(trailing = Trailing.Action(R.drawable.ic_download, "Download the APK", ActionKind.Download))
         }
     }
 
 /**
- * The status of a PR as a coloured pill: the status, the age of the APK and a detail, then after a divider the icon of what a
- * press does next, or its progress. A press anywhere on the pill does that.
+ * The status of a PR as a coloured pill: the status and a description, then after a divider the icon of what a press does
+ * next, or its progress. A press on the text side opens a sheet with the details and every action; a press on an action's icon runs it.
  */
 @Composable
 internal fun StatusControl(
@@ -924,12 +956,7 @@ internal fun StatusControl(
     val textColor = if (isSystemInDarkTheme()) color else lerp(color, Color.Black, 0.3f)
     val progress = control.trailing as? Trailing.Progress
     val actions = listOfNotNull(control.trailing as? Trailing.Action, control.secondary)
-    // One action, or a download to cancel: a press anywhere on the pill does it. With two, only a press on an action's own icon does
-    val wholePill = progress != null || actions.size == 1
-    // The text side shows the timestamps when there are any; the icon side then holds the action alone
-    val sheetApk = control.built?.takeIf { it.builtAtMillis != null || it.builtAtText != null }
     var showSheet by remember { mutableStateOf(false) }
-    if (showSheet && sheetApk != null) BuiltAtSheet(control.text, sheetApk) { showSheet = false }
     val run = { kind: ActionKind ->
         when (kind) {
             ActionKind.Download -> onDownload()
@@ -939,27 +966,30 @@ internal fun StatusControl(
             ActionKind.Install -> onInstall()
         }
     }
-    val pillAction = { if (progress != null) onCancel() else run(actions.single().kind) }
+    val cancelDescription = "Cancel the download"
+    if (showSheet) {
+        val sheetActions = listOfNotNull(
+            progress?.let { SheetAction(R.drawable.ic_close, cancelDescription, onCancel) },
+        ) + actions.map { action -> SheetAction(action.icon, action.description) { run(action.kind) } }
+        PillSheet(
+            status = control.text,
+            description = control.progressText ?: control.built?.behindText,
+            apk = control.built,
+            actions = sheetActions,
+            onDismiss = { showSheet = false },
+        )
+    }
     Surface(
-        modifier = Modifier.semantics(mergeDescendants = wholePill && sheetApk == null) {
-            if (wholePill && sheetApk == null) {
-                contentDescription = if (progress != null) "${control.text} ${control.progressText.orEmpty()}. Cancel the download" else "${control.text}. ${actions.single().description}"
-            }
-        },
         shape = RoundedCornerShape(12.dp),
         color = color.copy(alpha = 0.14f),
         border = BorderStroke(1.dp, color.copy(alpha = 0.45f)),
     ) {
         Row(
-            modifier = Modifier
-                .defaultMinSize(minHeight = 32.dp)
-                .height(IntrinsicSize.Min)
-                .then(
-                    if (wholePill && sheetApk == null) Modifier.clickable { pillAction() } else Modifier,
-                ),
+            modifier = Modifier.defaultMinSize(minHeight = 32.dp).height(IntrinsicSize.Min),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Measured after the actions, so that a long line is ellipsized instead of pushing them out
+            // Measured after the actions, so that a long line is ellipsized instead of pushing them out.
+            // A press on this side never does an action: it always opens the sheet, which lists them
             PillLines(
                 status = control.text,
                 statusColor = textColor,
@@ -968,13 +998,7 @@ internal fun StatusControl(
                 color = textColor,
                 modifier = Modifier
                     .weight(1f, fill = false)
-                    .then(
-                        if (sheetApk != null) {
-                            Modifier.clickable(onClickLabel = "Show when the APK was built") { showSheet = true }
-                        } else {
-                            Modifier
-                        },
-                    )
+                    .clickable(onClickLabel = "Show details and actions") { showSheet = true }
                     .padding(start = 12.dp, end = if (control.trailing == null) 12.dp else 10.dp, top = 4.dp, bottom = 4.dp),
             )
             if (progress != null) {
@@ -983,7 +1007,8 @@ internal fun StatusControl(
                     Modifier
                         .width(38.dp)
                         .fillMaxHeight()
-                        .then(if (sheetApk != null) Modifier.clickable(onClickLabel = "Cancel the download") { onCancel() } else Modifier),
+                        .clickable(onClickLabel = cancelDescription) { onCancel() }
+                        .semantics { contentDescription = "${control.text} ${control.progressText.orEmpty()}. $cancelDescription" },
                     contentAlignment = Alignment.Center,
                 ) {
                     val indicator = Modifier.size(16.dp)
@@ -1000,15 +1025,8 @@ internal fun StatusControl(
                     modifier = Modifier
                         .width(38.dp)
                         .fillMaxHeight()
-                        .then(
-                            if (wholePill && sheetApk == null) {
-                                Modifier
-                            } else {
-                                Modifier
-                                    .clickable(onClickLabel = action.description) { run(action.kind) }
-                                    .semantics { contentDescription = action.description }
-                            },
-                        ),
+                        .clickable(onClickLabel = action.description) { run(action.kind) }
+                        .semantics { contentDescription = action.description },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(painterResource(action.icon), contentDescription = null, modifier = Modifier.size(18.dp), tint = textColor)
