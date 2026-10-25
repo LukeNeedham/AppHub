@@ -88,8 +88,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.lukeneedham.apphub.R
 import coil3.compose.AsyncImage
-import coil3.network.NetworkHeaders
-import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import coil3.request.CachePolicy
 import androidx.compose.ui.platform.LocalContext
@@ -773,17 +771,17 @@ private fun rememberNowMillis(sinceMillis: Long?): Long {
 }
 
 /**
- * The icon of [repo] as it is on its default branch now: the request always revalidates with GitHub (a cheap 304 when
- * unchanged) and skips the in-memory cache, so a changed icon is never served stale.
+ * The icon of [repo] as it is on its default branch now. Neither Coil cache is read, and the URL changes every minute,
+ * so GitHub's own CDN cache (five minutes, keyed by URL) cannot serve an old icon for long either.
  */
 @Composable
 private fun freshIconRequest(repo: String): ImageRequest {
     val context = LocalContext.current
     return remember(repo) {
         ImageRequest.Builder(context)
-            .data(repoIconUrl(repo))
-            .httpHeaders(NetworkHeaders.Builder().set("Cache-Control", "no-cache").build())
+            .data(repoIconUrl(repo) + "?t=" + System.currentTimeMillis() / 60_000)
             .memoryCachePolicy(CachePolicy.DISABLED)
+            .diskCachePolicy(CachePolicy.DISABLED)
             .build()
     }
 }
