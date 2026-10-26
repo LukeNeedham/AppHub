@@ -2,7 +2,6 @@ package com.lukeneedham.apphub.screenshot
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import coil3.ColorImage
 import coil3.annotation.ExperimentalCoilApi
@@ -94,11 +93,8 @@ private fun HomePageScreenshot() {
     val iconPreviewHandler = AsyncImagePreviewHandler { request ->
         ColorImage(if ("VideoDiary" in request.data.toString()) 0xFFE53935.toInt() else 0xFF1565C0.toInt())
     }
-    // Coil shows its mock images only in inspection mode
-    CompositionLocalProvider(
-        LocalInspectionMode provides true,
-        LocalAsyncImagePreviewHandler provides iconPreviewHandler,
-    ) {
+    // Coil shows its mock images only in inspection mode, which CI renders every screenshot in
+    CompositionLocalProvider(LocalAsyncImagePreviewHandler provides iconPreviewHandler) {
         AppTheme {
             HomePageContent(
                 state = state,
