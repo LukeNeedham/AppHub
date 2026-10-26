@@ -22,6 +22,9 @@
   push (the README, the screenshots), so your local copy of the remote branch is out of date and Git thinks commits are local only. Never amend,
   rebase or force-push to silence the hook, never edit the hook, and do not write about it at length.
 <!-- ci-workflows:end -->
+- **Back and up are the same**: every on-screen back button does exactly what the system back does (`onBack`); there
+  is no separate up navigation. Opening a PR from a deep link replaces the back stack with Home and the PR page,
+  so back always returns to Home.
 - AppHub lists the open PRs of the owner's public repos with their APK and web deploy links, and downloads
   and installs the APKs. `domain/` is pure Kotlin (unit-tested); `data/` holds GitHub, download and install.
 - When the shared CI comment format changes in `LukeNeedham/ci-workflows`

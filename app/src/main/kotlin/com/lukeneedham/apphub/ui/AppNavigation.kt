@@ -14,7 +14,7 @@ import com.lukeneedham.apphub.domain.PullRequestRef
 /**
  * Owns the back stack and the [NavDisplay]. Called only by [Root].
  *
- * @param pendingLink a pull request link that has been opened and not yet shown; it is pushed on the back stack once.
+ * @param pendingLink a pull request link that has been opened and not yet shown; it replaces the back stack once.
  * @param onLinkShown called when [pendingLink] has been pushed, so the caller can forget it.
  */
 @Composable
@@ -24,8 +24,12 @@ fun AppNavigation(pendingLink: PullRequestRef?, onLinkShown: () -> Unit) {
     LaunchedEffect(pendingLink) {
         val link = pendingLink ?: return@LaunchedEffect
         onLinkShown()
-        val page = Route.PullRequest(link.repo, link.number)
-        if (backStack.lastOrNull() != page) backStack.add(page)
+        // Always a fresh stack of Home and the page, so back goes Home; the new openedAt makes the page a new
+        // entry even when the same pull request is already showing, so its ViewModel reloads
+        val page = Route.PullRequest(link.repo, link.number, openedAt = System.currentTimeMillis())
+        backStack.clear()
+        backStack.add(Route.Home)
+        backStack.add(page)
     }
 
     NavDisplay(
