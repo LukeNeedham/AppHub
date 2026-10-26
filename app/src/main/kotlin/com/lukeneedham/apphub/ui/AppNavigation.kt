@@ -1,19 +1,33 @@
 package com.lukeneedham.apphub.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import com.lukeneedham.common.DebugKit
-import com.lukeneedham.common.ui.CrashesPage
-import com.lukeneedham.common.ui.DebugPage
-import com.lukeneedham.common.ui.LogsPage
+import com.lukeneedham.apphub.domain.PullRequestRef
 
+/**
+ * Owns the back stack and the [NavDisplay]. Called only by [Root].
+ *
+ * @param pendingLink a pull request link that has been opened and not yet shown; it is pushed on the back stack once.
+ * @param onLinkShown called when [pendingLink] has been pushed, so the caller can forget it.
+ */
 @Composable
-fun AppNavigation(backStack: NavBackStack<NavKey>) {
+fun AppNavigation(pendingLink: PullRequestRef?, onLinkShown: () -> Unit) {
+    val backStack = rememberNavBackStack(Route.Home)
+
+    LaunchedEffect(pendingLink) {
+        val link = pendingLink ?: return@LaunchedEffect
+        onLinkShown()
+        val page = Route.PullRequest(link.repo, link.number)
+        if (backStack.lastOrNull() != page) backStack.add(page)
+    }
+
     NavDisplay(
         backStack = backStack,
         onBack = { backStack.removeLastOrNull() },
@@ -21,31 +35,13 @@ fun AppNavigation(backStack: NavBackStack<NavKey>) {
             rememberSaveableStateHolderNavEntryDecorator(),
             rememberViewModelStoreNavEntryDecorator(),
         ),
-        entryProvider = entryProvider {
-            entry<Route.Home> {
-                HomePage(
-                    onOpenPullRequest = { backStack.add(Route.PullRequest(it.repo, it.number)) },
-                    onOpenSettings = { backStack.add(Route.Settings) },
-                )
-            }
-            entry<Route.PullRequest> { key ->
-                PullRequestPage(repo = key.repo, number = key.number, onBack = { backStack.removeLastOrNull() })
-            }
-            entry<Route.Settings> {
-                SettingsPage(
-                    onBack = { backStack.removeLastOrNull() },
-                    onOpenDebug = if (DebugKit.enabled) ({ backStack.add(Route.Debug) }) else null,
-                )
-            }
-            entry<Route.Debug> {
-                DebugPage(
-                    onBack = { backStack.removeLastOrNull() },
-                    onOpenLogs = { backStack.add(Route.Logs) },
-                    onOpenCrashes = { backStack.add(Route.Crashes) },
-                )
-            }
-            entry<Route.Logs> { LogsPage(onBack = { backStack.removeLastOrNull() }) }
-            entry<Route.Crashes> { CrashesPage(onBack = { backStack.removeLastOrNull() }) }
-        },
+        entryProvider = { key -> routeEntryProvider(backStack, key) },
     )
+}
+
+private fun routeEntryProvider(backStack: NavBackStack<NavKey>, key: NavKey): NavEntry<NavKey> {
+    val route = key as Route
+    return NavEntry(route) {
+        Router(backStack, route)
+    }
 }
