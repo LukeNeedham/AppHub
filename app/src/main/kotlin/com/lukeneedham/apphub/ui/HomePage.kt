@@ -123,7 +123,6 @@ fun HomePage(
         onInstall = viewModel::install,
         onOpen = viewModel::open,
         mainBuild = MainBuildActions(
-            build = viewModel::buildMain,
             download = viewModel::downloadMain,
             cancelDownload = viewModel::cancelMain,
             install = viewModel::installMain,

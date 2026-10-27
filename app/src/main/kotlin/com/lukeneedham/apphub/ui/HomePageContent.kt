@@ -108,7 +108,6 @@ import org.koin.compose.viewmodel.koinViewModel
 
 /** What the main build row of a repo can do; each takes the repo `owner/name`. */
 data class MainBuildActions(
-    val build: (String) -> Unit,
     val download: (String) -> Unit,
     val cancelDownload: (String) -> Unit,
     val install: (String) -> Unit,
@@ -478,8 +477,6 @@ private fun RepoCard(
                                 onCancel = { mainBuild.cancelDownload(item.repo) },
                                 onInstall = { mainBuild.install(item.repo) },
                                 onOpen = { mainBuild.open(item.repo) },
-                                onOpenRun = { item.runUrl?.let(uriHandler::openUri) },
-                                onBuild = { mainBuild.build(item.repo) },
                             )
                         }
                     }
@@ -574,34 +571,28 @@ private fun PullRequestRow(
     }
 }
 
-/** The errors of the main build, under the row of buttons. */
+/** The failed download of the main build, under the row of buttons. */
 @Composable
 private fun MainBuildErrors(item: MainBuildItem) {
-    val downloadFailed = item.download as? DownloadState.Failed
-    if (item.error == null && downloadFailed == null) return
+    val downloadFailed = item.download as? DownloadState.Failed ?: return
     Column(
         modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        item.error?.let { error ->
-            Text(error, style = MaterialTheme.typography.labelMedium, color = AppTheme.colors.failed)
-        }
-        downloadFailed?.let { failed ->
-            Text(
-                "Download failed: ${failed.message}",
-                style = MaterialTheme.typography.labelMedium,
-                color = AppTheme.colors.failed,
-            )
-        }
+        Text(
+            "Download failed: ${downloadFailed.message}",
+            style = MaterialTheme.typography.labelMedium,
+            color = AppTheme.colors.failed,
+        )
     }
 }
 
 /**
  * What a status pill says of the APK it is about: when it was built ([builtAtMillis], if known; [builtAtText] is the
- * absolute time as text when only that is known). The pill shows the age on its second line, unless [behindText]
- * (how far the build lags main) takes its place; a press on the text side shows both times in a bottom sheet.
+ * absolute time as text when only that is known). The pill shows the age on its second line; a press on the text side
+ * shows both times in a bottom sheet.
  */
-internal data class ApkDetail(val builtAtMillis: Long?, val builtAtText: String?, val behindText: String? = null)
+internal data class ApkDetail(val builtAtMillis: Long?, val builtAtText: String?)
 
 /** What a status says is only about an APK when there is one: not while it is only building, or after it failed. */
 private fun Control.aboutApk(built: ApkDetail?): Control =
@@ -632,8 +623,8 @@ internal fun PullRequestStatus(
  * The two lines of a status pill, each always laid out and exactly one line tall, ellipsized if it does not fit:
  *
  * 1. **status**: what state it is in ("Ready", "Stale build", "No build").
- * 2. **description**: what is most useful to know of that status: how old the APK is ("2 minutes old"), how many
- *    commits a stale main build is behind ("3 commits behind"), or how far a download is ("42%").
+ * 2. **description**: what is most useful to know of that status: how old the APK is ("2 minutes old"), or how far a
+ *    download is ("42%").
  *
  * The timestamps are not here but in the bottom sheet of the pill. With no APK there is no description, and the
  * status is centred in the height of the two lines.
@@ -648,7 +639,7 @@ private fun PillLines(
     modifier: Modifier = Modifier,
 ) {
     val descriptionSize = 11.sp
-    val description = progressText ?: apk?.behindText ?: apk?.builtAtMillis?.let { ageText(it, rememberNowMillis(it)) }
+    val description = progressText ?: apk?.builtAtMillis?.let { ageText(it, rememberNowMillis(it)) }
     val statusSize = 13.sp
     val statusStyle = MaterialTheme.typography.labelMedium.copy(fontSize = statusSize, lineHeight = statusSize * 1.25f)
     val statusText = @Composable { text: String ->
@@ -808,12 +799,11 @@ internal data class Control(
     val progressText: String? = null,
 )
 
-internal enum class ActionKind { Download, Install, Open, OpenRun, Build }
+internal enum class ActionKind { Download, Install, Open, OpenRun }
 
 /** What a press on a "Building" pill does: opens the run that builds the APK. */
 private const val STALE_BUILD = "Stale build"
 
-private val BuildAction = Trailing.Action(R.drawable.ic_build, "Build main now", ActionKind.Build)
 
 private val OpenRunAction = Trailing.Action(R.drawable.ic_open, "Open the build run on GitHub", ActionKind.OpenRun)
 
@@ -858,41 +848,19 @@ internal fun controlOf(item: PullRequestItem): Control {
     }
 }
 
-/** The status of the main build; see docs/status-colors.md. */
+/** The status of the latest main build; see docs/status-colors.md. */
 @Composable
 internal fun controlOf(item: MainBuildItem): Control {
     val colors = AppTheme.colors
     val installed = item.install == InstallStatus.Installed
-    val behind = item.info.commitsBehind > 0
-    val build = when (item.phase) {
-        MainPhase.NoBuild -> Control("No build", colors.idle)
-        MainPhase.Requested -> Control("Starting", colors.building)
-        MainPhase.Building -> Control("Building", colors.building, if (item.runUrl != null) OpenRunAction else null)
-        MainPhase.Failed -> Control("Build failed", colors.failed)
-        MainPhase.Ready -> Control(if (item.install == InstallStatus.DifferentBuild) "Update ready" else "Ready", colors.action)
-        MainPhase.Installed -> if (behind) Control("Behind main", colors.idle) else Control("Installed", colors.installed)
+    val build = when {
+        installed -> Control("Installed", colors.installed)
+        item.install == InstallStatus.DifferentBuild -> Control("Update ready", colors.action)
+        else -> Control("Ready", colors.action)
     }
-    val building = item.phase == MainPhase.Requested || item.phase == MainPhase.Building
-    // An APK that lacks the latest commits, or that a newer build is about to replace, is the stale build
-    val isStale = item.info.apk != null && !installed && (building || behind)
-    // Main is not built for every push, so a stale build of it is routine: quiet grey, not the amber of a PR's
-    val offered = if (isStale) Control(STALE_BUILD, colors.idle) else build
-    val built = item.info.apk?.let {
-        ApkDetail(it.builtAtMillis, it.builtAtMillis?.let(::formatTimestamp), item.behindText.takeIf { behind })
-    }
-    val control = transferControl(item.download, build, offered, installed, hasApk = item.info.apk != null, isStale = isStale, colors = colors)
+    val built = ApkDetail(item.apk.builtAtMillis, item.apk.builtAtMillis?.let(::formatTimestamp))
+    return transferControl(item.download, build, build, installed, hasApk = true, isStale = false, colors = colors)
         .aboutApk(built)
-    // A stale build is installed by the first action; the second opens the run that is replacing it
-    if (control.text == STALE_BUILD && control.trailing is Trailing.Action && building && item.runUrl != null) {
-        return control.copy(secondary = OpenRunAction)
-    }
-    // Building main is the primary action when there is no other, else the second one
-    if (!item.offersBuild || !item.canBuild) return control
-    return when (control.trailing) {
-        null -> control.copy(trailing = BuildAction)
-        is Trailing.Action -> control.copy(secondary = BuildAction)
-        is Trailing.Progress -> control
-    }
 }
 
 /** [build] with what a press does next, given the state of the download of the APK on offer ([offered]). */
@@ -942,7 +910,6 @@ internal fun StatusControl(
     onInstall: () -> Unit,
     onOpen: () -> Unit,
     onOpenRun: () -> Unit = {},
-    onBuild: () -> Unit = {},
 ) {
     val color = control.color
     // The pale status colours do not read as text on their own tint in light mode, so the text takes a darker shade
@@ -955,7 +922,6 @@ internal fun StatusControl(
             ActionKind.Download -> onDownload()
             ActionKind.Open -> onOpen()
             ActionKind.OpenRun -> onOpenRun()
-            ActionKind.Build -> onBuild()
             ActionKind.Install -> onInstall()
         }
     }
@@ -966,7 +932,7 @@ internal fun StatusControl(
         ) + actions.map { action -> SheetAction(action.icon, action.description) { run(action.kind) } }
         PillSheet(
             status = control.text,
-            description = control.progressText ?: control.built?.behindText,
+            description = control.progressText,
             apk = control.built,
             actions = sheetActions,
             onDismiss = { showSheet = false },
@@ -1044,7 +1010,7 @@ private fun Preview() {
             onCancelDownload = {},
             onInstall = {},
             onOpen = {},
-            mainBuild = MainBuildActions(build = {}, download = {}, cancelDownload = {}, install = {}, open = {}),
+            mainBuild = MainBuildActions(download = {}, cancelDownload = {}, install = {}, open = {}),
             onOpenPullRequest = {},
             onOpenSettings = {},
         )

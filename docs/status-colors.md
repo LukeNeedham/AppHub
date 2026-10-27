@@ -13,9 +13,9 @@ it sits in that list, so a new state should be placed in it, not given a new col
 | Colour | Means | States |
 |---|---|---|
 | Grey | Nothing to do: there is no APK and none is coming | No build, Cancelled |
-| Blue | Something is running; wait | Building, Starting (main build asked for), Downloading |
+| Blue | Something is running; wait | Building, Downloading |
 | Purple (the action colour, `AppColors.action`) | An APK is ready and you can act on it | Ready, Update ready, Ready to install |
-| Amber | What is on offer is out of date | Stale build: the new build has not finished, so only the previous APK can be offered. Behind main: the installed main build lacks later commits |
+| Amber | What is on offer is out of date | Stale build: the new build has not finished, so only the previous APK can be offered |
 | Green | Done | Installed |
 | Red | Broken | Build failed, Download failed |
 
@@ -38,8 +38,7 @@ Every pill lays out the same two lines, each exactly one line tall (ellipsized i
 equally tall:
 
 1. **Status**: the state, in the status colour ("Ready", "Stale build", "No build").
-2. **Description**: depends on the status. By default how old the APK is ("2 minutes old"); for a stale or
-   behind main build, how far it lags main ("3 commits behind"); while downloading, how far the download is ("42%",
+2. **Description**: depends on the status. By default how old the APK is ("2 minutes old"); while downloading, how far the download is ("42%",
    or "3.2 MB" when the size is unknown), and the status reads "Downloading…".
 
 With no APK (No build, Building, Build failed) there is no description and the status is centred in the height of both lines.
@@ -49,7 +48,7 @@ With no APK (No build, Building, Build failed) there is no description and the s
 A press on the text side of a pill (left of the divider, not an action icon) always opens a bottom sheet and
 never does an action, whatever the status and however many actions there are. The sheet shows:
 
-1. The status as its title, and what the description says ("3 commits behind", "42%") when it says anything.
+1. The status as its title, and what the description says ("42%") when it says anything.
 2. When the APK was built, relative ("2 minutes old") and absolute ("23/10/2026 18:27:11"), when known.
 3. Every action of the pill (including cancelling a download), each a row with its icon and a short description
    of what it does. A press anywhere on a row runs the action and closes the sheet.
@@ -59,18 +58,17 @@ they have, if any. The pill's own action icons still run their action with one p
 
 ## The main build
 
-The main build of a repo sits in the row of buttons at the top of its card, after the GitHub and Claude buttons. It uses the
-same pill, from `controlOf(MainBuildItem)`. Its description is the age of the build, or, for a stale build or one behind main, how far it is behind main
-("3 commits behind"); with no build only the status shows. Building main is an action of the pill:
-the only one when there is no other (No build, Build failed), else the second one, next to the download, install or open
-action of a build that lags main. It is left out when the build is up to date or one is running. Its states are those above, with these meanings:
+The main build of a repo sits in the row of buttons at the top of its card, after the GitHub and Claude buttons. It is the
+**latest build of `main`**: the APK of the release `main-build`, which the CI of the repo replaces on every push to `main`. A
+repo without that release has no main build and shows nothing. AppHub never starts a build, and does not say how far the build
+is behind `main`: it is always the newest one the CI published. It uses the same pill, from `controlOf(MainBuildItem)`, with
+only these states:
 
-- **Stale build** (grey): the APK on offer lacks commits, because `main` has moved on or a newer build is running.
-- **Behind main** (grey, with the Open icon): the installed build is a main build, but `main` has newer commits.
-- **Starting** (blue): the build was asked for and GitHub has not listed the run yet.
-- Both are grey, not amber: `main` is not built for every push, so lagging behind it is expected and should
-  draw little attention. Amber is only for a PR's stale build.
-- **Installed** (green) means the installed build is the tip of `main`.
+- **Ready** (purple): the latest main build is not installed.
+- **Update ready** (purple): another build of the app is installed, so this one is an update.
+- **Installed** (green) means the installed build is the latest main build. A push to `main` makes the next build a different
+  one, so it shows Update ready again.
+- Downloading and Download failed are those above. The description is the age of the build.
 
 ## The trailing icon
 
@@ -81,7 +79,6 @@ action of a build that lags main. It is left out when the build is up to date or
 | Open | Starts the installed app | Installed |
 | Circular arrow | Downloads again | **Retry** after a failed download, in red |
 | Open | (second action) Opens the run that is building the replacement | Stale build whose replacement is building: the first action downloads or installs the stale APK |
-| Wrench | Builds main as it is now | Main only: No build or Build failed (the only action), or a build behind main (the second action) |
 | Progress ring | Cancels the download | Downloading |
 | None | Nothing | No APK to act on: Building without an older APK, Cancelled, and a PR's No build or Build failed |
 
