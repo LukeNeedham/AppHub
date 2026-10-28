@@ -31,6 +31,7 @@
   (`.github/workflows/android_pr_build.yml`), update `CommentParser` and its test to match.
 - The colours and icons of the PR status pill follow `docs/status-colors.md`; update it with any change to
   `controlOf` in `ui/HomePage.kt`.
-- Main builds are started through the caller `.github/workflows/build_main.yml`, which calls
-  `android_main_build.yml` in `LukeNeedham/ci-workflows`. `MAIN_BUILD_WORKFLOW` and `APK_ARTIFACT` must match
-  those two; change them together.
+- The main build is the latest build of `main`: the APK `app-debug.apk` of the rolling release `main-build`, which the CI of each
+  app replaces on every push to `main` (`android_main_build.yml` in `LukeNeedham/ci-workflows`, through the caller
+  `build_main.yml`). `MAIN_RELEASE_TAG` and `MAIN_APK_ASSET` must match it. Which commit the APK is of comes from the
+  `commit:` line of the release notes (`scripts/main_build.py` there). AppHub never starts a build.

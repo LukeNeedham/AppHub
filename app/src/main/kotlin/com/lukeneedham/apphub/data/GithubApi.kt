@@ -1,8 +1,7 @@
 package com.lukeneedham.apphub.data
 
 import com.lukeneedham.apphub.domain.InvalidTokenException
-import com.lukeneedham.apphub.domain.MAIN_BRANCH
-import com.lukeneedham.apphub.domain.MAIN_BUILD_WORKFLOW
+import com.lukeneedham.apphub.domain.MAIN_RELEASE_TAG
 import com.lukeneedham.apphub.domain.RateLimitException
 import com.lukeneedham.apphub.domain.RateLimitInfo
 import com.lukeneedham.apphub.domain.TokenStore
@@ -12,11 +11,7 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.header
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
-import io.ktor.http.content.TextContent
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
@@ -44,26 +39,11 @@ interface GithubApi {
     /** The first 100 comments of the PR, oldest first. */
     suspend fun comments(repo: String, number: Int): List<CommentDto>
 
-    /** The newest runs of the main build workflow on main, newest first; null when the repo has no such workflow. */
-    suspend fun mainRuns(repo: String): List<RunDto>?
-
-    /** The artifacts of the workflow run [runId]. */
-    suspend fun runArtifacts(repo: String, runId: Long): List<ArtifactDto>
+    /** The release `main-build` (the latest main build, replaced by CI on every push to main); null when the repo has none. */
+    suspend fun mainRelease(repo: String): ReleaseDto?
 
     /** The ISO-8601 instant the release tagged [tag] was published; null when there is no such release. */
     suspend fun releasePublishedAt(repo: String, tag: String): String?
-
-    /** The sha of the newest commit of [branch]. */
-    suspend fun latestCommit(repo: String, branch: String): String
-
-    /** How many commits [head] has that [base] lacks. */
-    suspend fun commitsAhead(repo: String, base: String, head: String): Int
-
-    /** Starts the main build workflow on main. Needs a token that may run workflows. */
-    suspend fun startMainBuild(repo: String)
-
-    /** The short-lived link to the zip of an artifact. Needs a token that may read Actions. */
-    suspend fun artifactDownloadUrl(repo: String, artifactId: Long): String
 
     /** Checks [token] against GitHub and returns its allowance. Throws [InvalidTokenException] if rejected. */
     suspend fun checkToken(token: String): RateLimitInfo
@@ -110,20 +90,13 @@ class KtorGithubApi(
         // Revalidated every time: the CI edits its comment in place, and a 304 is free of the rate limit
         get("https://api.github.com/repos/$repo/issues/$number/comments?per_page=100", forceNetwork = true)
 
-    override suspend fun mainRuns(repo: String): List<RunDto>? =
+    override suspend fun mainRelease(repo: String): ReleaseDto? =
         try {
-            // Revalidated every time: a run changes state in place, and a 304 is free of the rate limit
-            get<RunsDto>(
-                "https://api.github.com/repos/$repo/actions/workflows/$MAIN_BUILD_WORKFLOW/runs" +
-                    "?branch=$MAIN_BRANCH&event=workflow_dispatch&per_page=$MAIN_RUNS_PER_PAGE",
-                forceNetwork = true,
-            ).runs
+            // Revalidated every time: CI replaces the asset of this release in place, and a 304 is free of the rate limit
+            get<ReleaseDto>("https://api.github.com/repos/$repo/releases/tags/$MAIN_RELEASE_TAG", forceNetwork = true)
         } catch (e: NotFoundException) {
             null
         }
-
-    override suspend fun runArtifacts(repo: String, runId: Long): List<ArtifactDto> =
-        get<ArtifactsDto>("https://api.github.com/repos/$repo/actions/runs/$runId/artifacts", forceNetwork = true).artifacts
 
     override suspend fun releasePublishedAt(repo: String, tag: String): String? =
         try {
@@ -133,48 +106,6 @@ class KtorGithubApi(
             null
         }
 
-    override suspend fun latestCommit(repo: String, branch: String): String =
-        get<CommitDto>("https://api.github.com/repos/$repo/commits/$branch", forceNetwork = true).sha
-
-    override suspend fun commitsAhead(repo: String, base: String, head: String): Int =
-        // A comparison of two commits never changes, so the HTTP cache may keep it
-        get<CompareDto>("https://api.github.com/repos/$repo/compare/$base...$head").aheadBy
-
-    override suspend fun startMainBuild(repo: String) {
-        val response = client.post("https://api.github.com/repos/$repo/actions/workflows/$MAIN_BUILD_WORKFLOW/dispatches") {
-            header(HttpHeaders.Accept, "application/vnd.github+json")
-            header("X-GitHub-Api-Version", "2022-11-28")
-            tokenStore.token.value?.let { header(HttpHeaders.Authorization, "Bearer $it") }
-            setBody(TextContent("""{"ref":"$MAIN_BRANCH"}""", ContentType.Application.Json))
-        }
-        when (val code = response.status.value) {
-            in 200..299 -> Unit
-            401 -> throw InvalidTokenException()
-            403, 404 -> throw IOException(
-                "GitHub refused to start the build. The token needs the Actions permission (read and write) " +
-                    "on $repo, and the repo needs $MAIN_BUILD_WORKFLOW on $MAIN_BRANCH.",
-            )
-            422 -> throw IOException("$MAIN_BUILD_WORKFLOW cannot be started: it needs a workflow_dispatch trigger.")
-            else -> throw IOException("GitHub returned $code when starting the build")
-        }
-    }
-
-    override suspend fun artifactDownloadUrl(repo: String, artifactId: Long): String {
-        // Not followed: the redirect goes to another host, which must not get the token
-        val response = withoutRedirects.get("https://api.github.com/repos/$repo/actions/artifacts/$artifactId/zip") {
-            header(HttpHeaders.Accept, "application/vnd.github+json")
-            header("X-GitHub-Api-Version", "2022-11-28")
-            tokenStore.token.value?.let { header(HttpHeaders.Authorization, "Bearer $it") }
-        }
-        return when (val code = response.status.value) {
-            302 -> response.headers[HttpHeaders.Location] ?: throw IOException("GitHub gave no download link")
-            401 -> throw InvalidTokenException()
-            403, 404 -> throw IOException("GitHub refused the download: the token needs the Actions permission (read), and the build may have expired.")
-            410 -> throw IOException("The build has expired. Build main again.")
-            else -> throw IOException("GitHub returned $code for the download")
-        }
-    }
-
     override suspend fun checkToken(token: String): RateLimitInfo {
         // Always from the network: this is asking whether the token works right now
         val core = get<RateLimitDto>("https://api.github.com/rate_limit", token = token, forceNetwork = true)
@@ -182,13 +113,10 @@ class KtorGithubApi(
         return RateLimitInfo(core.limit, core.remaining)
     }
 
-    private val withoutRedirects = client.config { followRedirects = false }
-
     private companion object {
         const val COMMON_REPO = "LukeNeedham/ci-workflows"
         const val COMMON_APPS_FILE = "apps.json"
         const val REPOS_PER_PAGE = 100
-        const val MAIN_RUNS_PER_PAGE = 10
     }
 
     private suspend inline fun <reified T> get(
@@ -274,41 +202,18 @@ data class RateLimitCoreDto(val limit: Int, val remaining: Int)
 class NotFoundException(url: String) : IOException("GitHub returned 404 for $url")
 
 @Serializable
-data class RunsDto(@SerialName("workflow_runs") val runs: List<RunDto> = emptyList())
-
-@Serializable
-data class RunDto(
-    val id: Long,
-    @SerialName("head_sha") val headSha: String,
-    /** `queued`, `in_progress` or `completed`, among others. */
-    val status: String = "",
-    /** Set once the run is completed: `success`, `failure`, `cancelled` and so on. */
-    val conclusion: String? = null,
-)
-
-@Serializable
-data class ArtifactsDto(val artifacts: List<ArtifactDto> = emptyList())
-
-@Serializable
-data class ArtifactDto(
-    val id: Long,
-    val name: String,
-    /** GitHub sets this only some time after [expiresAt] has passed, so [expiresAt] is checked too. */
-    val expired: Boolean = false,
-    /** ISO-8601 instant after which the artifact is gone; null when GitHub does not say. */
-    @SerialName("expires_at") val expiresAt: String? = null,
-    /** ISO-8601 instant the artifact was uploaded, which is when its build finished. */
-    @SerialName("created_at") val createdAt: String? = null,
-)
-
-@Serializable
 data class ReleaseDto(
     @SerialName("published_at") val publishedAt: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
+    val body: String? = null,
+    val assets: List<AssetDto> = emptyList(),
 )
 
 @Serializable
-data class CommitDto(val sha: String)
-
-@Serializable
-data class CompareDto(@SerialName("ahead_by") val aheadBy: Int = 0)
+data class AssetDto(
+    val name: String,
+    /** A public link: release assets of a public repo need no token. */
+    @SerialName("browser_download_url") val downloadUrl: String,
+    /** ISO-8601 instant the asset was uploaded, which is when its build finished. */
+    @SerialName("created_at") val createdAt: String? = null,
+)

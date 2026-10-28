@@ -14,7 +14,7 @@ deploy, so a PR build can be installed and tried on a phone without a computer. 
 CI ([ci-workflows](https://github.com/LukeNeedham/ci-workflows)) leaves on every PR.
 
 Use it to install a PR's build in a tap, open its web preview, jump to the PR or its Claude Code session, see
-whether the build you have installed is the latest, and build and install the latest `main` of any repo on demand.
+whether the build you have installed is the latest, and install the latest `main` build of any repo.
 Every PR also has a link of its own, `https://www.lukeneedham.com/apphub/pr/<repo name>/<number>`, that opens it
 in the app.
 

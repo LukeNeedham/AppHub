@@ -11,11 +11,8 @@ import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.DownloadState
 import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.MainApk
-import com.lukeneedham.apphub.domain.MainBuildInfo
 import com.lukeneedham.apphub.domain.MainBuildItem
-import com.lukeneedham.apphub.domain.MainRun
 import com.lukeneedham.apphub.domain.PullRequest
-import com.lukeneedham.apphub.domain.RunState
 import com.lukeneedham.apphub.ui.HomePageContent
 import com.lukeneedham.apphub.ui.HomeUiState
 import com.lukeneedham.apphub.ui.MainBuildActions
@@ -56,13 +53,10 @@ private fun HomePageScreenshot() {
                 ),
                 mainBuild = MainBuildItem(
                     repo = "LukeNeedham/FlagTutor",
-                    info = MainBuildInfo(
-                        run = MainRun(id = 1, commit = "a1b2c3d", state = RunState.Succeeded),
-                        apk = MainApk(artifactId = 1, commit = "a1b2c3d"),
-                        tip = "a1b2c3d",
-                        commitsBehind = 0,
+                    apk = MainApk(
+                        commit = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+                        downloadUrl = "https://github.com/LukeNeedham/FlagTutor/releases/download/main-build/app-debug.apk",
                     ),
-                    requested = false,
                     download = DownloadState.Idle,
                     install = InstallStatus.NotInstalled,
                 ),
@@ -104,7 +98,7 @@ private fun HomePageScreenshot() {
                 onCancelDownload = {},
                 onInstall = {},
                 onOpen = {},
-                mainBuild = MainBuildActions(build = {}, download = {}, cancelDownload = {}, install = {}, open = {}),
+                mainBuild = MainBuildActions(download = {}, cancelDownload = {}, install = {}, open = {}),
                 onOpenPullRequest = {},
                 onOpenSettings = {},
             )
