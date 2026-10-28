@@ -127,6 +127,7 @@ internal fun HomePageContent(
     mainBuild: MainBuildActions,
     onOpenPullRequest: (PullRequestRef) -> Unit,
     onOpenSettings: () -> Unit,
+    onNewApp: () -> Unit,
 ) {
     val background = AppTheme.colors.background
     val listState = rememberLazyListState()
@@ -160,6 +161,9 @@ internal fun HomePageContent(
                 TopAppBar(
                     title = { Text("AppHub", fontWeight = FontWeight.Bold) },
                     actions = {
+                        IconButton(onClick = onNewApp) {
+                            Icon(painterResource(R.drawable.ic_add), contentDescription = "New app")
+                        }
                         IconButton(onClick = onOpenSettings) {
                             Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings")
                         }
@@ -1013,6 +1017,7 @@ private fun Preview() {
             mainBuild = MainBuildActions(download = {}, cancelDownload = {}, install = {}, open = {}),
             onOpenPullRequest = {},
             onOpenSettings = {},
+            onNewApp = {},
         )
     }
 }

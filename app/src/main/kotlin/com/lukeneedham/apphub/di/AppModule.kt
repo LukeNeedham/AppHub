@@ -4,6 +4,9 @@ import com.lukeneedham.apphub.data.AndroidApkInstaller
 import com.lukeneedham.apphub.data.GithubApi
 import com.lukeneedham.apphub.data.KeystoreTokenStore
 import com.lukeneedham.apphub.data.KtorGithubApi
+import com.lukeneedham.apphub.data.KtorNewAppApi
+import com.lukeneedham.apphub.data.NewAppApi
+import com.lukeneedham.apphub.data.NewAppRepository
 import com.lukeneedham.apphub.data.githubHttpClient
 import com.lukeneedham.apphub.data.PrefsPullRequestCache
 import com.lukeneedham.apphub.data.PullRequestCache
@@ -16,10 +19,12 @@ import com.lukeneedham.apphub.domain.ApkInstaller
 import com.lukeneedham.apphub.domain.GITHUB_OWNER
 import com.lukeneedham.apphub.domain.InstallTracker
 import com.lukeneedham.apphub.domain.MainBuildSource
+import com.lukeneedham.apphub.domain.NewAppSource
 import com.lukeneedham.apphub.domain.PullRequestSource
 import com.lukeneedham.apphub.domain.TokenStore
 import com.lukeneedham.apphub.ui.ApkDownloads
 import com.lukeneedham.apphub.ui.HomeViewModel
+import com.lukeneedham.apphub.ui.NewAppViewModel
 import com.lukeneedham.apphub.ui.PullRequestViewModel
 import com.lukeneedham.apphub.ui.SettingsViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -42,7 +47,10 @@ val appModule = module {
             .build()
     }
     single<TokenStore> { KeystoreTokenStore(androidContext()) }
-    single<GithubApi> { KtorGithubApi(githubHttpClient(get()), GITHUB_OWNER, get()) }
+    single { githubHttpClient(get()) }
+    single<GithubApi> { KtorGithubApi(get(), GITHUB_OWNER, get()) }
+    single<NewAppApi> { KtorNewAppApi(get(), get()) }
+    single<NewAppSource> { NewAppRepository(get()) }
     single<PullRequestCache> { PrefsPullRequestCache(androidContext()) }
     single { PullRequestRepository(get(), get()) } bind PullRequestSource::class
     single { MainBuildRepository(get(), get()) } bind MainBuildSource::class
@@ -54,4 +62,5 @@ val appModule = module {
     viewModelOf(::HomeViewModel)
     viewModel { (repo: String, number: Int) -> PullRequestViewModel(repo, number, get(), get(), get()) }
     viewModelOf(::SettingsViewModel)
+    viewModelOf(::NewAppViewModel)
 }

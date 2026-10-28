@@ -110,6 +110,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun HomePage(
     onOpenPullRequest: (PullRequestRef) -> Unit,
     onOpenSettings: () -> Unit,
+    onNewApp: () -> Unit,
 ) {
     val viewModel = koinViewModel<HomeViewModel>()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -130,5 +131,6 @@ fun HomePage(
         ),
         onOpenPullRequest = onOpenPullRequest,
         onOpenSettings = onOpenSettings,
+        onNewApp = onNewApp,
     )
 }

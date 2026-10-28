@@ -35,3 +35,8 @@
   app replaces on every push to `main` (`android_main_build.yml` in `LukeNeedham/ci-workflows`, through the caller
   `build_main.yml`). `MAIN_RELEASE_TAG` and `MAIN_APK_ASSET` must match it. Which commit the APK is of comes from the
   `commit:` line of the release notes (`scripts/main_build.py` there). AppHub never starts a build.
+- The plus on Home opens `NewAppPage`, which creates an app: it starts the workflow `new_app.yml` of `LukeNeedham/ci-workflows`
+  (`docs/create-app.md` there) with the dispatch API and follows its run, which it finds by its title `New App <name>` (the
+  `run-name` of the workflow). `NEW_APP_WORKFLOW`, `NEW_APP_REF` and `newAppRunTitle` must match that workflow, and the name
+  check (`newAppNameError`) must match `check_name` of `scripts/new_app.py`. It needs the token of Settings to have the Actions
+  permission (read and write).

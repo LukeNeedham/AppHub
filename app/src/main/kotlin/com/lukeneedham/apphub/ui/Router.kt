@@ -19,6 +19,7 @@ fun Router(backStack: NavBackStack<NavKey>, route: Route) {
         Route.Home -> HomePage(
             onOpenPullRequest = { navigateTo(Route.PullRequest(it.repo, it.number)) },
             onOpenSettings = { navigateTo(Route.Settings) },
+            onNewApp = { navigateTo(Route.NewApp) },
         )
 
         is Route.PullRequest -> PullRequestPage(repo = route.repo, number = route.number, onBack = ::onBack)
@@ -26,6 +27,11 @@ fun Router(backStack: NavBackStack<NavKey>, route: Route) {
         Route.Settings -> SettingsPage(
             onBack = ::onBack,
             onOpenDebug = if (DebugKit.enabled) ({ navigateTo(Route.Debug) }) else null,
+        )
+
+        Route.NewApp -> NewAppPage(
+            onBack = ::onBack,
+            onOpenSettings = { navigateTo(Route.Settings) },
         )
 
         Route.Debug -> DebugPage(
