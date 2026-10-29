@@ -54,6 +54,7 @@ fun SettingsPage(
         onInputChange = viewModel::onInputChange,
         onSave = viewModel::save,
         onRemove = viewModel::remove,
+        onShowAutoMergePrsChange = viewModel::setShowAutoMergePrs,
         onBack = onBack,
         onOpenDebug = onOpenDebug,
     )

@@ -4,6 +4,7 @@ import com.lukeneedham.apphub.data.CommentDto
 import com.lukeneedham.apphub.data.GithubApi
 import com.lukeneedham.apphub.data.IssueDto
 import com.lukeneedham.apphub.data.ReleaseDto
+import com.lukeneedham.apphub.domain.DisplaySettings
 import com.lukeneedham.apphub.domain.InvalidTokenException
 import com.lukeneedham.apphub.domain.RateLimitInfo
 import com.lukeneedham.apphub.domain.TokenStore
@@ -46,6 +47,12 @@ class SettingsViewModelTest {
             if (token in valid) RateLimitInfo(5000, 4990) else throw InvalidTokenException()
     }
 
+    private class MemoryDisplay : DisplaySettings {
+        private val state = MutableStateFlow(false)
+        override val showAutoMergePrs: StateFlow<Boolean> = state
+        override fun setShowAutoMergePrs(show: Boolean) { state.value = show }
+    }
+
     private class MemoryTokens(initial: String? = null) : TokenStore {
         private val state = MutableStateFlow(initial)
         override val token: StateFlow<String?> = state
@@ -55,7 +62,7 @@ class SettingsViewModelTest {
     @Test
     fun aValidTokenIsKeptAndItsAllowanceShown() = runTest(dispatcher) {
         val tokens = MemoryTokens()
-        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens)
+        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, MemoryDisplay())
 
         viewModel.onInputChange("  github_pat_abcd ")
         viewModel.save()
@@ -71,7 +78,7 @@ class SettingsViewModelTest {
     @Test
     fun aRejectedTokenIsNotKept() = runTest(dispatcher) {
         val tokens = MemoryTokens()
-        val viewModel = SettingsViewModel(FakeApi(emptySet()), tokens)
+        val viewModel = SettingsViewModel(FakeApi(emptySet()), tokens, MemoryDisplay())
 
         viewModel.onInputChange("wrong")
         viewModel.save()
@@ -85,7 +92,7 @@ class SettingsViewModelTest {
     @Test
     fun removingTheTokenSignsOut() = runTest(dispatcher) {
         val tokens = MemoryTokens("github_pat_abcd")
-        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens)
+        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, MemoryDisplay())
         advanceUntilIdle()
         assertEquals(true, viewModel.uiState.value.signedIn)
 

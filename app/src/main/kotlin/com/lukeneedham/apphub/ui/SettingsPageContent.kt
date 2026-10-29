@@ -21,6 +21,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -50,6 +51,7 @@ internal fun SettingsPageContent(
     onInputChange: (String) -> Unit,
     onSave: () -> Unit,
     onRemove: () -> Unit,
+    onShowAutoMergePrsChange: (Boolean) -> Unit,
     onBack: () -> Unit,
     onOpenDebug: (() -> Unit)?,
 ) {
@@ -73,6 +75,7 @@ internal fun SettingsPageContent(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             GithubCard(state, onInputChange, onSave, onRemove)
+            AutoMergeRow(state.showAutoMergePrs, onShowAutoMergePrsChange)
             if (onOpenDebug != null) {
                 SettingsRow(title = "Debug", subtitle = "Logs, crashes and animation speed", onClick = onOpenDebug)
             }
@@ -181,6 +184,28 @@ private fun Card(content: @Composable () -> Unit) {
 }
 
 @Composable
+private fun AutoMergeRow(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = AppTheme.colors.card,
+        border = BorderStroke(1.dp, AppTheme.colors.border),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(Modifier.padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Show auto merge PRs", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "PRs with [auto-merge] in their title. When off, they are hidden from the home page.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AppTheme.colors.textSecondary,
+                )
+            }
+            Switch(checked = checked, onCheckedChange = onCheckedChange)
+        }
+    }
+}
+
+@Composable
 private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.large,
@@ -213,6 +238,7 @@ private fun Preview() {
             onInputChange = {},
             onSave = {},
             onRemove = {},
+            onShowAutoMergePrsChange = {},
             onBack = {},
             onOpenDebug = {},
         )
