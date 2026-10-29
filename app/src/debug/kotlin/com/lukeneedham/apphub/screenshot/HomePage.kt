@@ -101,6 +101,7 @@ private fun HomePageScreenshot() {
                 mainBuild = MainBuildActions(download = {}, cancelDownload = {}, install = {}, open = {}),
                 onOpenPullRequest = {},
                 onOpenSettings = {},
+                onNewApp = {},
             )
         }
     }

@@ -20,6 +20,9 @@ sealed interface Route : NavKey {
     data object Settings : Route
 
     @Serializable
+    data object NewApp : Route
+
+    @Serializable
     data object Debug : Route
 
     @Serializable

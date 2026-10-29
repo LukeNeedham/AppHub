@@ -110,8 +110,9 @@ private fun GithubCard(
             Text(
                 "Without a token GitHub allows 60 requests an hour. With one it allows 5,000. " +
                     "A token is also what lets AppHub build main on demand: a project's \"Latest main\" row, " +
-                    "with its Build button, only shows when there is one. For that the token needs the Actions " +
-                    "permission (read and write); for the rate limit alone it needs no permissions.",
+                    "with its Build button, only shows when there is one, and what lets it create a new app (the plus on the " +
+                    "home page). For those the token needs the Actions permission (read and write); " +
+                    "for the rate limit alone it needs no permissions.",
                 style = MaterialTheme.typography.bodySmall,
                 color = AppTheme.colors.textSecondary,
             )
