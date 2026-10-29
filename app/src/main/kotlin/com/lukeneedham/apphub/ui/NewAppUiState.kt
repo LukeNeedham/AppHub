@@ -4,8 +4,12 @@ import com.lukeneedham.apphub.domain.NewAppProgress
 import com.lukeneedham.apphub.domain.newAppNameError
 
 data class NewAppUiState(
-    /** Whether there is a GitHub token: without one the workflow cannot be started. */
+    /** Whether there is a GitHub token (Settings): without one the workflow cannot be started. */
     val signedIn: Boolean = false,
+    /** Whether the token that creates repos is saved. */
+    val hasCreationToken: Boolean = false,
+    /** What was typed for that token, until it is saved. */
+    val creationTokenInput: String = "",
     val name: String = "",
     val isPrivate: Boolean = false,
     /** Null before anything was started, and after a start that was refused (see [error]). */
@@ -19,5 +23,6 @@ data class NewAppUiState(
     val inProgress: Boolean
         get() = progress != null && progress !is NewAppProgress.Done && progress !is NewAppProgress.Failed
 
-    val canCreate: Boolean get() = signedIn && name.isNotEmpty() && nameError == null && !inProgress
+    val canCreate: Boolean
+        get() = signedIn && hasCreationToken && name.isNotEmpty() && nameError == null && !inProgress
 }

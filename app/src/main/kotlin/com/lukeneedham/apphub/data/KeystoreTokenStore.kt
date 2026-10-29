@@ -15,13 +15,17 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /**
- * Keeps the token encrypted with an AES key that lives in the Android Keystore, so the key never
+ * Keeps a token encrypted with an AES key that lives in the Android Keystore, so the key never
  * leaves the device's secure storage and the saved text is useless without it. If the key is gone (for
  * example after a restore onto another device) the token reads as absent and the user enters it again.
  */
-class KeystoreTokenStore(context: Context) : TokenStore {
+class KeystoreTokenStore(
+    context: Context,
+    prefsName: String = "github_token",
+    private val alias: String = "apphub_github_token",
+) : TokenStore {
 
-    private val prefs = context.getSharedPreferences("github_token", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
     private val _token = MutableStateFlow(read())
 
     override val token: StateFlow<String?> = _token.asStateFlow()
@@ -60,10 +64,10 @@ class KeystoreTokenStore(context: Context) : TokenStore {
 
     private fun key(): SecretKey {
         val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        (keyStore.getKey(ALIAS, null) as? SecretKey)?.let { return it }
+        (keyStore.getKey(alias, null) as? SecretKey)?.let { return it }
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
         generator.init(
-            KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+            KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .setKeySize(256)
@@ -74,7 +78,6 @@ class KeystoreTokenStore(context: Context) : TokenStore {
 
     private companion object {
         const val KEY = "token"
-        const val ALIAS = "apphub_github_token"
         const val TRANSFORMATION = "AES/GCM/NoPadding"
         const val IV_BYTES = 12
     }

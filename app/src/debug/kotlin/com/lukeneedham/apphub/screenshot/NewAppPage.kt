@@ -13,6 +13,7 @@ import com.lukeneedham.apphub.ui.theme.AppTheme
 private fun NewAppPageScreenshot() {
     val state = NewAppUiState(
         signedIn = true,
+        hasCreationToken = true,
         name = "LyricTutor",
         progress = NewAppProgress.Running("https://github.com/LukeNeedham/ci-workflows/actions/runs/1"),
     )
@@ -23,6 +24,9 @@ private fun NewAppPageScreenshot() {
             onPrivateChange = {},
             onCreate = {},
             onDismissResult = {},
+            onCreationTokenInputChange = {},
+            onSaveCreationToken = {},
+            onRemoveCreationToken = {},
             onOpenSettings = {},
             onBack = {},
         )

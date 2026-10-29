@@ -35,9 +35,13 @@ import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
 import java.io.File
+
+/** The name of the [TokenStore] that holds the token that creates repos. */
+const val REPO_CREATION_TOKEN = "repoCreation"
 
 val appModule = module {
     single {
@@ -49,7 +53,11 @@ val appModule = module {
     single<TokenStore> { KeystoreTokenStore(androidContext()) }
     single { githubHttpClient(get()) }
     single<GithubApi> { KtorGithubApi(get(), GITHUB_OWNER, get()) }
-    single<NewAppApi> { KtorNewAppApi(get(), get()) }
+    // A second token, kept apart from the one above, whose only power is to create repos (docs/create-app.md in ci-workflows)
+    single<TokenStore>(named(REPO_CREATION_TOKEN)) {
+        KeystoreTokenStore(androidContext(), prefsName = "repo_creation_token", alias = "apphub_repo_creation_token")
+    }
+    single<NewAppApi> { KtorNewAppApi(get(), get(), get(named(REPO_CREATION_TOKEN))) }
     single<NewAppSource> { NewAppRepository(get()) }
     single<PullRequestCache> { PrefsPullRequestCache(androidContext()) }
     single { PullRequestRepository(get(), get()) } bind PullRequestSource::class
@@ -62,5 +70,5 @@ val appModule = module {
     viewModelOf(::HomeViewModel)
     viewModel { (repo: String, number: Int) -> PullRequestViewModel(repo, number, get(), get(), get()) }
     viewModelOf(::SettingsViewModel)
-    viewModelOf(::NewAppViewModel)
+    viewModel { NewAppViewModel(get(), get(), get(named(REPO_CREATION_TOKEN))) }
 }

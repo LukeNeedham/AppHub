@@ -32,7 +32,10 @@ fun newAppPackage(name: String) = "com.lukeneedham." + name.filter { it.isLetter
 
 /** How far the creation of an app has got. */
 sealed interface NewAppProgress {
-    /** Asking GitHub to start the workflow. */
+    /** Making the repo. */
+    data object CreatingRepo : NewAppProgress
+
+    /** The repo is made; asking GitHub to start the workflow that sets it up. */
     data object Starting : NewAppProgress
 
     /** GitHub took the request; its run is not listed yet. */
@@ -51,12 +54,16 @@ sealed interface NewAppProgress {
 /** Where new apps are created. */
 interface NewAppSource {
     /**
-     * Starts the creation of the app [name] (with a private repo when [isPrivate]) and follows it until it ends.
-     * Throws [InvalidTokenException] or [MissingPermissionException] when the token does not allow it, and an
-     * `IOException` for any other failure to reach GitHub.
+     * Makes the repo of the app [name] (private when [isPrivate]), then starts the workflow that sets it up and follows it
+     * until it ends. Throws [NewAppException] with a message to show when the repo could not be made or its setup not
+     * started, [InvalidTokenException] or [MissingPermissionException] when the token of the workflow calls does not allow
+     * them, and an `IOException` for any other failure to reach GitHub.
      */
     fun create(name: String, isPrivate: Boolean): Flow<NewAppProgress>
 }
 
 /** GitHub answered 403 or 404: the token may not start the workflow, or cannot see its repo. */
 class MissingPermissionException : Exception("GitHub refused: the token may not start the workflow")
+
+/** Something went wrong in a way the user can act on: [message] says what, and is shown as it is. */
+class NewAppException(message: String) : Exception(message)

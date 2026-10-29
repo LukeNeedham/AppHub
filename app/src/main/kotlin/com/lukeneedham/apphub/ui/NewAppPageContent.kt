@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.lukeneedham.apphub.R
@@ -44,6 +45,7 @@ import com.lukeneedham.apphub.domain.repoUrl
 import com.lukeneedham.apphub.ui.theme.AppTheme
 
 private const val CLAUDE_APP_ACCESS_URL = "https://github.com/apps/claude/installations/select_target"
+private const val NEW_TOKEN_URL = "https://github.com/settings/personal-access-tokens/new"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +55,9 @@ internal fun NewAppPageContent(
     onPrivateChange: (Boolean) -> Unit,
     onCreate: () -> Unit,
     onDismissResult: () -> Unit,
+    onCreationTokenInputChange: (String) -> Unit,
+    onSaveCreationToken: () -> Unit,
+    onRemoveCreationToken: () -> Unit,
     onOpenSettings: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -76,6 +81,7 @@ internal fun NewAppPageContent(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             if (!state.signedIn) NeedsToken(onOpenSettings)
+            CreationTokenCard(state, onCreationTokenInputChange, onSaveCreationToken, onRemoveCreationToken)
             FormCard(state, onNameChange, onPrivateChange, onCreate)
             state.progress?.let { ProgressCard(it, onDismissResult) }
             if (state.error != null) {
@@ -100,6 +106,49 @@ private fun NeedsToken(onOpenSettings: () -> Unit) {
 }
 
 @Composable
+private fun CreationTokenCard(
+    state: NewAppUiState,
+    onInputChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    val uriHandler = LocalUriHandler.current
+    NewAppCard {
+        Text("Repo creation token", style = MaterialTheme.typography.titleMedium)
+        if (state.hasCreationToken) {
+            Text(
+                "Saved on this device, and only used to create repos.",
+                style = MaterialTheme.typography.bodySmall,
+                color = AppTheme.colors.textSecondary,
+            )
+            OutlinedButton(onClick = onRemove, shape = CircleShape) { Text("Remove token") }
+        } else {
+            Text(
+                "A token of its own, apart from the one in Settings, so that no secret of ci-workflows can create repos. " +
+                    "Make a fine-grained token for all repositories with the permission Repository creation (write), or " +
+                    "Administration (write) if that is not offered. A classic token with the scope repo works too.",
+                style = MaterialTheme.typography.bodySmall,
+                color = AppTheme.colors.textSecondary,
+            )
+            OutlinedTextField(
+                value = state.creationTokenInput,
+                onValueChange = onInputChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Token") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                shape = MaterialTheme.shapes.medium,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = onSave, enabled = state.creationTokenInput.isNotBlank(), shape = CircleShape) { Text("Save token") }
+                TextButton(onClick = { uriHandler.openUri(NEW_TOKEN_URL) }) { Text("Create a token") }
+            }
+        }
+    }
+}
+
+@Composable
 private fun FormCard(
     state: NewAppUiState,
     onNameChange: (String) -> Unit,
@@ -108,8 +157,8 @@ private fun FormCard(
 ) {
     NewAppCard {
         Text(
-            "Creates the GitHub repo with its first commit, adds the app to the list of ci-workflows and sets it up. " +
-                "It takes a minute or two.",
+            "Makes the GitHub repo, then runs the workflow of ci-workflows that gives it its first commit, adds the app to " +
+                "the list and sets it up. It takes a minute or two.",
             style = MaterialTheme.typography.bodySmall,
             color = AppTheme.colors.textSecondary,
         )
@@ -149,7 +198,8 @@ private fun ProgressCard(progress: NewAppProgress, onDismissResult: () -> Unit) 
     val uriHandler = LocalUriHandler.current
     NewAppCard {
         when (progress) {
-            NewAppProgress.Starting -> Working("Asking GitHub to start…")
+            NewAppProgress.CreatingRepo -> Working("Creating the repo…")
+            NewAppProgress.Starting -> Working("Repo made. Starting its setup…")
             NewAppProgress.Waiting -> Working("Started. Waiting for the run to appear…")
             is NewAppProgress.Running -> {
                 Working("Creating the app…")
@@ -215,11 +265,14 @@ private fun NewAppCard(content: @Composable () -> Unit) {
 private fun Preview() {
     AppTheme {
         NewAppPageContent(
-            state = NewAppUiState(signedIn = true),
+            state = NewAppUiState(signedIn = true, hasCreationToken = true),
             onNameChange = {},
             onPrivateChange = {},
             onCreate = {},
             onDismissResult = {},
+            onCreationTokenInputChange = {},
+            onSaveCreationToken = {},
+            onRemoveCreationToken = {},
             onOpenSettings = {},
             onBack = {},
         )
@@ -232,11 +285,14 @@ private fun Preview() {
 private fun PreviewSignedOut() {
     AppTheme {
         NewAppPageContent(
-            state = NewAppUiState(signedIn = false, name = "Lyric Tutor"),
+            state = NewAppUiState(signedIn = false, hasCreationToken = false, name = "Lyric Tutor"),
             onNameChange = {},
             onPrivateChange = {},
             onCreate = {},
             onDismissResult = {},
+            onCreationTokenInputChange = {},
+            onSaveCreationToken = {},
+            onRemoveCreationToken = {},
             onOpenSettings = {},
             onBack = {},
         )
@@ -251,6 +307,7 @@ private fun PreviewDone() {
         NewAppPageContent(
             state = NewAppUiState(
                 signedIn = true,
+                hasCreationToken = true,
                 name = "LyricTutor",
                 progress = NewAppProgress.Done("LukeNeedham/LyricTutor", "https://github.com/LukeNeedham/ci-workflows/actions/runs/1"),
             ),
@@ -258,6 +315,9 @@ private fun PreviewDone() {
             onPrivateChange = {},
             onCreate = {},
             onDismissResult = {},
+            onCreationTokenInputChange = {},
+            onSaveCreationToken = {},
+            onRemoveCreationToken = {},
             onOpenSettings = {},
             onBack = {},
         )

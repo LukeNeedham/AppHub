@@ -2,6 +2,7 @@ package com.lukeneedham.apphub
 
 import com.lukeneedham.apphub.domain.InvalidTokenException
 import com.lukeneedham.apphub.domain.MissingPermissionException
+import com.lukeneedham.apphub.domain.NewAppException
 import com.lukeneedham.apphub.domain.NewAppProgress
 import com.lukeneedham.apphub.domain.NewAppSource
 import com.lukeneedham.apphub.domain.TokenStore
@@ -57,7 +58,11 @@ class NewAppViewModelTest {
 
     private val done = NewAppProgress.Done("LukeNeedham/LyricTutor", "run-url")
 
-    private fun viewModel(source: FakeSource, tokens: TokenStore = MemoryTokens()) = NewAppViewModel(source, tokens)
+    private fun viewModel(
+        source: FakeSource,
+        tokens: TokenStore = MemoryTokens(),
+        creationTokens: TokenStore = MemoryTokens("github_pat_create"),
+    ) = NewAppViewModel(source, tokens, creationTokens)
 
     @Test
     fun `without a token nothing can be created`() = runTest(dispatcher) {
@@ -70,6 +75,64 @@ class NewAppViewModelTest {
 
         assertFalse(viewModel.uiState.value.signedIn)
         assertTrue(source.started.isEmpty())
+    }
+
+    @Test
+    fun `without a repo creation token nothing can be created`() = runTest(dispatcher) {
+        val source = FakeSource { _, _ -> flowOf(done) }
+        val viewModel = viewModel(source, creationTokens = MemoryTokens(null))
+        viewModel.onNameChange("LyricTutor")
+
+        viewModel.create()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.hasCreationToken)
+        assertFalse(viewModel.uiState.value.canCreate)
+        assertTrue(source.started.isEmpty())
+    }
+
+    @Test
+    fun `a repo creation token that is typed and saved enables it, and is forgotten from the field`() = runTest(dispatcher) {
+        val creationTokens = MemoryTokens(null)
+        val viewModel = viewModel(FakeSource { _, _ -> flowOf(done) }, creationTokens = creationTokens)
+        viewModel.onNameChange("LyricTutor")
+
+        viewModel.onCreationTokenInputChange("  github_pat_new ")
+        viewModel.saveCreationToken()
+        advanceUntilIdle()
+
+        assertEquals("github_pat_new", creationTokens.token.value)
+        val state = viewModel.uiState.value
+        assertEquals("", state.creationTokenInput)
+        assertTrue(state.hasCreationToken)
+        assertTrue(state.canCreate)
+    }
+
+    @Test
+    fun `an empty repo creation token is not saved`() = runTest(dispatcher) {
+        val creationTokens = MemoryTokens(null)
+        val viewModel = viewModel(FakeSource { _, _ -> flowOf(done) }, creationTokens = creationTokens)
+
+        viewModel.onCreationTokenInputChange("   ")
+        viewModel.saveCreationToken()
+        advanceUntilIdle()
+
+        assertNull(creationTokens.token.value)
+    }
+
+    @Test
+    fun `removing the repo creation token stops creating`() = runTest(dispatcher) {
+        val creationTokens = MemoryTokens("github_pat_create")
+        val viewModel = viewModel(FakeSource { _, _ -> flowOf(done) }, creationTokens = creationTokens)
+        viewModel.onNameChange("LyricTutor")
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.canCreate)
+
+        viewModel.removeCreationToken()
+        advanceUntilIdle()
+
+        assertNull(creationTokens.token.value)
+        assertFalse(viewModel.uiState.value.canCreate)
     }
 
     @Test
@@ -107,7 +170,7 @@ class NewAppViewModelTest {
     @Test
     fun `the app is created with the name and the visibility asked for, and the progress shown`() = runTest(dispatcher) {
         val source = FakeSource { _, _ ->
-            flowOf(NewAppProgress.Starting, NewAppProgress.Waiting, NewAppProgress.Running("run-url"), done)
+            flowOf(NewAppProgress.CreatingRepo, NewAppProgress.Starting, NewAppProgress.Waiting, NewAppProgress.Running("run-url"), done)
         }
         val viewModel = viewModel(source)
         viewModel.onNameChange("LyricTutor")
@@ -157,6 +220,20 @@ class NewAppViewModelTest {
     }
 
     @Test
+    fun `a failure with a message of its own shows that message as it is`() = runTest(dispatcher) {
+        val message = "A repository named LyricTutor exists already, or GitHub does not take the name."
+        val viewModel = viewModel(FakeSource { _, _ -> flow { throw NewAppException(message) } })
+        viewModel.onNameChange("LyricTutor")
+
+        viewModel.create()
+        advanceUntilIdle()
+
+        assertEquals(message, viewModel.uiState.value.error)
+        assertNull(viewModel.uiState.value.progress)
+        assertTrue(viewModel.uiState.value.canCreate)
+    }
+
+    @Test
     fun `any other failure shows its message and lets the user try again`() = runTest(dispatcher) {
         val viewModel = viewModel(FakeSource { _, _ -> flow { throw IOException("GitHub returned 422") } })
         viewModel.onNameChange("LyricTutor")
@@ -181,6 +258,7 @@ class NewAppViewModelTest {
         assertEquals("", state.name)
         assertNull(state.progress)
         assertTrue(state.signedIn)
+        assertTrue("the saved token stays", state.hasCreationToken)
     }
 
     @Test
