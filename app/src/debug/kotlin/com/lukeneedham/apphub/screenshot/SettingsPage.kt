@@ -21,6 +21,7 @@ private fun SettingsPageScreenshot() {
             onRepoCreationTokenInputChange = {},
             onSaveRepoCreationToken = {},
             onRemoveRepoCreationToken = {},
+            onShowAutoMergePrsChange = {},
             onBack = {},
             onOpenDebug = {},
         )

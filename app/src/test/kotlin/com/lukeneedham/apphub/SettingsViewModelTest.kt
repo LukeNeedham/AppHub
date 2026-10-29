@@ -4,6 +4,7 @@ import com.lukeneedham.apphub.data.CommentDto
 import com.lukeneedham.apphub.data.GithubApi
 import com.lukeneedham.apphub.data.IssueDto
 import com.lukeneedham.apphub.data.ReleaseDto
+import com.lukeneedham.apphub.domain.DisplaySettings
 import com.lukeneedham.apphub.domain.InvalidTokenException
 import com.lukeneedham.apphub.domain.RateLimitInfo
 import com.lukeneedham.apphub.domain.TokenStore
@@ -46,6 +47,12 @@ class SettingsViewModelTest {
             if (token in valid) RateLimitInfo(5000, 4990) else throw InvalidTokenException()
     }
 
+    private class MemoryDisplay : DisplaySettings {
+        private val state = MutableStateFlow(false)
+        override val showAutoMergePrs: StateFlow<Boolean> = state
+        override fun setShowAutoMergePrs(show: Boolean) { state.value = show }
+    }
+
     private class MemoryTokens(initial: String? = null) : TokenStore {
         private val state = MutableStateFlow(initial)
         override val token: StateFlow<String?> = state
@@ -55,7 +62,7 @@ class SettingsViewModelTest {
     @Test
     fun aValidTokenIsKeptAndItsAllowanceShown() = runTest(dispatcher) {
         val tokens = MemoryTokens()
-        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, MemoryTokens())
+        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, MemoryTokens(), MemoryDisplay())
 
         viewModel.onInputChange("  github_pat_abcd ")
         viewModel.save()
@@ -71,7 +78,7 @@ class SettingsViewModelTest {
     @Test
     fun aRejectedTokenIsNotKept() = runTest(dispatcher) {
         val tokens = MemoryTokens()
-        val viewModel = SettingsViewModel(FakeApi(emptySet()), tokens, MemoryTokens())
+        val viewModel = SettingsViewModel(FakeApi(emptySet()), tokens, MemoryTokens(), MemoryDisplay())
 
         viewModel.onInputChange("wrong")
         viewModel.save()
@@ -85,7 +92,7 @@ class SettingsViewModelTest {
     @Test
     fun removingTheTokenSignsOut() = runTest(dispatcher) {
         val tokens = MemoryTokens("github_pat_abcd")
-        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, MemoryTokens())
+        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, MemoryTokens(), MemoryDisplay())
         advanceUntilIdle()
         assertEquals(true, viewModel.uiState.value.signedIn)
 
@@ -97,7 +104,7 @@ class SettingsViewModelTest {
 
     @Test
     fun aSavedRepoCreationTokenIsShownAsSavedFromTheStart() = runTest(dispatcher) {
-        val viewModel = SettingsViewModel(FakeApi(emptySet()), MemoryTokens(), MemoryTokens("github_pat_create"))
+        val viewModel = SettingsViewModel(FakeApi(emptySet()), MemoryTokens(), MemoryTokens("github_pat_create"), MemoryDisplay())
         advanceUntilIdle()
 
         assertEquals(true, viewModel.uiState.value.hasRepoCreationToken)
@@ -106,7 +113,7 @@ class SettingsViewModelTest {
     @Test
     fun aRepoCreationTokenThatIsTypedAndSavedIsKeptTrimmedAndForgottenFromTheField() = runTest(dispatcher) {
         val creationTokens = MemoryTokens()
-        val viewModel = SettingsViewModel(FakeApi(emptySet()), MemoryTokens(), creationTokens)
+        val viewModel = SettingsViewModel(FakeApi(emptySet()), MemoryTokens(), creationTokens, MemoryDisplay())
 
         viewModel.onRepoCreationTokenInputChange("  github_pat_new ")
         viewModel.saveRepoCreationToken()
@@ -120,7 +127,7 @@ class SettingsViewModelTest {
     @Test
     fun anEmptyRepoCreationTokenIsNotSaved() = runTest(dispatcher) {
         val creationTokens = MemoryTokens()
-        val viewModel = SettingsViewModel(FakeApi(emptySet()), MemoryTokens(), creationTokens)
+        val viewModel = SettingsViewModel(FakeApi(emptySet()), MemoryTokens(), creationTokens, MemoryDisplay())
 
         viewModel.onRepoCreationTokenInputChange("   ")
         viewModel.saveRepoCreationToken()
@@ -133,7 +140,7 @@ class SettingsViewModelTest {
     fun removingTheRepoCreationTokenForgetsItAndLeavesTheGithubTokenAlone() = runTest(dispatcher) {
         val tokens = MemoryTokens("github_pat_abcd")
         val creationTokens = MemoryTokens("github_pat_create")
-        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, creationTokens)
+        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, creationTokens, MemoryDisplay())
         advanceUntilIdle()
 
         viewModel.removeRepoCreationToken()
@@ -148,7 +155,7 @@ class SettingsViewModelTest {
     fun theGithubTokenAndTheRepoCreationTokenDoNotTouchEachOther() = runTest(dispatcher) {
         val tokens = MemoryTokens()
         val creationTokens = MemoryTokens("github_pat_create")
-        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, creationTokens)
+        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, creationTokens, MemoryDisplay())
         viewModel.onRepoCreationTokenInputChange("half typed")
 
         viewModel.onInputChange("github_pat_abcd")

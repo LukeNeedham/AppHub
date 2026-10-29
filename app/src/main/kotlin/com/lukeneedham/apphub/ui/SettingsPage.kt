@@ -57,6 +57,7 @@ fun SettingsPage(
         onRepoCreationTokenInputChange = viewModel::onRepoCreationTokenInputChange,
         onSaveRepoCreationToken = viewModel::saveRepoCreationToken,
         onRemoveRepoCreationToken = viewModel::removeRepoCreationToken,
+        onShowAutoMergePrsChange = viewModel::setShowAutoMergePrs,
         onBack = onBack,
         onOpenDebug = onOpenDebug,
     )

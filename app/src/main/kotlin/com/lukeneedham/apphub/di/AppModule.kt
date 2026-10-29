@@ -3,6 +3,8 @@ package com.lukeneedham.apphub.di
 import com.lukeneedham.apphub.data.AndroidApkInstaller
 import com.lukeneedham.apphub.data.GithubApi
 import com.lukeneedham.apphub.data.KeystoreTokenStore
+import com.lukeneedham.apphub.data.PrefsDisplaySettings
+import com.lukeneedham.apphub.domain.DisplaySettings
 import com.lukeneedham.apphub.data.KtorGithubApi
 import com.lukeneedham.apphub.data.KtorNewAppApi
 import com.lukeneedham.apphub.data.NewAppApi
@@ -51,6 +53,7 @@ val appModule = module {
             .build()
     }
     single<TokenStore> { KeystoreTokenStore(androidContext()) }
+    single<DisplaySettings> { PrefsDisplaySettings(androidContext()) }
     single { githubHttpClient(get()) }
     single<GithubApi> { KtorGithubApi(get(), GITHUB_OWNER, get()) }
     // A second token, kept apart from the one above, whose only power is to create repos (docs/create-app.md in ci-workflows)
@@ -69,6 +72,6 @@ val appModule = module {
     single { ApkDownloads(get(), get(), get(), CoroutineScope(SupervisorJob() + Dispatchers.Main)) }
     viewModelOf(::HomeViewModel)
     viewModel { (repo: String, number: Int) -> PullRequestViewModel(repo, number, get(), get(), get()) }
-    viewModel { SettingsViewModel(get(), get(), get(named(REPO_CREATION_TOKEN))) }
+    viewModel { SettingsViewModel(get(), get(), get(named(REPO_CREATION_TOKEN)), get()) }
     viewModel { NewAppViewModel(get(), get(), get(named(REPO_CREATION_TOKEN))) }
 }

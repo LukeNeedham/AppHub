@@ -13,6 +13,7 @@ import com.lukeneedham.apphub.domain.MainBuildSource
 import com.lukeneedham.apphub.domain.MainPhase
 import com.lukeneedham.apphub.domain.PullRequest
 import com.lukeneedham.apphub.domain.PullRequestSource
+import com.lukeneedham.apphub.domain.DisplaySettings
 import com.lukeneedham.apphub.domain.TokenStore
 import com.lukeneedham.apphub.ui.ApkDownloads
 import com.lukeneedham.apphub.ui.HomeViewModel
@@ -46,10 +47,15 @@ class HomeViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun pr(number: Int, repo: String = "LukeNeedham/FlagTutor", commit: String = "abc1234") = PullRequest(
+    private fun pr(
+        number: Int,
+        repo: String = "LukeNeedham/FlagTutor",
+        commit: String = "abc1234",
+        title: String = "PR $number",
+    ) = PullRequest(
         repo = repo,
         number = number,
-        title = "PR $number",
+        title = title,
         author = "luke",
         url = "https://github.com/$repo/pull/$number",
         isDraft = false,
@@ -63,6 +69,7 @@ class HomeViewModelTest {
         installer: ApkInstaller,
         tokens: TokenStore,
         mainBuilds: MainBuildSource = FakeMainBuilds(),
+        display: DisplaySettings = FakeDisplaySettings(),
     ): HomeViewModel {
         val tracker = FakeTracker()
         return HomeViewModel(
@@ -72,6 +79,7 @@ class HomeViewModelTest {
             tracker,
             tokens,
             mainBuilds,
+            display,
         )
     }
 
@@ -110,6 +118,12 @@ class HomeViewModelTest {
         override fun open(packageName: String) = true
     }
 
+    private class FakeDisplaySettings(initial: Boolean = false) : DisplaySettings {
+        private val state = MutableStateFlow(initial)
+        override val showAutoMergePrs: StateFlow<Boolean> = state
+        override fun setShowAutoMergePrs(show: Boolean) { state.value = show }
+    }
+
     private class FakeTokenStore(initial: String? = null) : TokenStore {
         private val state = MutableStateFlow(initial)
         override val token: StateFlow<String?> = state
@@ -122,6 +136,19 @@ class HomeViewModelTest {
         override fun onDownloaded(repo: String, file: File) = Unit
         override fun onInstallStarted(repo: String, buildId: String) = Unit
         override fun confirmPending() = Unit
+    }
+
+    @Test
+    fun autoMergePullRequestsAreHiddenUntilTheSettingIsOn() = runTest(dispatcher) {
+        val source = FakeSource(listOf(pr(1), pr(2, title = "[Auto-Merge] Bump deps")))
+        val display = FakeDisplaySettings()
+        val viewModel = viewModel(source, FakeDownloader(), FakeInstaller(), FakeTokenStore(), display = display)
+        advanceUntilIdle()
+        assertEquals(listOf(1), viewModel.uiState.value.repos.single().pullRequests.map { it.pr.number })
+
+        display.setShowAutoMergePrs(true)
+        advanceUntilIdle()
+        assertEquals(listOf(1, 2), viewModel.uiState.value.repos.single().pullRequests.map { it.pr.number })
     }
 
     @Test
