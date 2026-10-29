@@ -3,6 +3,7 @@ package com.lukeneedham.apphub.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lukeneedham.apphub.data.GithubApi
+import com.lukeneedham.apphub.domain.DisplaySettings
 import com.lukeneedham.apphub.domain.InvalidTokenException
 import com.lukeneedham.apphub.domain.RateLimitInfo
 import com.lukeneedham.apphub.domain.TokenStore
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(
     private val api: GithubApi,
     private val tokenStore: TokenStore,
+    private val displaySettings: DisplaySettings,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(stateFor(tokenStore.token.value))
@@ -24,6 +26,11 @@ class SettingsViewModel(
 
     init {
         tokenStore.token.value?.let { loadRateLimit(it) }
+    }
+
+    fun setShowAutoMergePrs(show: Boolean) {
+        displaySettings.setShowAutoMergePrs(show)
+        _uiState.update { it.copy(showAutoMergePrs = show) }
     }
 
     fun onInputChange(input: String) = _uiState.update { it.copy(input = input, error = null) }
@@ -71,5 +78,6 @@ class SettingsViewModel(
 
     private fun stateFor(token: String?) = SettingsUiState(
         signedIn = token != null,
+        showAutoMergePrs = displaySettings.showAutoMergePrs.value,
     )
 }

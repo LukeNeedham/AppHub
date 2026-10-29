@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 
 data class SettingsUiState(
     val signedIn: Boolean = false,
+    val showAutoMergePrs: Boolean = false,
     val input: String = "",
     val isChecking: Boolean = false,
     val error: String? = null,

@@ -3,6 +3,7 @@ package com.lukeneedham.apphub.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lukeneedham.apphub.domain.ApkDownloader
+import com.lukeneedham.apphub.domain.DisplaySettings
 import com.lukeneedham.apphub.domain.DownloadState
 import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.InstallTracker
@@ -14,6 +15,7 @@ import com.lukeneedham.apphub.domain.PullRequestSource
 import com.lukeneedham.apphub.domain.InvalidTokenException
 import com.lukeneedham.apphub.domain.RateLimitException
 import com.lukeneedham.apphub.domain.TokenStore
+import com.lukeneedham.apphub.domain.isAutoMerge
 import com.lukeneedham.apphub.domain.mainKey
 import com.lukeneedham.apphub.domain.newClaudeSessionUrl
 import com.lukeneedham.apphub.domain.repoUrl
@@ -57,6 +59,7 @@ class HomeViewModel(
     private val tracker: InstallTracker,
     private val tokenStore: TokenStore,
     private val mainBuilds: MainBuildSource,
+    private val displaySettings: DisplaySettings,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -77,6 +80,8 @@ class HomeViewModel(
         viewModelScope.launch { downloads.changes.drop(1).collect { publish() } }
         // A new or removed token changes what GitHub allows and shows: load again
         viewModelScope.launch { tokenStore.token.drop(1).collect { refresh() } }
+        // Showing or hiding auto merge PRs only changes the list, so there is nothing to load
+        viewModelScope.launch { displaySettings.showAutoMergePrs.drop(1).collect { publish() } }
     }
 
     fun refresh() {
@@ -181,7 +186,9 @@ class HomeViewModel(
     }
 
     private fun publish() {
+        val showAutoMerge = displaySettings.showAutoMergePrs.value
         val withPullRequests = pullRequests
+            .filter { showAutoMerge || !it.isAutoMerge() }
             .groupBy { it.repo }
             .map { (repo, prs) ->
                 RepoSection(

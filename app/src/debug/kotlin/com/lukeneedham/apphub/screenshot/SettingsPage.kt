@@ -18,6 +18,7 @@ private fun SettingsPageScreenshot() {
             onInputChange = {},
             onSave = {},
             onRemove = {},
+            onShowAutoMergePrsChange = {},
             onBack = {},
             onOpenDebug = {},
         )
