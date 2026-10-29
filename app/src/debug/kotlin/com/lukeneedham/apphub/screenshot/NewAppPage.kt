@@ -24,9 +24,6 @@ private fun NewAppPageScreenshot() {
             onPrivateChange = {},
             onCreate = {},
             onDismissResult = {},
-            onCreationTokenInputChange = {},
-            onSaveCreationToken = {},
-            onRemoveCreationToken = {},
             onOpenSettings = {},
             onBack = {},
         )

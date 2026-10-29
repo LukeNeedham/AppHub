@@ -18,9 +18,6 @@ fun NewAppPage(
         onPrivateChange = viewModel::onPrivateChange,
         onCreate = viewModel::create,
         onDismissResult = viewModel::dismissResult,
-        onCreationTokenInputChange = viewModel::onCreationTokenInputChange,
-        onSaveCreationToken = viewModel::saveCreationToken,
-        onRemoveCreationToken = viewModel::removeCreationToken,
         onOpenSettings = onOpenSettings,
         onBack = onBack,
     )

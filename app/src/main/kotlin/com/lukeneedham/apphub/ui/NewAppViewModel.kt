@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 
 /**
  * [tokenStore] is the token of Settings, which starts the workflow; [repoCreationTokenStore] holds a token of its own, which only
- * creates the repo, so that no secret of the common repo can.
+ * creates the repo, so that no secret of the common repo can. Both are entered in Settings: this page only reads them.
  */
 class NewAppViewModel(
     private val source: NewAppSource,
@@ -52,18 +52,6 @@ class NewAppViewModel(
         if (_uiState.value.inProgress) return
         _uiState.update { it.copy(isPrivate = isPrivate) }
     }
-
-    fun onCreationTokenInputChange(input: String) = _uiState.update { it.copy(creationTokenInput = input, error = null) }
-
-    /** Keeps what was typed as the token that creates repos. GitHub is asked about it when it is used. */
-    fun saveCreationToken() {
-        val token = _uiState.value.creationTokenInput.trim()
-        if (token.isEmpty()) return
-        repoCreationTokenStore.set(token)
-        _uiState.update { it.copy(creationTokenInput = "", error = null) }
-    }
-
-    fun removeCreationToken() = repoCreationTokenStore.set(null)
 
     /** Makes the repo, then starts its setup and follows it. Nothing happens while the name is wrong, a token is missing or one is running. */
     fun create() {

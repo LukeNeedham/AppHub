@@ -18,6 +18,9 @@ private fun SettingsPageScreenshot() {
             onInputChange = {},
             onSave = {},
             onRemove = {},
+            onRepoCreationTokenInputChange = {},
+            onSaveRepoCreationToken = {},
+            onRemoveRepoCreationToken = {},
             onBack = {},
             onOpenDebug = {},
         )

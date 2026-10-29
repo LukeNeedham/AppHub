@@ -55,7 +55,7 @@ class SettingsViewModelTest {
     @Test
     fun aValidTokenIsKeptAndItsAllowanceShown() = runTest(dispatcher) {
         val tokens = MemoryTokens()
-        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens)
+        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, MemoryTokens())
 
         viewModel.onInputChange("  github_pat_abcd ")
         viewModel.save()
@@ -71,7 +71,7 @@ class SettingsViewModelTest {
     @Test
     fun aRejectedTokenIsNotKept() = runTest(dispatcher) {
         val tokens = MemoryTokens()
-        val viewModel = SettingsViewModel(FakeApi(emptySet()), tokens)
+        val viewModel = SettingsViewModel(FakeApi(emptySet()), tokens, MemoryTokens())
 
         viewModel.onInputChange("wrong")
         viewModel.save()
@@ -85,7 +85,7 @@ class SettingsViewModelTest {
     @Test
     fun removingTheTokenSignsOut() = runTest(dispatcher) {
         val tokens = MemoryTokens("github_pat_abcd")
-        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens)
+        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, MemoryTokens())
         advanceUntilIdle()
         assertEquals(true, viewModel.uiState.value.signedIn)
 
@@ -93,5 +93,71 @@ class SettingsViewModelTest {
 
         assertNull(tokens.token.value)
         assertEquals(false, viewModel.uiState.value.signedIn)
+    }
+
+    @Test
+    fun aSavedRepoCreationTokenIsShownAsSavedFromTheStart() = runTest(dispatcher) {
+        val viewModel = SettingsViewModel(FakeApi(emptySet()), MemoryTokens(), MemoryTokens("github_pat_create"))
+        advanceUntilIdle()
+
+        assertEquals(true, viewModel.uiState.value.hasRepoCreationToken)
+    }
+
+    @Test
+    fun aRepoCreationTokenThatIsTypedAndSavedIsKeptTrimmedAndForgottenFromTheField() = runTest(dispatcher) {
+        val creationTokens = MemoryTokens()
+        val viewModel = SettingsViewModel(FakeApi(emptySet()), MemoryTokens(), creationTokens)
+
+        viewModel.onRepoCreationTokenInputChange("  github_pat_new ")
+        viewModel.saveRepoCreationToken()
+
+        assertEquals("github_pat_new", creationTokens.token.value)
+        val state = viewModel.uiState.value
+        assertEquals(true, state.hasRepoCreationToken)
+        assertEquals("", state.repoCreationTokenInput)
+    }
+
+    @Test
+    fun anEmptyRepoCreationTokenIsNotSaved() = runTest(dispatcher) {
+        val creationTokens = MemoryTokens()
+        val viewModel = SettingsViewModel(FakeApi(emptySet()), MemoryTokens(), creationTokens)
+
+        viewModel.onRepoCreationTokenInputChange("   ")
+        viewModel.saveRepoCreationToken()
+
+        assertNull(creationTokens.token.value)
+        assertEquals(false, viewModel.uiState.value.hasRepoCreationToken)
+    }
+
+    @Test
+    fun removingTheRepoCreationTokenForgetsItAndLeavesTheGithubTokenAlone() = runTest(dispatcher) {
+        val tokens = MemoryTokens("github_pat_abcd")
+        val creationTokens = MemoryTokens("github_pat_create")
+        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, creationTokens)
+        advanceUntilIdle()
+
+        viewModel.removeRepoCreationToken()
+
+        assertNull(creationTokens.token.value)
+        assertEquals(false, viewModel.uiState.value.hasRepoCreationToken)
+        assertEquals("github_pat_abcd", tokens.token.value)
+        assertEquals(true, viewModel.uiState.value.signedIn)
+    }
+
+    @Test
+    fun theGithubTokenAndTheRepoCreationTokenDoNotTouchEachOther() = runTest(dispatcher) {
+        val tokens = MemoryTokens()
+        val creationTokens = MemoryTokens("github_pat_create")
+        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, creationTokens)
+        viewModel.onRepoCreationTokenInputChange("half typed")
+
+        viewModel.onInputChange("github_pat_abcd")
+        viewModel.save()
+        advanceUntilIdle()
+        viewModel.remove()
+
+        assertEquals("github_pat_create", creationTokens.token.value)
+        assertEquals(true, viewModel.uiState.value.hasRepoCreationToken)
+        assertEquals("half typed", viewModel.uiState.value.repoCreationTokenInput)
     }
 }

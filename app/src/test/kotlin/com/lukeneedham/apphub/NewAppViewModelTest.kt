@@ -92,46 +92,32 @@ class NewAppViewModelTest {
     }
 
     @Test
-    fun `a repo creation token that is typed and saved enables it, and is forgotten from the field`() = runTest(dispatcher) {
+    fun `a repo creation token saved in Settings while the page is open enables it`() = runTest(dispatcher) {
         val creationTokens = MemoryTokens(null)
         val viewModel = viewModel(FakeSource { _, _ -> flowOf(done) }, creationTokens = creationTokens)
         viewModel.onNameChange("LyricTutor")
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.canCreate)
 
-        viewModel.onCreationTokenInputChange("  github_pat_new ")
-        viewModel.saveCreationToken()
+        creationTokens.set("github_pat_new")
         advanceUntilIdle()
 
-        assertEquals("github_pat_new", creationTokens.token.value)
-        val state = viewModel.uiState.value
-        assertEquals("", state.creationTokenInput)
-        assertTrue(state.hasCreationToken)
-        assertTrue(state.canCreate)
+        assertTrue(viewModel.uiState.value.hasCreationToken)
+        assertTrue(viewModel.uiState.value.canCreate)
     }
 
     @Test
-    fun `an empty repo creation token is not saved`() = runTest(dispatcher) {
-        val creationTokens = MemoryTokens(null)
-        val viewModel = viewModel(FakeSource { _, _ -> flowOf(done) }, creationTokens = creationTokens)
-
-        viewModel.onCreationTokenInputChange("   ")
-        viewModel.saveCreationToken()
-        advanceUntilIdle()
-
-        assertNull(creationTokens.token.value)
-    }
-
-    @Test
-    fun `removing the repo creation token stops creating`() = runTest(dispatcher) {
+    fun `a repo creation token removed in Settings stops creating`() = runTest(dispatcher) {
         val creationTokens = MemoryTokens("github_pat_create")
         val viewModel = viewModel(FakeSource { _, _ -> flowOf(done) }, creationTokens = creationTokens)
         viewModel.onNameChange("LyricTutor")
         advanceUntilIdle()
         assertTrue(viewModel.uiState.value.canCreate)
 
-        viewModel.removeCreationToken()
+        creationTokens.set(null)
         advanceUntilIdle()
 
-        assertNull(creationTokens.token.value)
+        assertFalse(viewModel.uiState.value.hasCreationToken)
         assertFalse(viewModel.uiState.value.canCreate)
     }
 
