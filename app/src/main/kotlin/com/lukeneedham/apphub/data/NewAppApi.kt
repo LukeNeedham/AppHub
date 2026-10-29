@@ -72,7 +72,7 @@ class KtorNewAppApi(
             422 -> throw NewAppException("A repository named $name exists already, or GitHub does not take the name.")
         }
         throwIfFailed(response)
-        return response.body<RepoDto>().defaultBranch
+        return response.body<CreatedRepoDto>().defaultBranch
     }
 
     override suspend fun renameBranch(name: String, from: String, to: String) {
@@ -137,7 +137,7 @@ data class CreateRepoDto(
 )
 
 @Serializable
-data class RepoDto(@SerialName("default_branch") val defaultBranch: String = "main")
+data class CreatedRepoDto(@SerialName("default_branch") val defaultBranch: String = "main")
 
 @Serializable
 data class RenameBranchDto(@SerialName("new_name") val newName: String)
