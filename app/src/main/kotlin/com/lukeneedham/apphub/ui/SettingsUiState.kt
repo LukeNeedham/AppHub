@@ -21,4 +21,8 @@ data class SettingsUiState(
     val isChecking: Boolean = false,
     val error: String? = null,
     val rateLimit: RateLimitInfo? = null,
+    /** Whether the token that creates repos (the New app page) is saved. */
+    val hasRepoCreationToken: Boolean = false,
+    /** What was typed for that token, until it is saved. */
+    val repoCreationTokenInput: String = "",
 )

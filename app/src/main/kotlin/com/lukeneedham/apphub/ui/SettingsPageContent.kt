@@ -51,6 +51,9 @@ internal fun SettingsPageContent(
     onInputChange: (String) -> Unit,
     onSave: () -> Unit,
     onRemove: () -> Unit,
+    onRepoCreationTokenInputChange: (String) -> Unit,
+    onSaveRepoCreationToken: () -> Unit,
+    onRemoveRepoCreationToken: () -> Unit,
     onShowAutoMergePrsChange: (Boolean) -> Unit,
     onBack: () -> Unit,
     onOpenDebug: (() -> Unit)?,
@@ -75,6 +78,7 @@ internal fun SettingsPageContent(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             GithubCard(state, onInputChange, onSave, onRemove)
+            RepoCreationTokenCard(state, onRepoCreationTokenInputChange, onSaveRepoCreationToken, onRemoveRepoCreationToken)
             AutoMergeRow(state.showAutoMergePrs, onShowAutoMergePrsChange)
             if (onOpenDebug != null) {
                 SettingsRow(title = "Debug", subtitle = "Logs, crashes and animation speed", onClick = onOpenDebug)
@@ -142,6 +146,50 @@ private fun GithubCard(
                     enabled = state.input.isNotBlank() && !state.isChecking,
                     shape = CircleShape,
                 ) { Text(if (state.isChecking) "Checking…" else "Save token") }
+                TextButton(onClick = { uriHandler.openUri(NEW_TOKEN_URL) }) { Text("Create a token") }
+            }
+        }
+    }
+}
+
+/** The token that creates the repos of the New app page: its own, so that nothing else can. Entered once, kept like the GitHub token. */
+@Composable
+private fun RepoCreationTokenCard(
+    state: SettingsUiState,
+    onInputChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    val uriHandler = LocalUriHandler.current
+    Card {
+        Text("Create new app token", style = MaterialTheme.typography.titleMedium)
+        if (state.hasRepoCreationToken) {
+            Text(
+                "Saved on this device, and only used to create the repos of new apps.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            OutlinedButton(onClick = onRemove, shape = CircleShape) { Text("Remove token") }
+        } else {
+            Text(
+                "The New app page makes a GitHub repo with a token of its own, apart from the one above, so that no secret of " +
+                    "ci-workflows can create repos. Make a fine-grained token for all repositories with the permission " +
+                    "Repository creation (write), or Administration (write) if that is not offered. A classic token with the " +
+                    "scope repo works too. Set the longest expiration: after it, create a new token and replace this one.",
+                style = MaterialTheme.typography.bodySmall,
+                color = AppTheme.colors.textSecondary,
+            )
+            OutlinedTextField(
+                value = state.repoCreationTokenInput,
+                onValueChange = onInputChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Token to create repos") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                shape = MaterialTheme.shapes.medium,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = onSave, enabled = state.repoCreationTokenInput.isNotBlank(), shape = CircleShape) { Text("Save token") }
                 TextButton(onClick = { uriHandler.openUri(NEW_TOKEN_URL) }) { Text("Create a token") }
             }
         }
@@ -238,6 +286,9 @@ private fun Preview() {
             onInputChange = {},
             onSave = {},
             onRemove = {},
+            onRepoCreationTokenInputChange = {},
+            onSaveRepoCreationToken = {},
+            onRemoveRepoCreationToken = {},
             onShowAutoMergePrsChange = {},
             onBack = {},
             onOpenDebug = {},

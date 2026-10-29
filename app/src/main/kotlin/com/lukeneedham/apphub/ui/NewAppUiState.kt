@@ -6,10 +6,8 @@ import com.lukeneedham.apphub.domain.newAppNameError
 data class NewAppUiState(
     /** Whether there is a GitHub token (Settings): without one the workflow cannot be started. */
     val signedIn: Boolean = false,
-    /** Whether the token that creates repos is saved. */
+    /** Whether the token that creates repos is saved (in Settings). */
     val hasCreationToken: Boolean = false,
-    /** What was typed for that token, until it is saved. */
-    val creationTokenInput: String = "",
     val name: String = "",
     val isPrivate: Boolean = false,
     /** Null before anything was started, and after a start that was refused (see [error]). */

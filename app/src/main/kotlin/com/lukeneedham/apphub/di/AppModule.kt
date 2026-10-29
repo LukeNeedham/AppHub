@@ -72,6 +72,6 @@ val appModule = module {
     single { ApkDownloads(get(), get(), get(), CoroutineScope(SupervisorJob() + Dispatchers.Main)) }
     viewModelOf(::HomeViewModel)
     viewModel { (repo: String, number: Int) -> PullRequestViewModel(repo, number, get(), get(), get()) }
-    viewModelOf(::SettingsViewModel)
+    viewModel { SettingsViewModel(get(), get(), get(named(REPO_CREATION_TOKEN)), get()) }
     viewModel { NewAppViewModel(get(), get(), get(named(REPO_CREATION_TOKEN))) }
 }

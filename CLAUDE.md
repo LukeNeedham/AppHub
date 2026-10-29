@@ -36,8 +36,8 @@
   `build_main.yml`). `MAIN_RELEASE_TAG` and `MAIN_APK_ASSET` must match it. Which commit the APK is of comes from the
   `commit:` line of the release notes (`scripts/main_build.py` there). AppHub never starts a build.
 - The plus on Home opens `NewAppPage`, which creates an app in two steps (`docs/create-app.md` in `LukeNeedham/ci-workflows`): it makes
-  the repo itself, with a token of its own (the repo creation token, saved on that page in its own Keystore entry, only ever used to
-  create repos), then starts the workflow `new_app.yml` of ci-workflows with `resume` on, with the token of Settings (which needs the
+  the repo itself, with a token of its own (the create new app token, entered on the Settings page and kept in its own Keystore entry, only
+  ever used to create repos; the New app page only reads it, and says to set it up first when it is missing), then starts the workflow `new_app.yml` of ci-workflows with `resume` on, with the token of Settings (which needs the
   Actions permission, read and write), and follows its run, which it finds by its title `New App <name>` (the `run-name` of the
   workflow). No secret of ci-workflows can create repos. `NEW_APP_WORKFLOW`, `NEW_APP_REF` and `newAppRunTitle` must match that
   workflow, and the name check (`newAppNameError`) must match `check_name` of `scripts/new_app.py`.
