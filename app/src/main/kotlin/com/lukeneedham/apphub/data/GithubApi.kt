@@ -62,7 +62,7 @@ class KtorGithubApi(
             "&sort=updated&order=desc&per_page=100"
         // Revalidated every time: GitHub marks responses max-age=60, so the HTTP cache would otherwise
         // serve this list unchecked for a minute, and a refresh would show the previous state
-        return get<SearchDto>(url, forceNetwork = true).items
+        return get<SearchDto>(url, forceNetwork = true).items.orEmpty()
     }
 
     override suspend fun repositories(): List<String> {
@@ -72,7 +72,7 @@ class KtorGithubApi(
             val batch = get<List<RepoDto>>(
                 "https://api.github.com/users/$owner/repos?type=owner&sort=updated&per_page=$REPOS_PER_PAGE&page=$page",
             )
-            names += batch.filterNot { it.archived }.map { it.fullName }
+            names += batch.filter { it.archived != true }.mapNotNull { it.fullName }
             if (batch.size < REPOS_PER_PAGE) return names
             page++
         }
@@ -80,9 +80,9 @@ class KtorGithubApi(
 
     override suspend fun commonApps(): Set<String> {
         val file = get<ContentDto>("https://api.github.com/repos/$COMMON_REPO/contents/$COMMON_APPS_FILE", forceNetwork = true)
-        val json = String(Base64.getMimeDecoder().decode(file.content))
-        return Json { ignoreUnknownKeys = true }.decodeFromString<List<CommonAppDto>>(json)
-            .map { it.repo.lowercase() }
+        val json = String(Base64.getMimeDecoder().decode(file.content.orEmpty()))
+        return apiJson.decodeFromString<List<CommonAppDto>>(json)
+            .mapNotNull { it.repo?.lowercase() }
             .toSet()
     }
 
@@ -109,8 +109,9 @@ class KtorGithubApi(
     override suspend fun checkToken(token: String): RateLimitInfo {
         // Always from the network: this is asking whether the token works right now
         val core = get<RateLimitDto>("https://api.github.com/rate_limit", token = token, forceNetwork = true)
-            .resources.core
-        return RateLimitInfo(core.limit, core.remaining)
+            .resources?.core
+        // A token that works but whose allowance is unreadable is not rejected: it shows as unknown, never as a crash
+        return RateLimitInfo(core?.limit ?: 0, core?.remaining ?: 0)
     }
 
     private companion object {
@@ -142,61 +143,69 @@ class KtorGithubApi(
     }
 }
 
+/** The one lenient `Json` of every API call: an unexpected response must never crash the app (docs/networking.md in ci-workflows). */
+internal val apiJson = Json {
+    ignoreUnknownKeys = true
+    isLenient = true
+    coerceInputValues = true
+    explicitNulls = false
+}
+
 /** The client [KtorGithubApi] needs: OkHttp engine on [okHttp], and JSON bodies decoded to DTOs. */
 fun githubHttpClient(okHttp: OkHttpClient): HttpClient = HttpClient(OkHttp) {
     engine { preconfigured = okHttp }
     install(ContentNegotiation) {
-        json(Json { ignoreUnknownKeys = true })
+        json(apiJson)
     }
 }
 
 @Serializable
-data class SearchDto(val items: List<IssueDto> = emptyList())
+data class SearchDto(val items: List<IssueDto>? = null)
 
 @Serializable
 data class IssueDto(
-    val number: Int,
-    val title: String,
-    @SerialName("html_url") val htmlUrl: String,
-    @SerialName("repository_url") val repositoryUrl: String,
+    val number: Int? = null,
+    val title: String? = null,
+    @SerialName("html_url") val htmlUrl: String? = null,
+    @SerialName("repository_url") val repositoryUrl: String? = null,
     val user: UserDto? = null,
-    val draft: Boolean = false,
+    val draft: Boolean? = null,
     val body: String? = null,
     /** Changes on a push or a new comment, but not when a comment is edited. */
-    @SerialName("updated_at") val updatedAt: String = "",
+    @SerialName("updated_at") val updatedAt: String? = null,
 )
 
 @Serializable
 data class RepoDto(
-    @SerialName("full_name") val fullName: String,
-    val archived: Boolean = false,
+    @SerialName("full_name") val fullName: String? = null,
+    val archived: Boolean? = null,
 )
 
 /** A file from the contents API; [content] is base64 with line breaks. */
 @Serializable
-data class ContentDto(val content: String = "")
+data class ContentDto(val content: String? = null)
 
 /** One entry of the common repo's `apps.json`. */
 @Serializable
-data class CommonAppDto(val repo: String)
+data class CommonAppDto(val repo: String? = null)
 
 @Serializable
-data class UserDto(val login: String)
+data class UserDto(val login: String? = null)
 
 @Serializable
 data class CommentDto(
-    val body: String = "",
-    @SerialName("updated_at") val updatedAt: String = "",
+    val body: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null,
 )
 
 @Serializable
-data class RateLimitDto(val resources: RateLimitResourcesDto)
+data class RateLimitDto(val resources: RateLimitResourcesDto? = null)
 
 @Serializable
-data class RateLimitResourcesDto(val core: RateLimitCoreDto)
+data class RateLimitResourcesDto(val core: RateLimitCoreDto? = null)
 
 @Serializable
-data class RateLimitCoreDto(val limit: Int, val remaining: Int)
+data class RateLimitCoreDto(val limit: Int? = null, val remaining: Int? = null)
 
 /** GitHub answered 404: the thing asked for is not there, or the token may not see it. */
 class NotFoundException(url: String) : IOException("GitHub returned 404 for $url")
@@ -206,14 +215,14 @@ data class ReleaseDto(
     @SerialName("published_at") val publishedAt: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     val body: String? = null,
-    val assets: List<AssetDto> = emptyList(),
+    val assets: List<AssetDto>? = null,
 )
 
 @Serializable
 data class AssetDto(
-    val name: String,
+    val name: String? = null,
     /** A public link: release assets of a public repo need no token. */
-    @SerialName("browser_download_url") val downloadUrl: String,
+    @SerialName("browser_download_url") val downloadUrl: String? = null,
     /** ISO-8601 instant the asset was uploaded, which is when its build finished. */
     @SerialName("created_at") val createdAt: String? = null,
 )

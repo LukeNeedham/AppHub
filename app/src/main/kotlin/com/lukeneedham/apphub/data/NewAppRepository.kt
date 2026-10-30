@@ -30,7 +30,7 @@ class NewAppRepository(
         emit(NewAppProgress.CreatingRepo)
         val title = newAppRunTitle(name)
         // First, so that a token that cannot see the workflow is found out before a repo is made that nothing can set up
-        val before = api.runs().filter { it.displayTitle == title }.map { it.id }.toSet()
+        val before = runs().filter { it.displayTitle == title }.map { it.id }.toSet()
         val branch = api.createRepo(name, isPrivate)
         if (branch != MAIN) api.renameBranch(name, branch, MAIN)
 
@@ -54,7 +54,7 @@ class NewAppRepository(
             if (++polls > runAttempts) throw IOException("The run is taking too long. Follow it on GitHub: ${current.htmlUrl}")
             delay(pollMillis)
             // A run that is not listed for a moment keeps the state it had
-            current = api.runs().firstOrNull { it.id == current.id } ?: current
+            current = runs().firstOrNull { it.id == current.id } ?: current
         }
         emit(
             if (current.conclusion == SUCCESS) {
@@ -65,10 +65,13 @@ class NewAppRepository(
         )
     }
 
-    private suspend fun findRun(title: String, before: Set<Long>): WorkflowRunDto {
+    /** The runs GitHub lists, without those that cannot be followed. */
+    private suspend fun runs(): List<WorkflowRun> = api.runs().mapNotNull { it.toWorkflowRun() }
+
+    private suspend fun findRun(title: String, before: Set<Long>): WorkflowRun {
         repeat(findAttempts) {
             delay(pollMillis)
-            api.runs().firstOrNull { it.displayTitle == title && it.id !in before }?.let { return it }
+            runs().firstOrNull { it.displayTitle == title && it.id !in before }?.let { return it }
         }
         throw IOException("GitHub did not start the run. Look at the Actions tab of the common repo.")
     }

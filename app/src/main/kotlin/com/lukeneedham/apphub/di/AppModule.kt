@@ -32,6 +32,7 @@ import com.lukeneedham.apphub.ui.SettingsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import com.lukeneedham.common.network.NetworkLogInterceptor
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
@@ -50,6 +51,8 @@ val appModule = module {
         // The HTTP cache lets GitHub answer repeat requests with a 304, which is free of the rate limit
         OkHttpClient.Builder()
             .cache(Cache(File(androidContext().cacheDir, "http"), 10L * 1024 * 1024))
+            // Every call of the app goes through this client, so the debug kit network page lists them all
+            .addInterceptor(NetworkLogInterceptor())
             .build()
     }
     single<TokenStore> { KeystoreTokenStore(androidContext()) }

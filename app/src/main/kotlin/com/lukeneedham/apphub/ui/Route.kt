@@ -30,4 +30,7 @@ sealed interface Route : NavKey {
 
     @Serializable
     data object Crashes : Route
+
+    @Serializable
+    data object Network : Route
 }
