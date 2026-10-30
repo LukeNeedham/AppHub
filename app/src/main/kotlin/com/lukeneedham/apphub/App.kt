@@ -1,7 +1,7 @@
 package com.lukeneedham.apphub
 
 import android.app.Application
-import com.lukeneedham.apphub.di.appModule
+import com.lukeneedham.apphub.di.KoinModules
 import com.lukeneedham.common.DebugKit
 import com.lukeneedham.common.DebugKitConfig
 import org.koin.android.ext.koin.androidContext
@@ -13,7 +13,7 @@ class App : Application() {
         DebugKit.init(DebugKitConfig(enabled = BuildConfig.DEBUG))
         startKoin {
             androidContext(this@App)
-            modules(appModule)
+            modules(KoinModules.modules)
         }
     }
 }
