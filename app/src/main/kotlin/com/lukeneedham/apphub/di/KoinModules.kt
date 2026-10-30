@@ -37,15 +37,6 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
-/** The name of the [TokenStore] that holds the token that creates repos. */
-const val REPO_CREATION_TOKEN = "repoCreation"
-
-/** The name of the directory the APKs are downloaded into. */
-const val APK_DIRECTORY = "apkDirectory"
-
-/** The name of the scope that outlives every screen. */
-const val APPLICATION_SCOPE = "applicationScope"
-
 object KoinModules {
     private val app = module {
         single { OkHttpClientFactory.create(androidContext()) }
@@ -53,22 +44,22 @@ object KoinModules {
         single<DisplaySettings> { PrefsDisplaySettings(androidContext()) }
         single { githubHttpClient(get()) }
         single<GithubApi> { KtorGithubApi(get(), GITHUB_OWNER, get()) }
-        single<TokenStore>(named(REPO_CREATION_TOKEN)) { TokenStoreFactory.repoCreation(androidContext()) }
-        single<NewAppApi> { KtorNewAppApi(get(), get(), get(named(REPO_CREATION_TOKEN))) }
+        single<TokenStore>(named(KoinQualifier.REPO_CREATION_TOKEN)) { TokenStoreFactory.repoCreation(androidContext()) }
+        single<NewAppApi> { KtorNewAppApi(get(), get(), get(named(KoinQualifier.REPO_CREATION_TOKEN))) }
         single<NewAppSource> { NewAppRepository(get()) }
         single<PullRequestCache> { PrefsPullRequestCache(androidContext()) }
         single { PullRequestRepository(get(), get()) } bind PullRequestSource::class
         single { MainBuildRepository(get(), get()) } bind MainBuildSource::class
-        single(named(APK_DIRECTORY)) { AppDirectories.apks(androidContext()) }
-        single<ApkDownloader> { KtorApkDownloader(get(), get(named(APK_DIRECTORY))) }
+        single(named(KoinQualifier.APK_DIRECTORY)) { AppDirectories.apks(androidContext()) }
+        single<ApkDownloader> { KtorApkDownloader(get(), get(named(KoinQualifier.APK_DIRECTORY))) }
         single<ApkInstaller> { AndroidApkInstaller(androidContext()) }
         single<InstallTracker> { PrefsInstallTracker(androidContext()) }
-        single(named(APPLICATION_SCOPE)) { ApplicationScope.create() }
-        single { ApkDownloads(get(), get(), get(), get(named(APPLICATION_SCOPE))) }
+        single(named(KoinQualifier.APPLICATION_SCOPE)) { ApplicationScope.create() }
+        single { ApkDownloads(get(), get(), get(), get(named(KoinQualifier.APPLICATION_SCOPE))) }
         viewModelOf(::HomeViewModel)
         viewModel { (repo: String, number: Int) -> PullRequestViewModel(repo, number, get(), get(), get()) }
-        viewModel { SettingsViewModel(get(), get(), get(named(REPO_CREATION_TOKEN)), get()) }
-        viewModel { NewAppViewModel(get(), get(), get(named(REPO_CREATION_TOKEN))) }
+        viewModel { SettingsViewModel(get(), get(), get(named(KoinQualifier.REPO_CREATION_TOKEN)), get()) }
+        viewModel { NewAppViewModel(get(), get(), get(named(KoinQualifier.REPO_CREATION_TOKEN))) }
     }
 
     val modules: List<Module> = listOf(app)
