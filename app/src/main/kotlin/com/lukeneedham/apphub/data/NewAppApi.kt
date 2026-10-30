@@ -72,7 +72,7 @@ class KtorNewAppApi(
             422 -> throw NewAppException("A repository named $name exists already, or GitHub does not take the name.")
         }
         throwIfFailed(response)
-        return response.body<CreatedRepoDto>().defaultBranch
+        return response.body<CreatedRepoDto>().defaultBranch ?: "main"
     }
 
     override suspend fun renameBranch(name: String, from: String, to: String) {
@@ -104,7 +104,7 @@ class KtorNewAppApi(
             header(HttpHeaders.CacheControl, "no-cache")
         }
         throwIfFailed(response)
-        return response.body<WorkflowRunsDto>().runs
+        return response.body<WorkflowRunsDto>().runs.orEmpty()
     }
 
     /** Only ever sent to api.github.com, which is the only host this class talks to. */
@@ -137,7 +137,7 @@ data class CreateRepoDto(
 )
 
 @Serializable
-data class CreatedRepoDto(@SerialName("default_branch") val defaultBranch: String = "main")
+data class CreatedRepoDto(@SerialName("default_branch") val defaultBranch: String? = null)
 
 @Serializable
 data class RenameBranchDto(@SerialName("new_name") val newName: String)
@@ -146,16 +146,16 @@ data class RenameBranchDto(@SerialName("new_name") val newName: String)
 data class DispatchDto(val ref: String, val inputs: Map<String, String>)
 
 @Serializable
-data class WorkflowRunsDto(@SerialName("workflow_runs") val runs: List<WorkflowRunDto> = emptyList())
+data class WorkflowRunsDto(@SerialName("workflow_runs") val runs: List<WorkflowRunDto>? = null)
 
 @Serializable
 data class WorkflowRunDto(
-    val id: Long,
+    val id: Long? = null,
     /** `queued`, `in_progress` or `completed`. */
-    val status: String,
+    val status: String? = null,
     /** `success`, `failure`, `cancelled` and so on once [status] is `completed`; null before. */
     val conclusion: String? = null,
-    @SerialName("html_url") val htmlUrl: String,
+    @SerialName("html_url") val htmlUrl: String? = null,
     /** The `run-name` of the workflow. */
-    @SerialName("display_title") val displayTitle: String = "",
+    @SerialName("display_title") val displayTitle: String? = null,
 )

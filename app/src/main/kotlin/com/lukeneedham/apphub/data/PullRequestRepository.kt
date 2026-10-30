@@ -35,7 +35,7 @@ class PullRequestRepository(
     override suspend fun openPullRequests(): List<PullRequest> {
         val apps = api.commonApps()
         // Only the apps listed in the common repo: the search covers every repo of the owner
-        val issues = api.openPullRequests().filter { repoOf(it).lowercase() in apps }
+        val issues = api.openPullRequests().mapNotNull { it.toOpenIssue() }.filter { it.repo.lowercase() in apps }
         val known = cache.load()
         val resolved = ConcurrentHashMap<String, CachedPullRequest>()
         try {
@@ -43,7 +43,7 @@ class PullRequestRepository(
                 val limit = Semaphore(4)
                 issues.map { issue ->
                     async {
-                        resolved[keyOf(issue)] = limit.withPermit { fetch(issue) }
+                        resolved[issue.key] = limit.withPermit { fetch(issue) }
                     }
                 }.awaitAll()
             }
@@ -52,16 +52,16 @@ class PullRequestRepository(
             cache.save(known + resolved)
             throw e
         }
-        val ordered = issues.map { resolved.getValue(keyOf(it)) }
+        val ordered = issues.map { resolved.getValue(it.key) }
         cache.save(ordered.associateBy { it.pr.key })
         return ordered.map { it.pr }
     }
 
-    private suspend fun fetch(issue: IssueDto): CachedPullRequest {
-        val repo = repoOf(issue)
-        val comments = api.comments(repo, issue.number)
+    private suspend fun fetch(issue: OpenIssue): CachedPullRequest {
+        val repo = issue.repo
+        val comments = api.comments(repo, issue.number).map { it.toIssueComment() }
         val bodies = comments.map { it.body }
-        val (parsed, web) = CommentParser.parse(comments.map { it.body to runCatching { Instant.parse(it.updatedAt).toEpochMilli() }.getOrNull() })
+        val (parsed, web) = CommentParser.parse(comments.map { it.body to it.updatedAtMillis })
         val apk = parsed.withPreviousBuildTime(repo)
         return CachedPullRequest(
             updatedAt = issue.updatedAt,
@@ -70,9 +70,9 @@ class PullRequestRepository(
                 number = issue.number,
                 // A PR title can carry a whole commit message: keep the first line
                 title = issue.title.lineSequence().first().trim(),
-                author = issue.user?.login.orEmpty(),
-                url = issue.htmlUrl,
-                isDraft = issue.draft,
+                author = issue.author,
+                url = issue.url,
+                isDraft = issue.isDraft,
                 apk = apk,
                 webUrl = web,
                 sessionUrl = CommentParser.parseSessionUrl(listOf(issue.body) + bodies),
@@ -96,8 +96,4 @@ class PullRequestRepository(
         val millis = publishedAt?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
         return copy(previousBuiltAtMillis = millis)
     }
-
-    private fun repoOf(issue: IssueDto) = issue.repositoryUrl.substringAfter("/repos/")
-
-    private fun keyOf(issue: IssueDto) = "${repoOf(issue)}#${issue.number}"
 }

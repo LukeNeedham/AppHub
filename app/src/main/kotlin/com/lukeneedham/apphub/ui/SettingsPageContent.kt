@@ -81,7 +81,7 @@ internal fun SettingsPageContent(
             RepoCreationTokenCard(state, onRepoCreationTokenInputChange, onSaveRepoCreationToken, onRemoveRepoCreationToken)
             AutoMergeRow(state.showAutoMergePrs, onShowAutoMergePrsChange)
             if (onOpenDebug != null) {
-                SettingsRow(title = "Debug", subtitle = "Logs, crashes and animation speed", onClick = onOpenDebug)
+                SettingsRow(title = "Debug", subtitle = "Logs, crashes, network and animation speed", onClick = onOpenDebug)
             }
         }
     }
