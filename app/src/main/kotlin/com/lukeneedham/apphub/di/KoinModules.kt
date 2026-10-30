@@ -29,12 +29,6 @@ import com.lukeneedham.apphub.ui.HomeViewModel
 import com.lukeneedham.apphub.ui.NewAppViewModel
 import com.lukeneedham.apphub.ui.PullRequestViewModel
 import com.lukeneedham.apphub.ui.SettingsViewModel
-import com.lukeneedham.common.network.NetworkLogInterceptor
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import okhttp3.Cache
-import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.viewModel
@@ -42,39 +36,35 @@ import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
-import java.io.File
 
 /** The name of the [TokenStore] that holds the token that creates repos. */
 const val REPO_CREATION_TOKEN = "repoCreation"
 
+/** The name of the directory the APKs are downloaded into. */
+const val APK_DIRECTORY = "apkDirectory"
+
+/** The name of the scope that outlives every screen. */
+const val APPLICATION_SCOPE = "applicationScope"
+
 object KoinModules {
     private val app = module {
-        single {
-            // The HTTP cache lets GitHub answer repeat requests with a 304, which is free of the rate limit
-            OkHttpClient.Builder()
-                .cache(Cache(File(androidContext().cacheDir, "http"), 10L * 1024 * 1024))
-                // Every call of the app goes through this client, so the debug kit network page lists them all
-                .addInterceptor(NetworkLogInterceptor())
-                .build()
-        }
+        single { OkHttpClientFactory.create(androidContext()) }
         single<TokenStore> { KeystoreTokenStore(androidContext()) }
         single<DisplaySettings> { PrefsDisplaySettings(androidContext()) }
         single { githubHttpClient(get()) }
         single<GithubApi> { KtorGithubApi(get(), GITHUB_OWNER, get()) }
-        // A second token, kept apart from the one above, whose only power is to create repos (docs/create-app.md in ci-workflows)
-        single<TokenStore>(named(REPO_CREATION_TOKEN)) {
-            KeystoreTokenStore(androidContext(), prefsName = "repo_creation_token", alias = "apphub_repo_creation_token")
-        }
+        single<TokenStore>(named(REPO_CREATION_TOKEN)) { TokenStoreFactory.repoCreation(androidContext()) }
         single<NewAppApi> { KtorNewAppApi(get(), get(), get(named(REPO_CREATION_TOKEN))) }
         single<NewAppSource> { NewAppRepository(get()) }
         single<PullRequestCache> { PrefsPullRequestCache(androidContext()) }
         single { PullRequestRepository(get(), get()) } bind PullRequestSource::class
         single { MainBuildRepository(get(), get()) } bind MainBuildSource::class
-        single<ApkDownloader> { KtorApkDownloader(get(), File(androidContext().cacheDir, "apks")) }
+        single(named(APK_DIRECTORY)) { AppDirectories.apks(androidContext()) }
+        single<ApkDownloader> { KtorApkDownloader(get(), get(named(APK_DIRECTORY))) }
         single<ApkInstaller> { AndroidApkInstaller(androidContext()) }
         single<InstallTracker> { PrefsInstallTracker(androidContext()) }
-        // Outlives every screen, so a download carries on when its page is closed
-        single { ApkDownloads(get(), get(), get(), CoroutineScope(SupervisorJob() + Dispatchers.Main)) }
+        single(named(APPLICATION_SCOPE)) { ApplicationScope.create() }
+        single { ApkDownloads(get(), get(), get(), get(named(APPLICATION_SCOPE))) }
         viewModelOf(::HomeViewModel)
         viewModel { (repo: String, number: Int) -> PullRequestViewModel(repo, number, get(), get(), get()) }
         viewModel { SettingsViewModel(get(), get(), get(named(REPO_CREATION_TOKEN)), get()) }
