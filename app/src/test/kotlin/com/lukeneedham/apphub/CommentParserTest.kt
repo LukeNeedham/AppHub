@@ -2,6 +2,8 @@ package com.lukeneedham.apphub
 
 import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.CommentParser
+import com.lukeneedham.apphub.domain.PreviewChange
+import com.lukeneedham.apphub.domain.PreviewChangeKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -104,5 +106,66 @@ class CommentParserTest {
         assertEquals(session, CommentParser.parseSessionUrl(listOf(null, "Generated with Claude\n\n$session\n")))
         assertEquals("https://claude.ai/code/session_abc", CommentParser.parseSessionUrl(listOf("none", "see https://claude.ai/code/session_abc.")))
         assertNull(CommentParser.parseSessionUrl(listOf("https://claude.ai/chat/123", null)))
+    }
+
+    private val previewsComment = """
+        <!-- previews-diff -->
+        ### 🖼️ Preview changes
+
+        Compared with `main` at `44b208e`; this PR at `7ac370c`. 10 previews rendered.
+
+        **3 changed:** 1 new, 1 modified, 1 removed.
+
+        | Preview | Before (main) | After (this PR) |
+        |---|---|---|
+        | `SettingsPage · SettingsPageScreenshot` (modified) | <img src="https://example.com/main/Settings.png" width="180" alt="x"> | <img src="https://example.com/pr/Settings.png" width="180" alt="x"> |
+        | `Pill · PillNew` (new) | – | <img src="https://example.com/pr/Pill.png" width="180" alt="x"> |
+        | `Old · OldPreview` (removed) | ![x](https://example.com/main/Old.png) | – |
+
+        All of this PR's previews are assets of its [build release](https://github.com/x/y/releases/tag/t).
+    """.trimIndent()
+
+    @Test
+    fun previewChangesAreReadFromTheTable() {
+        assertEquals(
+            listOf(
+                PreviewChange("SettingsPage · SettingsPageScreenshot", PreviewChangeKind.Modified, "https://example.com/main/Settings.png", "https://example.com/pr/Settings.png"),
+                PreviewChange("Pill · PillNew", PreviewChangeKind.New, null, "https://example.com/pr/Pill.png"),
+                PreviewChange("Old · OldPreview", PreviewChangeKind.Removed, "https://example.com/main/Old.png", null),
+            ),
+            CommentParser.parsePreviewChanges(previewsComment),
+        )
+    }
+
+    @Test
+    fun previewChangesNameSplitsIntoTitleAndSubtitle() {
+        val change = PreviewChange("SettingsPage · SettingsPageScreenshot", PreviewChangeKind.Modified, null, null)
+        assertEquals("SettingsPage", change.title)
+        assertEquals("SettingsPageScreenshot", change.subtitle)
+        assertNull(PreviewChange("Lone", PreviewChangeKind.New, null, null).subtitle)
+    }
+
+    @Test
+    fun noPreviewChangedMeansAnEmptyList() {
+        val body = "<!-- previews-diff -->\n## 🖼️ Preview changes\n\nNo preview changed ✅\n"
+        assertEquals(emptyList<PreviewChange>(), CommentParser.parsePreviewChanges(body))
+    }
+
+    @Test
+    fun otherCommentsAreNotThePreviewChanges() {
+        assertNull(CommentParser.parsePreviewChanges(succeeded))
+        assertEquals(emptyList<PreviewChange>(), CommentParser.parsePreviewChanges(listOf(succeeded)))
+    }
+
+    @Test
+    fun theNewestPreviewCommentWins() {
+        val none = "<!-- previews-diff -->\nNo preview changed ✅"
+        assertEquals(emptyList<PreviewChange>(), CommentParser.parsePreviewChanges(listOf(previewsComment, none)))
+        assertEquals(3, CommentParser.parsePreviewChanges(listOf(none, previewsComment)).size)
+    }
+
+    @Test
+    fun thePreviewCommentIsNotAWebDeploy() {
+        assertNull(CommentParser.parseWebUrl(previewsComment))
     }
 }

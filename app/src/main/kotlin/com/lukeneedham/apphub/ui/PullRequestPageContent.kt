@@ -142,6 +142,11 @@ internal fun PullRequestPageContent(
                     )
                 }
 
+                if (pr.previewChanges.isNotEmpty()) {
+                    HorizontalDivider(color = AppTheme.colors.border)
+                    PreviewChangesSection(pr.previewChanges)
+                }
+
                 HorizontalDivider(color = AppTheme.colors.border)
                 Text("Description", style = MaterialTheme.typography.titleMedium)
                 if (pr.description != null) {

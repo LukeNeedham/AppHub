@@ -56,6 +56,8 @@ data class PullRequest(
     val sessionUrl: String? = null,
     /** The PR description, as written (Markdown); null when empty. */
     val description: String? = null,
+    /** The previews this PR changes compared with main, from the CI's "Preview changes" comment; empty when none or not posted. */
+    val previewChanges: List<PreviewChange> = emptyList(),
 ) {
     val key: String get() = "$repo#$number"
 
@@ -93,6 +95,28 @@ data class PullRequest(
         get() = downloadableApk?.let { ApkOffer(key, repo, it.buildId, apkFileName) }
 
     private fun tagOf(url: String) = url.substringAfter("/releases/download/").substringBefore('/')
+}
+
+/** How a preview differs from main. */
+@Serializable
+enum class PreviewChangeKind { New, Modified, Removed }
+
+/**
+ * One preview that changed in a PR. [name] is what the CI calls it (`SettingsPage · SettingsPageScreenshot`),
+ * [beforeUrl] the image on main (null for a new preview) and [afterUrl] the image of the PR (null for a removed one).
+ */
+@Serializable
+data class PreviewChange(
+    val name: String,
+    val kind: PreviewChangeKind,
+    val beforeUrl: String?,
+    val afterUrl: String?,
+) {
+    /** The page or component the preview belongs to: the part of [name] before ` · `. */
+    val title: String get() = name.substringBefore(" · ")
+
+    /** The name of the preview itself, when [name] has one after ` · `; null otherwise. */
+    val subtitle: String? get() = name.substringAfter(" · ", "").ifEmpty { null }
 }
 
 /** An APK that can be downloaded. [buildId] tells builds apart: the commit, or the release tag for a stale one. */

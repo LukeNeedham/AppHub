@@ -77,6 +77,7 @@ class PullRequestRepository(
                 webUrl = web,
                 sessionUrl = CommentParser.parseSessionUrl(listOf(issue.body) + bodies),
                 description = issue.body?.trim()?.takeIf { it.isNotEmpty() },
+                previewChanges = CommentParser.parsePreviewChanges(bodies),
             ),
         )
     }
