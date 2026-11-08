@@ -5,6 +5,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.DownloadState
 import com.lukeneedham.apphub.domain.InstallStatus
+import com.lukeneedham.apphub.domain.PreviewChange
+import com.lukeneedham.apphub.domain.PreviewChangeKind
 import com.lukeneedham.apphub.domain.PullRequest
 import com.lukeneedham.apphub.ui.PullRequestItem
 import com.lukeneedham.apphub.ui.PullRequestPageContent
@@ -33,6 +35,10 @@ private fun PullRequestPageScreenshot() {
                 webUrl = null,
                 sessionUrl = "https://claude.ai/code/session_sample",
                 description = "Adds a quiz that shows a flag and asks for its country.\n\n- Four answers per question\n- A score at the end",
+                previewChanges = listOf(
+                    PreviewChange("QuizPage · QuizPageScreenshot", PreviewChangeKind.Modified, "https://example.com/main.png", "https://example.com/pr.png"),
+                    PreviewChange("ScorePill · ScorePillScreenshot", PreviewChangeKind.New, null, "https://example.com/pill.png"),
+                ),
             ),
             download = DownloadState.Idle,
             install = InstallStatus.NotInstalled,
