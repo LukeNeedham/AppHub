@@ -168,4 +168,39 @@ class CommentParserTest {
     fun thePreviewCommentIsNotAWebDeploy() {
         assertNull(CommentParser.parseWebUrl(previewsComment))
     }
+
+    @Test
+    fun previewChangesAreReadFromTheSectionLayout() {
+        val body = """
+            <!-- previews-diff -->
+            ## 🖼️ Preview changes
+
+            **2 changed:** 1 new, 1 modified, 0 removed.
+
+            ### Changed
+
+            #### PullRequestPage
+
+            **PullRequestPageScreenshot (main → this PR)**
+
+            <img src="https://example.com/main/P.png" width="150" alt="PullRequestPage · PullRequestPageScreenshot"> <img src="https://example.com/pr/P.png" width="150" alt="PullRequestPage · PullRequestPageScreenshot">
+
+            ### New
+
+            #### Pill
+
+            **PillScreenshot (this PR)**
+
+            <img src="https://example.com/pr/Pill.png" width="150" alt="Pill · PillScreenshot">
+
+            All of this PR's previews are assets of its [build release](https://github.com/x/y/releases/tag/t).
+        """.trimIndent()
+        assertEquals(
+            listOf(
+                PreviewChange("PullRequestPage · PullRequestPageScreenshot", PreviewChangeKind.Modified, "https://example.com/main/P.png", "https://example.com/pr/P.png"),
+                PreviewChange("Pill · PillScreenshot", PreviewChangeKind.New, null, "https://example.com/pr/Pill.png"),
+            ),
+            CommentParser.parsePreviewChanges(body),
+        )
+    }
 }

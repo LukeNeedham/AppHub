@@ -58,11 +58,64 @@ object CommentParser {
      */
     fun parsePreviewChanges(body: String): List<PreviewChange>? {
         if (!body.contains(PREVIEWS_MARKER)) return null
-        return body.lineSequence()
+        return parsePreviewTable(body) + parsePreviewSections(body)
+    }
+
+    private fun parsePreviewTable(body: String): List<PreviewChange> =
+        body.lineSequence()
             .map { it.trim() }
             .filter { it.startsWith("|") }
             .mapNotNull(::parsePreviewRow)
             .toList()
+
+    private val imgAlt = Regex("""<img\b[^>]*?\balt\s*=\s*"([^"]*)"""", RegexOption.IGNORE_CASE)
+    private val sectionTitle = Regex("""^\*\*(.+?)\s*\([^()]*\)\*\*\s*$""")
+
+    /**
+     * The layout of a "Preview changes" comment with a heading per kind (`### Changed`, `### New`, `### Removed`), a
+     * `#### Page` heading per page, then per preview a bold `**Name (main → this PR)**` line followed by its image(s),
+     * the one on main first.
+     */
+    private fun parsePreviewSections(body: String): List<PreviewChange> {
+        val changes = mutableListOf<PreviewChange>()
+        var kindHeading: PreviewChangeKind? = null
+        var page: String? = null
+        var title: String? = null
+        for (raw in body.lineSequence()) {
+            val line = raw.trim()
+            when {
+                line.startsWith("####") -> { page = line.trimStart('#').trim(); title = null }
+                line.startsWith("###") -> {
+                    val heading = line.trimStart('#').trim().lowercase()
+                    kindHeading = when {
+                        heading.startsWith("new") || heading.startsWith("added") -> PreviewChangeKind.New
+                        heading.startsWith("removed") || heading.startsWith("deleted") -> PreviewChangeKind.Removed
+                        heading.startsWith("changed") || heading.startsWith("modified") -> PreviewChangeKind.Modified
+                        else -> null
+                    }
+                    page = null
+                    title = null
+                }
+                sectionTitle.matches(line) -> title = sectionTitle.find(line)?.groupValues?.get(1)
+                line.contains("<img", ignoreCase = true) || markdownImage.containsMatchIn(line) -> {
+                    val images = (imgSrc.findAll(line).map { it.groupValues[1] } + markdownImage.findAll(line).map { it.groupValues[1] }).toList()
+                    if (images.isEmpty()) continue
+                    val name = imgAlt.find(line)?.groupValues?.get(1)?.takeIf { it.isNotBlank() }
+                        ?: listOfNotNull(page, title).joinToString(" · ").ifEmpty { null }
+                        ?: continue
+                    val change = if (images.size >= 2) {
+                        PreviewChange(name, kindHeading ?: PreviewChangeKind.Modified, images[0], images[1])
+                    } else if (kindHeading == PreviewChangeKind.Removed) {
+                        PreviewChange(name, PreviewChangeKind.Removed, images[0], null)
+                    } else {
+                        PreviewChange(name, PreviewChangeKind.New, null, images[0])
+                    }
+                    changes += change
+                    title = null
+                }
+            }
+        }
+        return changes
     }
 
     private fun parsePreviewRow(line: String): PreviewChange? {
