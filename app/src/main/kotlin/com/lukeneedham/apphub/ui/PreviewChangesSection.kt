@@ -6,7 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -72,7 +75,7 @@ private fun PreviewChangeCard(change: PreviewChange, onClick: () -> Unit) {
                 }
                 KindChip(change.kind)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 PreviewImage("Main", change.beforeUrl, Modifier.weight(1f))
                 PreviewImage("This PR", change.afterUrl, Modifier.weight(1f))
             }
@@ -96,7 +99,7 @@ private fun PreviewChangeDialog(change: PreviewChange, onDismiss: () -> Unit) {
                     KindChip(change.kind)
                 }
                 // Side by side, as the page does: large enough to compare, and each can still be read
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     PreviewImage("Main", change.beforeUrl, Modifier.weight(1f))
                     PreviewImage("This PR", change.afterUrl, Modifier.weight(1f))
                 }
@@ -108,7 +111,7 @@ private fun PreviewChangeDialog(change: PreviewChange, onDismiss: () -> Unit) {
 /** One side of a change: a caption over the image, or over a placeholder when that side has none (a new or removed preview). */
 @Composable
 private fun PreviewImage(caption: String, url: String?, modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(modifier.fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(caption, style = MaterialTheme.typography.labelSmall, color = AppTheme.colors.textSecondary)
         val shape = RoundedCornerShape(8.dp)
         if (url != null) {
@@ -123,8 +126,9 @@ private fun PreviewImage(caption: String, url: String?, modifier: Modifier = Mod
                 contentScale = ContentScale.FillWidth,
             )
         } else {
+            // Takes the height left by the row, which the other side's image sets, so both sides are as tall
             Box(
-                Modifier.fillMaxWidth().heightIn(min = 80.dp).clip(shape).background(AppTheme.colors.background),
+                Modifier.fillMaxWidth().weight(1f).heightIn(min = 80.dp).clip(shape).background(AppTheme.colors.background),
                 contentAlignment = Alignment.Center,
             ) {
                 Text("None", style = MaterialTheme.typography.labelMedium, color = AppTheme.colors.textSecondary)
