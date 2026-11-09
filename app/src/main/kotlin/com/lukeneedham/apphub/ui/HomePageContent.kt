@@ -479,6 +479,11 @@ private fun RepoCard(
                             description = "Start a Claude session on ${section.repo}",
                             onClick = { uriHandler.openUri(section.claudeUrl) },
                         )
+                        CircleIconButton(
+                            icon = R.drawable.ic_add,
+                            description = "Start a new feature on ${section.repo}",
+                            onClick = onStartFeature,
+                        )
                         section.mainBuild?.let { item ->
                             Spacer(Modifier.weight(1f))
                             StatusControl(
@@ -492,7 +497,6 @@ private fun RepoCard(
                     }
                     section.mainBuild?.let { item -> MainBuildErrors(item) }
                     HorizontalDivider(color = AppTheme.colors.border)
-                    StartFeatureRow(onStartFeature)
                     section.features.forEach { feature ->
                         HorizontalDivider(color = AppTheme.colors.border)
                         FeatureRow(feature, onClick = { onOpenFeature(feature.id) })
@@ -513,19 +517,6 @@ private fun RepoCard(
                 }
             }
         }
-    }
-}
-
-/** The button that opens the page where the prompt of a new feature is typed. */
-@Composable
-private fun StartFeatureRow(onClick: () -> Unit) {
-    TextButton(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
-    ) {
-        Icon(painterResource(R.drawable.ic_add), contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text("Start new feature", modifier = Modifier.weight(1f))
     }
 }
 

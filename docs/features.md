@@ -6,7 +6,7 @@ or a **tweak** (more changes to the pull request of a feature). Both are one `Fe
 
 ## What the user does
 
-- **Start new feature**: a button in each repo card on Home. It opens the Prompt page (`Route.Prompt(repo)`), where one prompt is typed.
+- **Start new feature**: an icon button (a plus, next to the "start a Claude session" button) in each repo card on Home. It opens the Prompt page (`Route.Prompt(repo)`), where one prompt is typed.
 - **Tweak**: a button on the page of a pull request that a feature made (`Route.Prompt(repo, number)`). The new tweak is listed on that page at once,
   with a summary and a status icon: a spinner while it runs, a tick when it is completed.
 - Sending the prompt **closes the input for good**: `PromptUiState.sent`, and the page leaves. No page takes a second prompt.
