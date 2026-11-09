@@ -59,6 +59,7 @@ internal fun SettingsPageContent(
     onShowAutoMergePrsChange: (Boolean) -> Unit,
     onSelectLlmProvider: (LlmProvider) -> Unit,
     onLlmModelChange: (String) -> Unit,
+    onLlmBaseUrlChange: (String) -> Unit,
     onLlmKeyInputChange: (String) -> Unit,
     onSaveLlmKey: () -> Unit,
     onRemoveLlmKey: () -> Unit,
@@ -86,7 +87,7 @@ internal fun SettingsPageContent(
         ) {
             GithubCard(state, onInputChange, onSave, onRemove)
             RepoCreationTokenCard(state, onRepoCreationTokenInputChange, onSaveRepoCreationToken, onRemoveRepoCreationToken)
-            LlmCard(state.llm, onSelectLlmProvider, onLlmModelChange, onLlmKeyInputChange, onSaveLlmKey, onRemoveLlmKey)
+            LlmCard(state.llm, onSelectLlmProvider, onLlmModelChange, onLlmBaseUrlChange, onLlmKeyInputChange, onSaveLlmKey, onRemoveLlmKey)
             AutoMergeRow(state.showAutoMergePrs, onShowAutoMergePrsChange)
             if (onOpenDebug != null) {
                 SettingsRow(title = "Debug", subtitle = "Logs, crashes, network and animation speed", onClick = onOpenDebug)
@@ -214,6 +215,7 @@ private fun LlmCard(
     llm: LlmUiState,
     onSelectProvider: (LlmProvider) -> Unit,
     onModelChange: (String) -> Unit,
+    onBaseUrlChange: (String) -> Unit,
     onKeyInputChange: (String) -> Unit,
     onSaveKey: () -> Unit,
     onRemoveKey: () -> Unit,
@@ -226,7 +228,7 @@ private fun LlmCard(
             style = MaterialTheme.typography.bodySmall,
             color = AppTheme.colors.textSecondary,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LlmProvider.entries.forEach { provider ->
                 if (provider == llm.provider) {
                     Button(onClick = { onSelectProvider(provider) }, shape = CircleShape) { Text(provider.label) }
@@ -235,13 +237,25 @@ private fun LlmCard(
                 }
             }
         }
+        if (llm.provider.needsBaseUrl) {
+            OutlinedTextField(
+                value = llm.baseUrlInput,
+                onValueChange = onBaseUrlChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("API address") },
+                singleLine = true,
+                supportingText = { Text("For example https://api.z.ai/api/paas/v4") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                shape = MaterialTheme.shapes.medium,
+            )
+        }
         OutlinedTextField(
             value = llm.modelInput,
             onValueChange = onModelChange,
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Model") },
             singleLine = true,
-            supportingText = { Text("Default: ${llm.provider.defaultModel}") },
+            supportingText = { Text(if (llm.provider.defaultModel.isEmpty()) "The name the provider gives the model" else "Default: ${llm.provider.defaultModel}") },
             shape = MaterialTheme.shapes.medium,
         )
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -365,6 +379,7 @@ private fun Preview() {
             onShowAutoMergePrsChange = {},
             onSelectLlmProvider = {},
             onLlmModelChange = {},
+            onLlmBaseUrlChange = {},
             onLlmKeyInputChange = {},
             onSaveLlmKey = {},
             onRemoveLlmKey = {},

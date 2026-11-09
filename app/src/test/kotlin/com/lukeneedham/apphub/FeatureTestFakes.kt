@@ -36,11 +36,14 @@ class InMemoryFeatureStore : FeatureStore {
 class InMemoryLlmSettings : LlmSettings {
     private val providerState = MutableStateFlow(LlmProvider.Anthropic)
     private val models = LlmProvider.entries.associateWith { MutableStateFlow(it.defaultModel) }
+    private val baseUrls = LlmProvider.entries.associateWith { MutableStateFlow("") }
     private val keys = LlmProvider.entries.associateWith { MutableStateFlow<String?>(null) }
     override val provider: StateFlow<LlmProvider> = providerState
     override fun selectProvider(provider: LlmProvider) { providerState.value = provider }
     override fun model(provider: LlmProvider): StateFlow<String> = models.getValue(provider)
     override fun setModel(provider: LlmProvider, model: String) { models.getValue(provider).value = model }
+    override fun baseUrl(provider: LlmProvider): StateFlow<String> = baseUrls.getValue(provider)
+    override fun setBaseUrl(provider: LlmProvider, url: String) { baseUrls.getValue(provider).value = url }
     override fun apiKey(provider: LlmProvider): StateFlow<String?> = keys.getValue(provider)
     override fun setApiKey(provider: LlmProvider, key: String?) { keys.getValue(provider).value = key }
 }

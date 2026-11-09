@@ -96,6 +96,11 @@ class SettingsViewModel(
         _uiState.update { it.copy(llm = it.llm.copy(modelInput = model)) }
     }
 
+    fun onLlmBaseUrlChange(url: String) {
+        llmSettings.setBaseUrl(_uiState.value.llm.provider, url)
+        _uiState.update { it.copy(llm = it.llm.copy(baseUrlInput = url)) }
+    }
+
     fun onLlmKeyInputChange(input: String) = _uiState.update { it.copy(llm = it.llm.copy(keyInput = input)) }
 
     /** Keeps the typed key for the chosen provider. The provider is asked about it when a session uses it. */
@@ -115,6 +120,7 @@ class SettingsViewModel(
         provider = provider,
         modelInput = llmSettings.model(provider).value,
         hasKey = llmSettings.apiKey(provider).value != null,
+        baseUrlInput = llmSettings.baseUrl(provider).value,
     )
 
     private fun loadRateLimit(token: String) {

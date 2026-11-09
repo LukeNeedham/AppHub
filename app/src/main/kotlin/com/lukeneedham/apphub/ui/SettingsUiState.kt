@@ -37,4 +37,6 @@ data class LlmUiState(
     /** Whether the chosen provider has an API key. */
     val hasKey: Boolean = false,
     val keyInput: String = "",
+    /** The address of the API, for a provider that needs one. */
+    val baseUrlInput: String = "",
 )

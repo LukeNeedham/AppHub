@@ -26,6 +26,18 @@ enum class LlmProvider(
         suggestedModels = listOf("deepseek-chat"),
         keyHelp = "Make a key on the DeepSeek platform (platform.deepseek.com), under API keys.",
     ),
+    Custom(
+        label = "Custom (OpenAI-compatible)",
+        defaultModel = "",
+        suggestedModels = emptyList(),
+        keyHelp = "Any provider that speaks the OpenAI chat API: enter its address, a model name and its key. For Z.ai GLM the address " +
+            "is https://api.z.ai/api/paas/v4 (pay per token), or https://api.z.ai/api/coding/paas/v4 for a GLM Coding Plan key, " +
+            "if Z.ai lets you use that key in your own app: check its terms.",
+    ),
+    ;
+
+    /** Whether this provider needs the address of its API, which the others have built in. */
+    val needsBaseUrl: Boolean get() = this == Custom
 }
 
 /** One message of a conversation with a model, in a shape that no vendor owns. */
@@ -95,11 +107,24 @@ interface LlmSettings {
 
     fun setModel(provider: LlmProvider, model: String)
 
+    /** The address of the API of [provider], for those that [LlmProvider.needsBaseUrl]; blank until typed. */
+    fun baseUrl(provider: LlmProvider): StateFlow<String>
+
+    fun setBaseUrl(provider: LlmProvider, url: String)
+
     /** Null while there is no key for [provider]. */
     fun apiKey(provider: LlmProvider): StateFlow<String?>
 
     fun setApiKey(provider: LlmProvider, key: String?)
 }
+
+/**
+ * Whether [provider] has what a session needs: a key, a model, and, for those that need it, an address. A blank model or address is
+ * never sent to a provider.
+ */
+fun LlmSettings.isReady(provider: LlmProvider): Boolean =
+    !apiKey(provider).value.isNullOrBlank() && model(provider).value.isNotBlank() &&
+        (!provider.needsBaseUrl || baseUrl(provider).value.isNotBlank())
 
 /** The vendor answered with an error that retrying will not fix; [message] is fit to show. */
 class LlmException(message: String) : Exception(message)

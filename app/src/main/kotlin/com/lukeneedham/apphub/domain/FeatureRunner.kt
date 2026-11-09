@@ -51,7 +51,7 @@ class FeatureRunner(
     private suspend fun execute(start: Feature, spent: TokenCount, askUser: suspend (String) -> String) {
         val id = start.id
         val repo = start.repo
-        val configured = llm.current() ?: throw FeatureFailure("Add the API key of an LLM in Settings first.")
+        val configured = llm.current() ?: throw FeatureFailure("Set up an LLM in Settings first: its API key, and for a custom provider its address and model.")
         val appName = repo.substringAfter('/')
 
         val branch: String

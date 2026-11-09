@@ -20,7 +20,7 @@ or a **tweak** (more changes to the pull request of a feature). Both are one `Fe
 
 | Part | Interface | Implementation |
 |---|---|---|
-| The model | `LlmClient` (`domain/Llm.kt`) | `AnthropicLlmClient`, `OpenAiCompatibleLlmClient` (DeepSeek) |
+| The model | `LlmClient` (`domain/Llm.kt`) | `AnthropicLlmClient`, `OpenAiCompatibleLlmClient` (DeepSeek, and the Custom provider: any OpenAI-compatible address, e.g. Z.ai GLM) |
 | Which model | `LlmSource`, `LlmSettings` | `LlmClientSource`, `PrefsLlmSettings`, keys in `LlmKeyStores` |
 | GitHub | `CodeHost` | `KtorCodeHost` (Git data API: one commit per phase) |
 | State | `FeatureStore` | `PrefsFeatureStore` |
@@ -61,3 +61,6 @@ Each session ends with a line in its activity log, `Tokens used: N in (M from th
 1. Add an entry to `LlmProvider` (label, default model, suggested models, how to get a key).
 2. Write an `LlmClient` for it in `data/`, or reuse `OpenAiCompatibleLlmClient` if it speaks the OpenAI chat API.
 3. Add its branch to `LlmClientSource`. Nothing else changes: Settings lists it by itself.
+
+For a provider that speaks the OpenAI chat API there is no code to write: choose **Custom** in Settings and enter its address, model and key. A provider's flat
+subscription key (a "coding plan") may be limited by its terms to named tools: check them before using it in AppHub.

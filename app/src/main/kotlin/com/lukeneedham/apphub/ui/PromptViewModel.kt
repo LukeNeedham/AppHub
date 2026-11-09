@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.lukeneedham.apphub.domain.FeatureManager
 import com.lukeneedham.apphub.domain.LlmSettings
 import com.lukeneedham.apphub.domain.TokenStore
+import com.lukeneedham.apphub.domain.isReady
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -43,8 +44,8 @@ class PromptViewModel(
     init {
         viewModelScope.launch {
             val llm = llmSettings.provider.flatMapLatest { provider ->
-                combine(llmSettings.apiKey(provider), llmSettings.model(provider)) { key, model ->
-                    Triple(provider, key != null, model)
+                combine(llmSettings.apiKey(provider), llmSettings.model(provider), llmSettings.baseUrl(provider)) { _, model, _ ->
+                    Triple(provider, llmSettings.isReady(provider), model)
                 }
             }
             combine(githubToken.token, llm) { token, (provider, hasKey, model) ->

@@ -34,11 +34,25 @@ class PrefsLlmSettings(context: Context, private val keys: LlmKeyStores) : LlmSe
         models.getValue(provider).value = clean.ifEmpty { provider.defaultModel }
     }
 
+    private val baseUrls: Map<LlmProvider, MutableStateFlow<String>> = LlmProvider.entries.associateWith {
+        MutableStateFlow(prefs.getString(baseUrlKey(it), null).orEmpty())
+    }
+
+    override fun baseUrl(provider: LlmProvider): StateFlow<String> = baseUrls.getValue(provider).asStateFlow()
+
+    override fun setBaseUrl(provider: LlmProvider, url: String) {
+        val clean = url.trim()
+        prefs.edit().putString(baseUrlKey(provider), clean).apply()
+        baseUrls.getValue(provider).value = clean
+    }
+
     override fun apiKey(provider: LlmProvider): StateFlow<String?> = keys.of(provider).token
 
     override fun setApiKey(provider: LlmProvider, key: String?) = keys.of(provider).set(key?.trim()?.takeIf { it.isNotEmpty() })
 
     private fun modelKey(provider: LlmProvider) = "model_${provider.name}"
+
+    private fun baseUrlKey(provider: LlmProvider) = "base_url_${provider.name}"
 
     private companion object {
         const val keyProvider = "provider"

@@ -59,7 +59,7 @@ internal fun PromptPageContent(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             if (!state.hasGithubToken) NeedsSetup("A GitHub token is needed", "The session pushes to $appName with it. Add one in Settings.", onOpenSettings)
-            if (!state.hasLlmKey) NeedsSetup("An LLM API key is needed", "Choose a provider and add its key in Settings.", onOpenSettings)
+            if (!state.hasLlmKey) NeedsSetup("An LLM needs setting up", "Choose a provider and add its key in Settings. A custom provider also needs its address and a model name.", onOpenSettings)
             Card {
                 Text(
                     if (state.isTweak) {

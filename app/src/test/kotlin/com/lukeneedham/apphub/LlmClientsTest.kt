@@ -2,10 +2,13 @@ package com.lukeneedham.apphub
 
 import com.lukeneedham.apphub.data.AnthropicLlmClient
 import com.lukeneedham.apphub.data.OpenAiCompatibleLlmClient
+import com.lukeneedham.apphub.data.completionsUrl
 import com.lukeneedham.apphub.domain.AgentTools
 import com.lukeneedham.apphub.domain.LlmMessage
+import com.lukeneedham.apphub.domain.LlmProvider
 import com.lukeneedham.apphub.domain.LlmRequest
 import com.lukeneedham.apphub.domain.LlmUsage
+import com.lukeneedham.apphub.domain.isReady
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import kotlinx.serialization.json.Json
@@ -16,6 +19,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -80,5 +85,36 @@ class LlmClientsTest {
         )
 
         assertEquals(LlmUsage(inputTokens = 900, cachedInputTokens = 700, outputTokens = 40), usage)
+    }
+
+    @Test
+    fun theChatAddressIsMadeFromTheTypedOneOnce() {
+        assertEquals("https://api.z.ai/api/paas/v4/chat/completions", completionsUrl("https://api.z.ai/api/paas/v4"))
+        assertEquals("https://api.z.ai/api/paas/v4/chat/completions", completionsUrl(" https://api.z.ai/api/paas/v4/ "))
+        assertEquals("https://x.test/v1/chat/completions", completionsUrl("https://x.test/v1/chat/completions"))
+    }
+
+    @Test
+    fun aCustomProviderIsReadyOnlyWithKeyModelAndAddress() {
+        val settings = InMemoryLlmSettings()
+        val custom = LlmProvider.Custom
+        assertFalse(settings.isReady(custom))
+
+        settings.setApiKey(custom, "key")
+        settings.setModel(custom, "glm-5")
+        assertFalse(settings.isReady(custom))
+
+        settings.setBaseUrl(custom, "https://api.z.ai/api/paas/v4")
+        assertTrue(settings.isReady(custom))
+    }
+
+    @Test
+    fun aBuiltInProviderNeedsOnlyAKey() {
+        val settings = InMemoryLlmSettings()
+        assertFalse(settings.isReady(LlmProvider.DeepSeek))
+
+        settings.setApiKey(LlmProvider.DeepSeek, "key")
+
+        assertTrue(settings.isReady(LlmProvider.DeepSeek))
     }
 }

@@ -24,6 +24,7 @@ private fun SettingsPageScreenshot() {
             onShowAutoMergePrsChange = {},
             onSelectLlmProvider = {},
             onLlmModelChange = {},
+            onLlmBaseUrlChange = {},
             onLlmKeyInputChange = {},
             onSaveLlmKey = {},
             onRemoveLlmKey = {},
