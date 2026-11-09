@@ -129,14 +129,19 @@ class OpenAiCompatibleLlmClient(
         return LlmReply((message["content"] as? JsonPrimitive)?.contentOrNull?.ifBlank { null }, calls, usageOf(response))
     }
 
-    /** DeepSeek caches repeated prefixes by itself and reports it as `prompt_cache_hit_tokens`; a vendor that does not leaves it out. */
+    /**
+     * These vendors cache repeated prefixes by themselves, with nothing to ask for in the request, and report the hits in the usage:
+     * DeepSeek as `prompt_cache_hit_tokens`, and OpenAI and Z.ai (GLM) as `prompt_tokens_details.cached_tokens`. A vendor that
+     * reports neither leaves them out, and the count stays 0.
+     */
     internal fun usageOf(response: JsonObject): LlmUsage? {
         val usage = response["usage"] as? JsonObject ?: return null
-        fun count(name: String) = (usage[name] as? JsonPrimitive)?.longOrNull ?: 0L
+        fun count(from: JsonObject, name: String) = (from[name] as? JsonPrimitive)?.longOrNull ?: 0L
+        val details = usage["prompt_tokens_details"] as? JsonObject
         return LlmUsage(
-            inputTokens = count("prompt_tokens"),
-            cachedInputTokens = count("prompt_cache_hit_tokens"),
-            outputTokens = count("completion_tokens"),
+            inputTokens = count(usage, "prompt_tokens"),
+            cachedInputTokens = maxOf(count(usage, "prompt_cache_hit_tokens"), details?.let { count(it, "cached_tokens") } ?: 0L),
+            outputTokens = count(usage, "completion_tokens"),
         )
     }
 

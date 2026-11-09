@@ -81,6 +81,15 @@ class LlmClientsTest {
     }
 
     @Test
+    fun openAiStyleInputReadsTheCachedTokensOfTheDetails() {
+        val usage = OpenAiCompatibleLlmClient(http, "key", "https://example.com", "Test").usageOf(
+            json("""{"usage":{"prompt_tokens":1200,"completion_tokens":25,"prompt_tokens_details":{"cached_tokens":1000}}}"""),
+        )
+
+        assertEquals(LlmUsage(inputTokens = 1200, cachedInputTokens = 1000, outputTokens = 25), usage)
+    }
+
+    @Test
     fun aReplyWithNoUsageHasNone() {
         assertNull(AnthropicLlmClient(http, "key").usageOf(JsonObject(emptyMap())))
         assertNull(OpenAiCompatibleLlmClient(http, "key", "https://example.com", "Test").usageOf(JsonObject(emptyMap())))
