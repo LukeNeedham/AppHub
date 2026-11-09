@@ -15,6 +15,10 @@ CI ([ci-workflows](https://github.com/LukeNeedham/ci-workflows)) leaves on every
 
 Use it to install a PR's build in a tap, open its web preview, jump to the PR or its Claude Code session, see
 whether the build you have installed is the latest, and install the latest `main` build of any repo.
+It also runs features: type one prompt describing a feature of an app, and a session driven by an LLM of your choice (Claude, DeepSeek, or
+another provider added in code) builds it, opens the pull request, fixes the CI until it is green and ends by itself. A tweak does the same
+for changes you want to such a pull request.
+
 Every PR also has a link of its own, `https://www.lukeneedham.com/apphub/pr/<repo name>/<number>`, that opens it
 in the app.
 
@@ -22,13 +26,16 @@ in the app.
 
 <img src="docs/screenshots/01-HomePage.png" width="240" alt="Home Page">
 <img src="docs/screenshots/02-PullRequestPage.png" width="240" alt="Pull Request Page">
-<img src="docs/screenshots/03-NewAppPage.png" width="240" alt="New App Page">
-<img src="docs/screenshots/04-SettingsPage.png" width="240" alt="Settings Page">
+<img src="docs/screenshots/03-PromptPage.png" width="240" alt="Prompt Page">
+<img src="docs/screenshots/04-FeaturePage.png" width="240" alt="Feature Page">
+<img src="docs/screenshots/05-NewAppPage.png" width="240" alt="New App Page">
+<img src="docs/screenshots/06-SettingsPage.png" width="240" alt="Settings Page">
 
 ## Getting started as a user
 
 1. Download the debug APK from the comment that CI posts on any pull request of this repo, and install it. The first time, Android asks to allow AppHub to install apps.
 2. Optional: add a GitHub personal access token under Settings → GitHub, for a higher rate limit and for building main.
+3. To run features and tweaks: give the token the permissions Actions, Contents and Pull requests (read and write), then pick an LLM provider and add its API key under Settings → AI model for features.
 
 Requires Android 8.0 (API 26) or newer.
 
