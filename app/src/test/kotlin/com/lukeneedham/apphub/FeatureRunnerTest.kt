@@ -268,6 +268,21 @@ class FeatureRunnerTest {
     }
 
     @Test
+    fun aTokenThatMayNotWriteFailsTheSessionBeforeTheModelIsCalled() = runTest {
+        val store = InMemoryFeatureStore().also { it.add(feature()) }
+        val llm = ScriptedLlm(emptyList())
+        val host = FakeCodeHost(branchError = java.io.IOException("GitHub refused (403) at .../git/refs. That needs the permission Contents (write)"))
+
+        runner(store, llm, host).run("abc123") { error("no question expected") }
+
+        val failed = store.find("abc123")!!
+        assertEquals(FeatureStatus.Failed, failed.status)
+        assertTrue(failed.error.orEmpty().contains("Contents (write)"))
+        // No tokens were spent
+        assertTrue(llm.requests.isEmpty())
+    }
+
+    @Test
     fun withoutAnApiKeyTheSessionFailsAtOnce() = runTest {
         val store = InMemoryFeatureStore().also { it.add(feature()) }
 

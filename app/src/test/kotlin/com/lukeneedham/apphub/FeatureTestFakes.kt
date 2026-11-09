@@ -71,6 +71,8 @@ class FakeCodeHost(
     /** The answers of the CI, one per poll; the last repeats. */
     ci: List<CiStatus> = listOf(CiStatus.Passed),
     private val tweakedPullRequest: PullRequestInfo? = null,
+    /** What preparing the branch throws, as GitHub does for a token that may not write. */
+    private val branchError: Exception? = null,
 ) : CodeHost {
     data class Commit(val branch: String, val message: String, val changes: List<FileChange>)
 
@@ -90,6 +92,10 @@ class FakeCodeHost(
     }
 
     override suspend fun readFile(repo: String, ref: String, path: String) = files[path]
+
+    override suspend fun prepareBranch(repo: String, branch: String) {
+        branchError?.let { throw it }
+    }
 
     override suspend fun commit(repo: String, branch: String, message: String, changes: List<FileChange>): String {
         commits += Commit(branch, message, changes)

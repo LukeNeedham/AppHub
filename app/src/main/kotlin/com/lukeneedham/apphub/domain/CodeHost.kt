@@ -41,6 +41,12 @@ interface CodeHost {
     suspend fun readFile(repo: String, ref: String, path: String): String?
 
     /**
+     * Makes [branch] from the default branch if it is not there. A session does this before the model starts, so a token that may not write
+     * to the repo fails the session at once, not after the model has used its tokens.
+     */
+    suspend fun prepareBranch(repo: String, branch: String)
+
+    /**
      * Commits [changes] on top of the head of [branch] in one commit and moves [branch] to it, making the branch from the
      * default branch first when it does not exist. Returns the sha of the commit.
      */

@@ -69,6 +69,8 @@ class FeatureRunner(
             branch = start.branch ?: throw FeatureFailure("This feature has no branch.")
             readRef = host.defaultBranch(repo)
             system = AgentPrompts.feature(appName)
+            // Before the model is called: a token that cannot write must fail here, not after the work
+            host.prepareBranch(repo, branch)
         }
         note(id, "Started with ${configured.providerLabel} (${configured.model}).")
 

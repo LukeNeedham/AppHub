@@ -74,6 +74,10 @@ class KtorCodeHost(
         return decodeText(Base64.getMimeDecoder().decode(file.content.orEmpty()))
     }
 
+    override suspend fun prepareBranch(repo: String, branch: String) {
+        if (branchHead(repo, branch) == null) createBranch(repo, branch)
+    }
+
     override suspend fun commit(repo: String, branch: String, message: String, changes: List<FileChange>): String {
         val headSha = branchHead(repo, branch) ?: createBranch(repo, branch)
         val baseTree = get<GitCommitDto>("$api/repos/$repo/git/commits/$headSha").tree?.sha
@@ -243,8 +247,10 @@ class KtorCodeHost(
         }
         if (code == 403 || code == 404) {
             throw IOException(
-                "GitHub refused ($code) at $url. The GitHub token of Settings needs, for this repo, the permissions Contents " +
-                    "(read and write), Pull requests (read and write) and Actions (read).",
+                "GitHub refused ($code) at $url. That needs ${permissionFor(method, url)} on this repo, and the repo must be one " +
+                    "the GitHub token of Settings covers. Edit the token on GitHub (Settings → Developer settings → Fine-grained " +
+                    "tokens), then paste it in Settings again. A token needs Contents (read and write), Pull requests " +
+                    "(read and write) and Actions (read).",
             )
         }
         if (!response.status.isSuccess()) {
@@ -252,6 +258,15 @@ class KtorCodeHost(
         }
         return response
     }
+
+    /** The permission of a fine-grained token that a call needs, to tell the user which one is missing. */
+    private fun permissionFor(method: HttpMethod, url: String): String =
+        when {
+            "/actions/" in url -> "the permission Actions (read)"
+            "/pulls" in url -> if (method == HttpMethod.Get) "the permission Pull requests (read)" else "the permission Pull requests (write)"
+            method == HttpMethod.Get -> "the permission Contents (read)"
+            else -> "the permission Contents (write)"
+        }
 
     /** Only ever sent to api.github.com, which is the only host this class talks to. */
     private fun io.ktor.client.request.HttpRequestBuilder.authorize() {
