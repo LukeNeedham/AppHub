@@ -74,7 +74,7 @@ internal fun PromptPageContent(
                         "A new session works on the branch of the pull request, pushes to it, and ends by itself when the CI is green."
                     } else {
                         "A new session builds it, opens a pull request and fixes the CI until it is green, then ends by itself."
-                    } + " You get one prompt: after you send it you cannot type again, unless the session asks you a question.",
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = AppTheme.colors.textSecondary,
                 )
