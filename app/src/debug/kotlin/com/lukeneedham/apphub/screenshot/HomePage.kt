@@ -119,6 +119,7 @@ private fun HomePageScreenshot() {
                 onNewApp = {},
                 onStartFeature = {},
                 onOpenFeature = {},
+                onOpenApp = {},
             )
         }
     }
