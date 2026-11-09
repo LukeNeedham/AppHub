@@ -90,7 +90,7 @@ class FeatureRunner(
             if (prNumber == null) {
                 val opened = host.openPullRequest(repo, branch, submission.pullRequestTitle, pullRequestBody(start.prompt, submission))
                 prNumber = opened.number
-                update(id) { it.copy(prNumber = opened.number, prUrl = opened.url, summary = opened.title.ifBlank { it.summary }) }
+                update(id) { it.copy(prNumber = opened.number, prUrl = opened.url) }
                 note(id, "Opened pull request #${opened.number}.")
             }
 
@@ -149,6 +149,8 @@ class FeatureRunner(
                 val outcome = if (call.name == AgentTools.askUserTool) {
                     val question = call.arguments.text("question") ?: "The model needs more information."
                     ToolOutcome(ask(id, question, working, askUser))
+                } else if (call.name == AgentTools.setTitleTool) {
+                    setTitle(id, call.arguments.text("title"))
                 } else {
                     note(id, describe(call))
                     tools.execute(call)
@@ -158,6 +160,15 @@ class FeatureRunner(
             tools.submission?.let { return it }
         }
         throw FeatureFailure("The model did not finish within $maxTurnsPerPhase steps.")
+    }
+
+    /** The title the model gave to the work replaces the line made from the prompt, and shows in the app as soon as it is here. */
+    private fun setTitle(id: String, title: String?): ToolOutcome {
+        val clean = title?.let(::summarize).orEmpty()
+        if (clean.isEmpty()) return ToolOutcome("The title is empty. Call set_title with a short summary of the request.", isError = true)
+        update(id) { it.copy(summary = clean) }
+        note(id, "Title: $clean")
+        return ToolOutcome("The title is set. Now carry on with the work.")
     }
 
     private suspend fun ask(id: String, question: String, working: FeatureStatus, askUser: suspend (String) -> String): String {
@@ -216,6 +227,7 @@ class FeatureRunner(
             AgentTools.writeFileTool -> "Wrote ${call.arguments.text("path")}"
             AgentTools.replaceInFileTool -> "Changed ${call.arguments.text("path")}"
             AgentTools.deleteFileTool -> "Deleted ${call.arguments.text("path")}"
+            AgentTools.setTitleTool -> "Set the title"
             AgentTools.submitTool -> "Submitted the changes"
             else -> call.name
         }

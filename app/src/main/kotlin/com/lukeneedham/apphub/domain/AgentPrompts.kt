@@ -24,7 +24,8 @@ object AgentPrompts {
         How this works:
         - $where
         - You only have tools. The user typed one prompt and is not watching: do not write questions or status in plain text. Only if you are really blocked and a wrong guess would waste the work, call ask_user; otherwise choose the most sensible option and carry on.
-        - Start by reading CLAUDE.md and README.md if they exist, and look at how the code near your change is written. Follow the conventions you find there. Keep the change small and in the style of the code around it.
+        - Your very first step, before reading anything: summarize the user's request in one short line (the imperative, under 60 characters, no full stop, for example "Add a hint button to the quiz") and call set_title with it. AppHub shows it at once as the title of this work, so make it say what the change is. Do this exactly once, before any other tool.
+        - Then read CLAUDE.md and README.md if they exist, and look at how the code near your change is written. Follow the conventions you find there. Keep the change small and in the style of the code around it.
         - You cannot build or run the code. The CI does that after you call submit. Write carefully and check imports and names against the files you read.
         - Never change anything under .github/workflows or .claude: they are kept in sync from another repo.
         - Call submit once, when the work is complete. After it, AppHub pushes the commit, opens the pull request and watches the CI for you. If the CI fails you get the report as a message: read the files again, fix the cause, and call submit again. When the CI is green your session ends by itself: there is nothing more to do or say.

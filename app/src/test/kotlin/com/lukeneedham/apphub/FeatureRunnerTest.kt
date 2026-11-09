@@ -1,6 +1,8 @@
 package com.lukeneedham.apphub
 
 import com.lukeneedham.apphub.domain.CiStatus
+import com.lukeneedham.apphub.domain.AgentPrompts
+import com.lukeneedham.apphub.domain.AgentTools
 import com.lukeneedham.apphub.domain.Feature
 import com.lukeneedham.apphub.domain.FeatureKind
 import com.lukeneedham.apphub.domain.FeatureRunner
@@ -85,6 +87,56 @@ class FeatureRunnerTest {
         runner(store, llm, FakeCodeHost()).run("abc123") { error("no question expected") }
 
         assertEquals("Tokens used: 2200 in (1000 from the cache), 70 out.", store.find("abc123")!!.log.last())
+    }
+
+    @Test
+    fun theTitleFromTheModelReplacesThePromptLineAtOnceAndStaysAfterThePullRequestOpens() = runTest {
+        val store = InMemoryFeatureStore().also { it.add(feature()) }
+        val llm = ScriptedLlm(
+            listOf(
+                reply(toolCall("t", "set_title", "title" to "Add a hint button to the quiz")),
+                reply(toolCall("q", "ask_user", "question" to "Cost a point?")),
+                reply(toolCall("1", "write_file", "path" to "A.kt", "content" to "x")),
+                reply(submit),
+            ),
+        )
+        var titleWhenAsking: String? = null
+
+        runner(store, llm, FakeCodeHost()).run("abc123") {
+            titleWhenAsking = store.find("abc123")!!.summary
+            "No"
+        }
+
+        // Already the title when the second call (the question) was reached, before any work was done
+        assertEquals("Add a hint button to the quiz", titleWhenAsking)
+        // The pull request title ("Add a hint button") does not replace it
+        assertEquals("Add a hint button to the quiz", store.find("abc123")!!.summary)
+    }
+
+    @Test
+    fun anEmptyTitleIsAnErrorForTheModelAndKeepsTheOldOne() = runTest {
+        val store = InMemoryFeatureStore().also { it.add(feature()) }
+        val llm = ScriptedLlm(
+            listOf(
+                reply(toolCall("t", "set_title", "title" to "  ")),
+                reply(toolCall("1", "write_file", "path" to "A.kt", "content" to "x")),
+                reply(submit),
+            ),
+        )
+
+        runner(store, llm, FakeCodeHost()).run("abc123") { error("no question expected") }
+
+        assertEquals("Add a hint button", store.find("abc123")!!.summary)
+        assertTrue(llm.requests[1].messages.filterIsInstance<LlmMessage.ToolResult>().single().isError)
+    }
+
+    @Test
+    fun bothPromptsMakeSettingTheTitleTheFirstStep() {
+        listOf(AgentPrompts.feature("FlagTutor"), AgentPrompts.tweak("FlagTutor", "https://x/pull/1")).forEach { prompt ->
+            assertTrue(prompt.contains("very first step"))
+            assertTrue(prompt.contains("set_title"))
+        }
+        assertTrue(AgentTools.specs.any { it.name == "set_title" })
     }
 
     @Test

@@ -138,12 +138,19 @@ class AgentTools(
         const val replaceInFileTool = "replace_in_file"
         const val deleteFileTool = "delete_file"
         const val askUserTool = "ask_user"
+        const val setTitleTool = "set_title"
         const val submitTool = "submit"
 
         private const val maxFileChars = 40_000
         private val protectedPrefixes = listOf(".github/workflows")
 
         val specs: List<LlmTool> = listOf(
+            LlmTool(
+                setTitleTool,
+                "Sets the title of this piece of work, shown to the user in the app at once. Your very first step, before anything else: " +
+                    "summarize the user's request in a short title.",
+                schema("title" to "A short summary of the change, in the imperative, under 60 characters, no full stop"),
+            ),
             LlmTool(
                 listFilesTool,
                 "Lists the files and directories in a directory of the repo. Directories end with '/'. Use '' for the repo root.",

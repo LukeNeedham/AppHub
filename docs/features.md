@@ -25,16 +25,19 @@ or a **tweak** (more changes to the pull request of a feature). Both are one `Fe
 | GitHub | `CodeHost` | `KtorCodeHost` (Git data API: one commit per phase) |
 | State | `FeatureStore` | `PrefsFeatureStore` |
 
-1. **Work phase.** The model has the tools of `AgentTools`: `list_files`, `read_file`, `write_file`, `replace_in_file`, `delete_file`, `ask_user` and `submit`.
+1. **Title first.** The prompts tell the model its very first step is `set_title` with a short summary of the request. `FeatureRunner` puts it in
+   `Feature.summary` at once, so the row of a feature on Home and the row of a tweak on the PR page change from the first line of the prompt to the title
+   as soon as the model answers. Until then (or if the model never calls it) the first line of the prompt is shown.
+2. **Work phase.** The model has the tools of `AgentTools`: `set_title`, `list_files`, `read_file`, `write_file`, `replace_in_file`, `delete_file`, `ask_user` and `submit`.
    Edits are staged in memory and visible to the model's own reads. Nothing under `.github/workflows` or `.git` can be written.
-2. **Submit.** `submit` ends the phase. The runner makes one commit on the branch (`feature/<words>-<id>`, made from the default branch;
+3. **Submit.** `submit` ends the phase. The runner makes one commit on the branch (`feature/<words>-<id>`, made from the default branch;
    or the branch of the pull request for a tweak) and, for a feature the first time, opens the pull request.
-3. **CI wait, with no model.** The runner polls the workflow runs of the commit (`CodeHost.ciStatus`). Nothing is sent to the LLM while it waits.
+4. **CI wait, with no model.** The runner polls the workflow runs of the commit (`CodeHost.ciStatus`). Nothing is sent to the LLM while it waits.
    Green means every run of the commit is completed without failure, seen twice in a row (so a workflow that starts a moment late is not missed). A commit that has no run at all after three
    minutes counts as green (a change CI does not build).
-4. **Red.** The report (failed job, step, compiler errors and the end of the log) goes to the model as a message, and it fixes the code and
+5. **Red.** The report (failed job, step, compiler errors and the end of the log) goes to the model as a message, and it fixes the code and
    submits again: up to 5 fixes, then the session fails.
-5. **Green.** The runner clears the conversation, sets the status, and returns. **That is the kill**: no session, coroutine or poll is left, and the model is never called again.
+6. **Green.** The runner clears the conversation, sets the status, and returns. **That is the kill**: no session, coroutine or poll is left, and the model is never called again.
 
 The first message of a tweak session is preceded by the hidden preamble (`AgentPrompts.tweak`):
 "You are working on an existing PR for [App Name]: [PR link]. Review the user's requested adjustments below, make the necessary modifications to the
