@@ -31,8 +31,9 @@ class FeatureRunner(
     /** Runs the session of the stored feature [id] to its end, and records every step in the store. */
     suspend fun run(id: String, askUser: suspend (question: String) -> String) {
         val feature = store.find(id) ?: return
+        val spent = TokenCount()
         try {
-            execute(feature, askUser)
+            execute(feature, spent, askUser)
         } catch (e: CancellationException) {
             throw e
         } catch (e: FeatureFailure) {
@@ -41,10 +42,13 @@ class FeatureRunner(
             fail(id, e.message.orEmpty())
         } catch (e: Exception) {
             fail(id, e.message ?: "Something went wrong (${e::class.simpleName}).")
+        } finally {
+            // However it ended, say what the model cost: the user pays per token
+            spent.total?.let { note(id, "Tokens used: ${it.inputTokens} in (${it.cachedInputTokens} from the cache), ${it.outputTokens} out.") }
         }
     }
 
-    private suspend fun execute(start: Feature, askUser: suspend (String) -> String) {
+    private suspend fun execute(start: Feature, spent: TokenCount, askUser: suspend (String) -> String) {
         val id = start.id
         val repo = start.repo
         val configured = llm.current() ?: throw FeatureFailure("Add the API key of an LLM in Settings first.")
@@ -76,7 +80,7 @@ class FeatureRunner(
         while (true) {
             update(id) { it.copy(status = working) }
             val tools = AgentTools(host, repo, readRef)
-            val submission = work(id, configured, system, messages, tools, working, askUser)
+            val submission = work(id, configured, system, messages, tools, working, spent, askUser)
 
             update(id) { it.copy(status = FeatureStatus.WaitingForCi) }
             val sha = host.commit(repo, branch, submission.commitMessage, tools.changes)
@@ -116,6 +120,7 @@ class FeatureRunner(
         messages: MutableList<LlmMessage>,
         tools: AgentTools,
         working: FeatureStatus,
+        spent: TokenCount,
         askUser: suspend (String) -> String,
     ): Submission {
         var nudges = 0
@@ -123,6 +128,7 @@ class FeatureRunner(
         for (turn in 1..maxTurnsPerPhase) {
             if (contextSize(messages) > maxContextChars) throw FeatureFailure("The conversation grew too long for one session.")
             val reply = configured.client.complete(LlmRequest(configured.model, system, messages.toList(), specs))
+            reply.usage?.let(spent::add)
             val text = reply.text?.takeIf { it.isNotBlank() }
             messages += LlmMessage.Assistant(text, reply.toolCalls)
 
@@ -235,6 +241,16 @@ class FeatureRunner(
         const val passesNeeded = 2
         const val maxFailedReads = 5
         const val maxLogLines = 60
+    }
+}
+
+/** The tokens a session has used so far. */
+private class TokenCount {
+    var total: LlmUsage? = null
+        private set
+
+    fun add(usage: LlmUsage) {
+        total = total?.let { it + usage } ?: usage
     }
 }
 

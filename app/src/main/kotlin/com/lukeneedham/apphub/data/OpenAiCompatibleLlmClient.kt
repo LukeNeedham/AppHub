@@ -6,6 +6,7 @@ import com.lukeneedham.apphub.domain.LlmMessage
 import com.lukeneedham.apphub.domain.LlmReply
 import com.lukeneedham.apphub.domain.LlmRequest
 import com.lukeneedham.apphub.domain.LlmToolCall
+import com.lukeneedham.apphub.domain.LlmUsage
 import io.ktor.client.HttpClient
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
@@ -15,6 +16,7 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
@@ -124,7 +126,18 @@ class OpenAiCompatibleLlmClient(
                 arguments = parseArguments(function?.get("arguments")?.jsonPrimitive?.contentOrNull),
             )
         }
-        return LlmReply((message["content"] as? JsonPrimitive)?.contentOrNull?.ifBlank { null }, calls)
+        return LlmReply((message["content"] as? JsonPrimitive)?.contentOrNull?.ifBlank { null }, calls, usageOf(response))
+    }
+
+    /** DeepSeek caches repeated prefixes by itself and reports it as `prompt_cache_hit_tokens`; a vendor that does not leaves it out. */
+    internal fun usageOf(response: JsonObject): LlmUsage? {
+        val usage = response["usage"] as? JsonObject ?: return null
+        fun count(name: String) = (usage[name] as? JsonPrimitive)?.longOrNull ?: 0L
+        return LlmUsage(
+            inputTokens = count("prompt_tokens"),
+            cachedInputTokens = count("prompt_cache_hit_tokens"),
+            outputTokens = count("completion_tokens"),
+        )
     }
 
     /** A model may send arguments that are not valid JSON: the call then has none, and the tool says what is missing. */

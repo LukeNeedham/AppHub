@@ -6,13 +6,16 @@ import com.lukeneedham.apphub.domain.LlmMessage
 import com.lukeneedham.apphub.domain.LlmReply
 import com.lukeneedham.apphub.domain.LlmRequest
 import com.lukeneedham.apphub.domain.LlmToolCall
+import com.lukeneedham.apphub.domain.LlmUsage
 import io.ktor.client.HttpClient
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
@@ -22,9 +25,24 @@ class AnthropicLlmClient(client: HttpClient, private val apiKey: String) : LlmCl
     private val http = LlmHttp(client, "Anthropic")
 
     override suspend fun complete(request: LlmRequest): LlmReply {
-        val body = buildJsonObject {
+        val response = http.postJson(
+            url = "https://api.anthropic.com/v1/messages",
+            headers = mapOf("x-api-key" to apiKey, "anthropic-version" to "2023-06-01"),
+            body = requestBody(request),
+        )
+        return replyOf(response)
+    }
+
+    /**
+     * The conversation grows by a few messages a turn and every turn sends it all again, so the request asks the API to cache the
+     * prefix up to the last block (top-level `cache_control`): the next turn reads it back at a fraction of the price. Tools and the
+     * system prompt come first in the prefix, so they are cached with it.
+     */
+    internal fun requestBody(request: LlmRequest): JsonObject {
+        return buildJsonObject {
             put("model", request.model)
             put("max_tokens", request.maxOutputTokens)
+            put("cache_control", buildJsonObject { put("type", "ephemeral") })
             put("system", request.system)
             put("messages", messagesOf(request.messages))
             put(
@@ -42,12 +60,6 @@ class AnthropicLlmClient(client: HttpClient, private val apiKey: String) : LlmCl
                 },
             )
         }
-        val response = http.postJson(
-            url = "https://api.anthropic.com/v1/messages",
-            headers = mapOf("x-api-key" to apiKey, "anthropic-version" to "2023-06-01"),
-            body = body,
-        )
-        return replyOf(response)
     }
 
     /**
@@ -104,6 +116,18 @@ class AnthropicLlmClient(client: HttpClient, private val apiKey: String) : LlmCl
         put("text", text)
     }
 
+    /** `input_tokens` is only the part after the last cache hit or write, so the cache counts are added back to get all the input. */
+    internal fun usageOf(response: JsonObject): LlmUsage? {
+        val usage = response["usage"] as? JsonObject ?: return null
+        fun count(name: String) = (usage[name] as? JsonPrimitive)?.longOrNull ?: 0L
+        val cached = count("cache_read_input_tokens")
+        return LlmUsage(
+            inputTokens = count("input_tokens") + cached + count("cache_creation_input_tokens"),
+            cachedInputTokens = cached,
+            outputTokens = count("output_tokens"),
+        )
+    }
+
     private fun replyOf(response: JsonObject): LlmReply {
         val blocks = (response["content"] as? JsonArray) ?: throw LlmException("Anthropic answered with something unexpected.")
         val text = StringBuilder()
@@ -118,6 +142,6 @@ class AnthropicLlmClient(client: HttpClient, private val apiKey: String) : LlmCl
                 )
             }
         }
-        return LlmReply(text.toString().ifBlank { null }, calls)
+        return LlmReply(text.toString().ifBlank { null }, calls, usageOf(response))
     }
 }

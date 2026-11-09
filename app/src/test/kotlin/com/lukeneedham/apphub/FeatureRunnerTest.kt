@@ -7,6 +7,7 @@ import com.lukeneedham.apphub.domain.FeatureRunner
 import com.lukeneedham.apphub.domain.FeatureStatus
 import com.lukeneedham.apphub.domain.FileChange
 import com.lukeneedham.apphub.domain.LlmMessage
+import com.lukeneedham.apphub.domain.LlmUsage
 import com.lukeneedham.apphub.domain.PullRequestInfo
 import com.lukeneedham.apphub.domain.find
 import kotlinx.coroutines.test.runTest
@@ -68,6 +69,22 @@ class FeatureRunnerTest {
         // The prompt is the first message, and the instructions are not in the conversation
         assertEquals(LlmMessage.User("Add a hint button"), llm.requests.first().messages.single())
         assertTrue(llm.requests.first().system.contains("FlagTutor"))
+    }
+
+    @Test
+    fun theTokensUsedAreAddedUpAndNotedWhenTheSessionEnds() = runTest {
+        val store = InMemoryFeatureStore().also { it.add(feature()) }
+        val write = reply(toolCall("1", "write_file", "path" to "A.kt", "content" to "x"))
+        val llm = ScriptedLlm(
+            listOf(
+                write.copy(usage = LlmUsage(inputTokens = 1_000, cachedInputTokens = 0, outputTokens = 50)),
+                reply(submit).copy(usage = LlmUsage(inputTokens = 1_200, cachedInputTokens = 1_000, outputTokens = 20)),
+            ),
+        )
+
+        runner(store, llm, FakeCodeHost()).run("abc123") { error("no question expected") }
+
+        assertEquals("Tokens used: 2200 in (1000 from the cache), 70 out.", store.find("abc123")!!.log.last())
     }
 
     @Test

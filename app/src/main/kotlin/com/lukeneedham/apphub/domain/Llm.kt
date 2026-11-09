@@ -51,8 +51,20 @@ data class LlmRequest(
     val maxOutputTokens: Int = 8_192,
 )
 
-/** What the model said: [text] and/or [toolCalls]. */
-data class LlmReply(val text: String?, val toolCalls: List<LlmToolCall>)
+/** What the model said: [text] and/or [toolCalls]. [usage] is what the call cost in tokens, when the provider says. */
+data class LlmReply(val text: String?, val toolCalls: List<LlmToolCall>, val usage: LlmUsage? = null)
+
+/**
+ * The tokens of one call, or the sum of several. [inputTokens] counts all the input, [cachedInputTokens] the part of it that the
+ * provider took from its cache, which costs a fraction.
+ */
+data class LlmUsage(val inputTokens: Long = 0, val cachedInputTokens: Long = 0, val outputTokens: Long = 0) {
+    operator fun plus(other: LlmUsage) = LlmUsage(
+        inputTokens + other.inputTokens,
+        cachedInputTokens + other.cachedInputTokens,
+        outputTokens + other.outputTokens,
+    )
+}
 
 /**
  * The interface over the LLM. The feature automation only ever sees this, so a different vendor is a different

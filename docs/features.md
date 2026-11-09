@@ -41,6 +41,13 @@ The first message of a tweak session is preceded by the hidden preamble (`AgentP
 codebase, push the changes to this same PR branch, monitor the CI until it goes green, and then immediately archive/kill this session."
 The user never sees it, and the user's prompt is the first message.
 
+## Cost
+
+The user pays the provider per token, and a session is many calls that each resend the whole conversation. So the Anthropic client sets a
+top-level `cache_control` on every request (`AnthropicLlmClient.requestBody`), which makes the API cache the prefix and read it back at a fraction of
+the price on the next turn (the cache lives about five minutes, so a long CI wait can cost one rebuild). DeepSeek caches repeated prefixes by itself.
+Each session ends with a line in its activity log, `Tokens used: N in (M from the cache), K out.`, so the saving can be seen.
+
 ## Limits worth knowing
 
 - Sessions run inside the app process, kept alive by a foreground service while any session is active (`FeatureKeepAlive`). If Android or the user
