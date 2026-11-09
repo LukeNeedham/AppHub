@@ -96,8 +96,13 @@ internal fun FeaturePageContent(
             if (feature.log.isNotEmpty()) {
                 Card {
                     Text("Activity", style = MaterialTheme.typography.titleMedium)
-                    feature.log.asReversed().forEach { line ->
-                        Text(line, style = MaterialTheme.typography.bodySmall, color = AppTheme.colors.textSecondary)
+                    // One container for all the lines, so a selection can run across them and be copied whole
+                    SelectionContainer {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            feature.log.asReversed().forEach { line ->
+                                Text(line, style = MaterialTheme.typography.bodySmall, color = AppTheme.colors.textSecondary)
+                            }
+                        }
                     }
                 }
             }
