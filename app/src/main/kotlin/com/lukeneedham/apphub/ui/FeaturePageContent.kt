@@ -59,6 +59,7 @@ internal fun FeaturePageContent(
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
                     }
                 },
+                actions = { PageDebugButton("FeaturePage") },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = background),
             )
         },

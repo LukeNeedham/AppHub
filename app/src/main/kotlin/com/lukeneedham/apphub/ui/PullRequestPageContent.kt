@@ -66,6 +66,7 @@ internal fun PullRequestPageContent(
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
                     }
                 },
+                actions = { PageDebugButton("PullRequestPage") },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = background, scrolledContainerColor = background),
             )
         },

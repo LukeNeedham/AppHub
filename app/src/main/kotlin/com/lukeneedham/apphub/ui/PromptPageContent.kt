@@ -50,6 +50,7 @@ internal fun PromptPageContent(
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
                     }
                 },
+                actions = { PageDebugButton("PromptPage") },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = background),
             )
         },

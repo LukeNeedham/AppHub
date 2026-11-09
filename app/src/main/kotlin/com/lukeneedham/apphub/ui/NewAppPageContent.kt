@@ -67,6 +67,7 @@ internal fun NewAppPageContent(
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
                     }
                 },
+                actions = { PageDebugButton("NewAppPage") },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = background),
             )
         },

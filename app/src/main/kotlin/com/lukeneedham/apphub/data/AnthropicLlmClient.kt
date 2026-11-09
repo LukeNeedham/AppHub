@@ -34,16 +34,19 @@ class AnthropicLlmClient(client: HttpClient, private val apiKey: String) : LlmCl
     }
 
     /**
-     * The conversation grows by a few messages a turn and every turn sends it all again, so the request asks the API to cache the
-     * prefix up to the last block (top-level `cache_control`): the next turn reads it back at a fraction of the price. Tools and the
-     * system prompt come first in the prefix, so they are cached with it.
+     * The conversation grows by a few messages a turn and every turn sends it all again, so the request marks cache breakpoints with
+     * block-level `cache_control`: on the system prompt (which also caches the tools, as they come first in the prefix), on the last
+     * block of the conversation (the next turn reads everything up to it back at a fraction of the price) and on the last block of
+     * the user message before it (the previous turn's breakpoint, so a read still hits if the prefix shifts by a block).
      */
     internal fun requestBody(request: LlmRequest): JsonObject {
         return buildJsonObject {
             put("model", request.model)
             put("max_tokens", request.maxOutputTokens)
-            put("cache_control", buildJsonObject { put("type", "ephemeral") })
-            put("system", request.system)
+            put(
+                "system",
+                buildJsonArray { add(cached(textBlock(request.system))) },
+            )
             put("messages", messagesOf(request.messages))
             put(
                 "tools",
@@ -99,17 +102,32 @@ class AnthropicLlmClient(client: HttpClient, private val apiKey: String) : LlmCl
                 }
             }
         }
+        // The last block of the conversation, and of the user message before the last one, carry the breakpoints
+        val breakpoints = buildSet {
+            if (out.isNotEmpty()) add(out.lastIndex)
+            if (out.size >= 3) add(out.lastIndex - 2)
+        }
         return buildJsonArray {
-            out.forEach { (role, blocks) ->
+            out.forEachIndexed { index, (role, blocks) ->
                 add(
                     buildJsonObject {
                         put("role", role)
-                        put("content", buildJsonArray { blocks.forEach { add(it) } })
+                        put(
+                            "content",
+                            buildJsonArray {
+                                blocks.forEachIndexed { blockIndex, block ->
+                                    add(if (index in breakpoints && blockIndex == blocks.lastIndex) cached(block) else block)
+                                }
+                            },
+                        )
                     },
                 )
             }
         }
     }
+
+    /** [block] with a cache breakpoint on it. */
+    private fun cached(block: JsonObject) = JsonObject(block + ("cache_control" to buildJsonObject { put("type", "ephemeral") }))
 
     private fun textBlock(text: String) = buildJsonObject {
         put("type", "text")

@@ -77,6 +77,7 @@ internal fun SettingsPageContent(
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
                     }
                 },
+                actions = { PageDebugButton("SettingsPage") },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = background),
             )
         },

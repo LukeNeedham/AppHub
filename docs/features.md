@@ -46,8 +46,8 @@ The user never sees it, and the user's prompt is the first message.
 
 ## Cost
 
-The user pays the provider per token, and a session is many calls that each resend the whole conversation. So the Anthropic client sets a
-top-level `cache_control` on every request (`AnthropicLlmClient.requestBody`), which makes the API cache the prefix and read it back at a fraction of
+The user pays the provider per token, and a session is many calls that each resend the whole conversation. So the Anthropic client puts cache breakpoints (`cache_control` on blocks) on the
+system prompt, which also covers the tools, and on the last blocks of the conversation (`AnthropicLlmClient.requestBody`), which makes the API cache the prefix and read it back at a fraction of
 the price on the next turn (the cache lives about five minutes, so a long CI wait can cost one rebuild). DeepSeek caches repeated prefixes by itself.
 Each session ends with a line in its activity log, `Tokens used: N in (M from the cache), K out.`, so the saving can be seen.
 
