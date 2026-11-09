@@ -55,7 +55,7 @@ Each session ends with a line in its activity log, `Tokens used: N in (M from th
 
 - Sessions run inside the app process, kept alive by a foreground service while any session is active (`FeatureKeepAlive`). If Android or the user
   still ends the process, the session is over: on the next start it is shown as Failed (`FeatureManager.failInterrupted`). Conversations are not saved.
-- A session is bounded: 40 model turns per work phase, about 150,000 tokens of conversation, 45 minutes of CI.
+- A session is bounded: 80 model turns per work phase, about 150,000 tokens of conversation, 45 minutes of CI.
 - Settings → GitHub: the token needs Contents, Pull requests (read and write) and Actions (read) on the repo. Settings → AI model for features:
   the provider, model and API key. A key is encrypted with an Android Keystore key, like the GitHub token, and sent only to its provider.
 

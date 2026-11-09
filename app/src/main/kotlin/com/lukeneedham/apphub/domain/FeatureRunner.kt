@@ -22,7 +22,7 @@ class FeatureRunner(
     /** How long a commit may have no check at all before it counts as having no CI. */
     private val noCiGraceMillis: Long = 180_000,
     private val ciTimeoutMillis: Long = 45 * 60_000L,
-    private val maxTurnsPerPhase: Int = 40,
+    private val maxTurnsPerPhase: Int = 80,
     private val maxCiFixes: Int = 5,
     /** A guard against a conversation that grows without end. About 150,000 tokens. */
     private val maxContextChars: Int = 600_000,
