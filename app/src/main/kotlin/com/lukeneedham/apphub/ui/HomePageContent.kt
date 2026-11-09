@@ -169,6 +169,7 @@ internal fun HomePageContent(
                         IconButton(onClick = onOpenSettings) {
                             Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings")
                         }
+                        PageDebugButton("HomePage")
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = background,

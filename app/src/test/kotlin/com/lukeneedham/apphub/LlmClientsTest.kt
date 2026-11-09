@@ -46,10 +46,18 @@ class LlmClientsTest {
     )
 
     @Test
-    fun anthropicRequestsCacheThePrefixWithATopLevelBreakpoint() {
+    fun anthropicRequestsPutCacheBreakpointsOnTheSystemPromptAndTheEndOfTheConversation() {
         val body = AnthropicLlmClient(http, "key").requestBody(request)
 
-        assertEquals("ephemeral", body["cache_control"]!!.jsonObject["type"]!!.jsonPrimitive.content)
+        assertNull(body["cache_control"])
+        val system = body["system"]!!.jsonArray.single().jsonObject
+        assertEquals("system", system["text"]!!.jsonPrimitive.content)
+        assertEquals("ephemeral", system["cache_control"]!!.jsonObject["type"]!!.jsonPrimitive.content)
+        // One breakpoint on the last block of the conversation and one on the user message before the last one
+        val marked = body["messages"]!!.jsonArray.map { message ->
+            message.jsonObject["content"]!!.jsonArray.count { it.jsonObject["cache_control"] != null }
+        }
+        assertEquals(listOf(1, 0, 1), marked)
         assertEquals("claude-sonnet-5-5", body["model"]!!.jsonPrimitive.content)
         assertEquals(AgentTools.specs.size, body["tools"]!!.jsonArray.size)
     }
@@ -70,6 +78,15 @@ class LlmClientsTest {
         )
 
         assertEquals(LlmUsage(inputTokens = 1250, cachedInputTokens = 1000, outputTokens = 30), usage)
+    }
+
+    @Test
+    fun openAiStyleInputReadsTheCachedTokensOfTheDetails() {
+        val usage = OpenAiCompatibleLlmClient(http, "key", "https://example.com", "Test").usageOf(
+            json("""{"usage":{"prompt_tokens":1200,"completion_tokens":25,"prompt_tokens_details":{"cached_tokens":1000}}}"""),
+        )
+
+        assertEquals(LlmUsage(inputTokens = 1200, cachedInputTokens = 1000, outputTokens = 25), usage)
     }
 
     @Test

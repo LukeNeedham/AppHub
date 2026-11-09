@@ -46,16 +46,16 @@ The user never sees it, and the user's prompt is the first message.
 
 ## Cost
 
-The user pays the provider per token, and a session is many calls that each resend the whole conversation. So the Anthropic client sets a
-top-level `cache_control` on every request (`AnthropicLlmClient.requestBody`), which makes the API cache the prefix and read it back at a fraction of
-the price on the next turn (the cache lives about five minutes, so a long CI wait can cost one rebuild). DeepSeek caches repeated prefixes by itself.
+The user pays the provider per token, and a session is many calls that each resend the whole conversation. So the Anthropic client puts cache breakpoints (`cache_control` on blocks) on the
+system prompt, which also covers the tools, and on the last blocks of the conversation (`AnthropicLlmClient.requestBody`), which makes the API cache the prefix and read it back at a fraction of
+the price on the next turn (the cache lives about five minutes, so a long CI wait can cost one rebuild). DeepSeek, OpenAI and Z.ai (GLM) cache repeated prefixes by themselves, with nothing to set in the request, and report the hits (`prompt_cache_hit_tokens`, or `prompt_tokens_details.cached_tokens`), which `OpenAiCompatibleLlmClient.usageOf` reads.
 Each session ends with a line in its activity log, `Tokens used: N in (M from the cache), K out.`, so the saving can be seen.
 
 ## Limits worth knowing
 
 - Sessions run inside the app process, kept alive by a foreground service while any session is active (`FeatureKeepAlive`). If Android or the user
   still ends the process, the session is over: on the next start it is shown as Failed (`FeatureManager.failInterrupted`). Conversations are not saved.
-- A session is bounded: 40 model turns per work phase, about 150,000 tokens of conversation, 45 minutes of CI.
+- A session is bounded: 80 model turns per work phase, about 150,000 tokens of conversation, 45 minutes of CI.
 - Settings → GitHub: the token needs Contents, Pull requests (read and write) and Actions (read) on the repo. Settings → AI model for features:
   the provider, model and API key. A key is encrypted with an Android Keystore key, like the GitHub token, and sent only to its provider.
 
