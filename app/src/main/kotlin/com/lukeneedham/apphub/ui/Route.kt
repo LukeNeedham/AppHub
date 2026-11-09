@@ -16,6 +16,17 @@ sealed interface Route : NavKey {
     @Serializable
     data class PullRequest(val repo: String, val number: Int, val openedAt: Long = 0) : Route
 
+    /**
+     * The page of the one prompt that starts a session. [pullRequestNumber] is 0 for a new feature in [repo] (`owner/name`),
+     * or the number of the pull request of [repo] to tweak.
+     */
+    @Serializable
+    data class Prompt(val repo: String, val pullRequestNumber: Int = 0) : Route
+
+    /** The page of one session, a feature or a tweak, by its id. */
+    @Serializable
+    data class Feature(val id: String) : Route
+
     @Serializable
     data object Settings : Route
 

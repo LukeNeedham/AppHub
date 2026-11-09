@@ -128,6 +128,8 @@ internal fun HomePageContent(
     onOpenPullRequest: (PullRequestRef) -> Unit,
     onOpenSettings: () -> Unit,
     onNewApp: () -> Unit,
+    onStartFeature: (String) -> Unit,
+    onOpenFeature: (String) -> Unit,
 ) {
     val background = AppTheme.colors.background
     val listState = rememberLazyListState()
@@ -236,6 +238,8 @@ internal fun HomePageContent(
                         onOpen = onOpen,
                         mainBuild = mainBuild,
                         onOpenPullRequest = onOpenPullRequest,
+                        onStartFeature = { onStartFeature(section.repo) },
+                        onOpenFeature = onOpenFeature,
                     )
                 }
                 item(key = "trailing-space") { Spacer(Modifier.height(trailingSpace)) }
@@ -403,6 +407,8 @@ private fun RepoCard(
     onOpen: (String) -> Unit,
     mainBuild: MainBuildActions,
     onOpenPullRequest: (PullRequestRef) -> Unit,
+    onStartFeature: () -> Unit,
+    onOpenFeature: (String) -> Unit,
 ) {
     val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
     Surface(
@@ -485,6 +491,12 @@ private fun RepoCard(
                         }
                     }
                     section.mainBuild?.let { item -> MainBuildErrors(item) }
+                    HorizontalDivider(color = AppTheme.colors.border)
+                    StartFeatureRow(onStartFeature)
+                    section.features.forEach { feature ->
+                        HorizontalDivider(color = AppTheme.colors.border)
+                        FeatureRow(feature, onClick = { onOpenFeature(feature.id) })
+                    }
                     if (section.pullRequests.isEmpty()) {
                         HorizontalDivider(color = AppTheme.colors.border)
                         Text(
@@ -501,6 +513,19 @@ private fun RepoCard(
                 }
             }
         }
+    }
+}
+
+/** The button that opens the page where the prompt of a new feature is typed. */
+@Composable
+private fun StartFeatureRow(onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
+    ) {
+        Icon(painterResource(R.drawable.ic_add), contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("Start new feature", modifier = Modifier.weight(1f))
     }
 }
 
@@ -1018,6 +1043,8 @@ private fun Preview() {
             onOpenPullRequest = {},
             onOpenSettings = {},
             onNewApp = {},
+            onStartFeature = {},
+            onOpenFeature = {},
         )
     }
 }

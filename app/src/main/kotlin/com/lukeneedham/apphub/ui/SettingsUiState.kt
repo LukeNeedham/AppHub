@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lukeneedham.apphub.data.GithubApi
 import com.lukeneedham.apphub.domain.InvalidTokenException
+import com.lukeneedham.apphub.domain.LlmProvider
 import com.lukeneedham.apphub.domain.RateLimitInfo
 import com.lukeneedham.apphub.domain.TokenStore
 import com.lukeneedham.common.logger.Logger
@@ -25,4 +26,17 @@ data class SettingsUiState(
     val hasRepoCreationToken: Boolean = false,
     /** What was typed for that token, until it is saved. */
     val repoCreationTokenInput: String = "",
+    val llm: LlmUiState = LlmUiState(),
+)
+
+/** The LLM part of Settings: which provider the sessions run on, with which model and key. */
+data class LlmUiState(
+    val provider: LlmProvider = LlmProvider.Anthropic,
+    /** The model field: what is typed for the chosen provider. A blank one is not saved, and the provider's default stays. */
+    val modelInput: String = LlmProvider.Anthropic.defaultModel,
+    /** Whether the chosen provider has an API key. */
+    val hasKey: Boolean = false,
+    val keyInput: String = "",
+    /** The address of the API, for a provider that needs one. */
+    val baseUrlInput: String = "",
 )

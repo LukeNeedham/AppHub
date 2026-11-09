@@ -1,6 +1,20 @@
 package com.lukeneedham.apphub.di
 
 import com.lukeneedham.apphub.data.AndroidApkInstaller
+import com.lukeneedham.apphub.data.FeatureKeepAlive
+import com.lukeneedham.apphub.data.KtorCodeHost
+import com.lukeneedham.apphub.data.LlmClientSource
+import com.lukeneedham.apphub.data.LlmKeyStores
+import com.lukeneedham.apphub.data.PrefsFeatureStore
+import com.lukeneedham.apphub.data.PrefsLlmSettings
+import com.lukeneedham.apphub.domain.CodeHost
+import com.lukeneedham.apphub.domain.FeatureManager
+import com.lukeneedham.apphub.domain.FeatureRunner
+import com.lukeneedham.apphub.domain.FeatureStore
+import com.lukeneedham.apphub.domain.LlmSettings
+import com.lukeneedham.apphub.domain.LlmSource
+import com.lukeneedham.apphub.ui.FeatureViewModel
+import com.lukeneedham.apphub.ui.PromptViewModel
 import com.lukeneedham.apphub.data.GithubApi
 import com.lukeneedham.apphub.data.KeystoreTokenStore
 import com.lukeneedham.apphub.data.KtorApkDownloader
@@ -56,9 +70,20 @@ object KoinModules {
         single<InstallTracker> { PrefsInstallTracker(androidContext()) }
         single(named(KoinQualifier.APPLICATION_SCOPE)) { ApplicationScope.create() }
         single { ApkDownloads(get(), get(), get(), get(named(KoinQualifier.APPLICATION_SCOPE))) }
+        single(named(KoinQualifier.llmHttpClient)) { LlmHttpClientFactory.create(get()) }
+        single { LlmKeyStores(androidContext()) }
+        single<LlmSettings> { PrefsLlmSettings(androidContext(), get()) }
+        single<LlmSource> { LlmClientSource(get(), get(named(KoinQualifier.llmHttpClient))) }
+        single<CodeHost> { KtorCodeHost(get(), get()) }
+        single<FeatureStore> { PrefsFeatureStore(androidContext()) }
+        single { FeatureRunner(get(), get(), get()) }
+        single { FeatureManager(get(), get(), get(named(KoinQualifier.APPLICATION_SCOPE))) }
+        single { FeatureKeepAlive(androidContext(), get(), get(named(KoinQualifier.APPLICATION_SCOPE))) }
         viewModelOf(::HomeViewModel)
-        viewModel { (repo: String, number: Int) -> PullRequestViewModel(repo, number, get(), get(), get()) }
-        viewModel { SettingsViewModel(get(), get(), get(named(KoinQualifier.REPO_CREATION_TOKEN)), get()) }
+        viewModel { (repo: String, number: Int) -> PullRequestViewModel(repo, number, get(), get(), get(), get()) }
+        viewModel { (repo: String, number: Int) -> PromptViewModel(repo, number, get(), get(), get()) }
+        viewModel { (id: String) -> FeatureViewModel(id, get()) }
+        viewModel { SettingsViewModel(get(), get(), get(named(KoinQualifier.REPO_CREATION_TOKEN)), get(), get()) }
         viewModel { NewAppViewModel(get(), get(), get(named(KoinQualifier.REPO_CREATION_TOKEN))) }
     }
 

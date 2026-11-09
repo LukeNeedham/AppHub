@@ -2,6 +2,7 @@ package com.lukeneedham.apphub.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lukeneedham.apphub.domain.Feature
 import com.lukeneedham.apphub.domain.InstallTracker
 import com.lukeneedham.apphub.domain.InvalidTokenException
 import com.lukeneedham.apphub.domain.PullRequest
@@ -23,4 +24,10 @@ data class PullRequestUiState(
     val item: PullRequestItem? = null,
     /** The list loaded and has no such PR: it was merged or closed, or never existed. */
     val notFound: Boolean = false,
+    /** A feature made this pull request, so it can be tweaked. */
+    val hasFeature: Boolean = false,
+    /** The tweaks of this pull request, newest first, with the state of each. */
+    val tweaks: List<Feature> = emptyList(),
+    /** A session is working on this pull request now, so another tweak must wait for it. */
+    val tweakBlocked: Boolean = false,
 )

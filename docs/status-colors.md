@@ -94,3 +94,15 @@ divider keep the plain colour.
 
 Keep the table above in line with `controlOf`. Meaning colours the Material scheme has no slot for (green,
 amber, blue) live in `StatusColors` in `ui/theme/AppTheme.kt`.
+
+## Feature and tweak rows
+
+A session of the feature automation (`docs/features.md`) has its own status icon, in `FeatureStatusIcon` (`ui/FeatureRow.kt`). It follows the same
+rule, the colour says what needs you:
+
+| Colour | Icon | Status | Label |
+|---|---|---|---|
+| Blue | Spinner | Working, Waiting for CI, Fixing CI | In progress, Waiting for CI, Fixing CI |
+| Purple | Question mark | The model asked a question and waits | Needs your answer |
+| Green | Tick | The CI is green and the session is closed | Ready for review (a feature), Completed (a tweak) |
+| Red | Cross | The session ended without a green CI | Failed |

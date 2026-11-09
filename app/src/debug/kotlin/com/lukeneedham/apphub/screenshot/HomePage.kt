@@ -9,6 +9,9 @@ import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
 import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.DownloadState
+import com.lukeneedham.apphub.domain.Feature
+import com.lukeneedham.apphub.domain.FeatureKind
+import com.lukeneedham.apphub.domain.FeatureStatus
 import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.MainApk
 import com.lukeneedham.apphub.domain.MainBuildItem
@@ -30,6 +33,18 @@ private fun HomePageScreenshot() {
         repos = listOf(
             RepoSection(
                 repo = "LukeNeedham/FlagTutor",
+                features = listOf(
+                    Feature(
+                        id = "f1",
+                        kind = FeatureKind.Feature,
+                        repo = "LukeNeedham/FlagTutor",
+                        prompt = "Add a hint button to the quiz that removes two wrong answers",
+                        summary = "Add a hint button to the quiz that removes two wrong answers",
+                        status = FeatureStatus.WaitingForCi,
+                        prNumber = 13,
+                        createdAtMillis = 0,
+                    ),
+                ),
                 pullRequests = listOf(
                     PullRequestItem(
                         pr = PullRequest(
@@ -102,6 +117,8 @@ private fun HomePageScreenshot() {
                 onOpenPullRequest = {},
                 onOpenSettings = {},
                 onNewApp = {},
+                onStartFeature = {},
+                onOpenFeature = {},
             )
         }
     }

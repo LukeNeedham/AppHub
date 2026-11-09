@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.lukeneedham.apphub.domain.ApkDownloader
 import com.lukeneedham.apphub.domain.DisplaySettings
 import com.lukeneedham.apphub.domain.DownloadState
+import com.lukeneedham.apphub.domain.Feature
+import com.lukeneedham.apphub.domain.FeatureKind
+import com.lukeneedham.apphub.domain.FeatureManager
 import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.InstallTracker
 import com.lukeneedham.apphub.domain.MainApk
@@ -47,6 +50,8 @@ data class RepoSection(
     val pullRequests: List<PullRequestItem>,
     /** Null when the repo has no main build (no `main-build` release), or there is no token to look it up with. */
     val mainBuild: MainBuildItem? = null,
+    /** The features started in this repo whose pull request is still open or not made yet. Their tweaks are on the page of the pull request. */
+    val features: List<Feature> = emptyList(),
 ) {
     val url: String get() = repoUrl(repo)
     val claudeUrl: String get() = newClaudeSessionUrl(repo)
@@ -60,6 +65,7 @@ class HomeViewModel(
     private val tokenStore: TokenStore,
     private val mainBuilds: MainBuildSource,
     private val displaySettings: DisplaySettings,
+    private val featureManager: FeatureManager,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -73,6 +79,9 @@ class HomeViewModel(
     private var toggledRepos = emptySet<String>()
     private var mainApks = emptyMap<String, MainApk>()
 
+    /** Whether [pullRequests] was loaded after the last change to the pull requests of the features, so that a feature whose pull request is not in it is over. */
+    private var listIsCurrent = false
+
     init {
         pullRequests = source.cached()
         refresh()
@@ -82,6 +91,19 @@ class HomeViewModel(
         viewModelScope.launch { tokenStore.token.drop(1).collect { refresh() } }
         // Showing or hiding auto merge PRs only changes the list, so there is nothing to load
         viewModelScope.launch { displaySettings.showAutoMergePrs.drop(1).collect { publish() } }
+        // A session opening its pull request, or ending, changes the list of pull requests: load it again
+        viewModelScope.launch {
+            var seen = featureStates()
+            featureManager.features.drop(1).collect {
+                val now = featureStates()
+                if (now != seen) {
+                    seen = now
+                    listIsCurrent = false
+                    refresh()
+                }
+                publish()
+            }
+        }
     }
 
     fun refresh() {
@@ -93,6 +115,7 @@ class HomeViewModel(
                 pullRequests = source.openPullRequests()
                 error = null
                 listed = true
+                listIsCurrent = true
                 repositories = source.repositories()
             } catch (e: CancellationException) {
                 throw e
@@ -155,6 +178,16 @@ class HomeViewModel(
         downloader.prune(files.toSet())
     }
 
+    /** What of the features makes the list of pull requests change: their status and their pull request. */
+    private fun featureStates() = featureManager.features.value.map { Triple(it.id, it.status, it.prNumber) }.toSet()
+
+    /** The features of [repo] to show: those whose pull request is not made yet or is open, and any while the list is not current. */
+    private fun featuresOf(repo: String): List<Feature> =
+        featureManager.features.value.filter { feature ->
+            feature.repo == repo && feature.kind == FeatureKind.Feature &&
+                (feature.prNumber == null || !listIsCurrent || pullRequests.any { it.repo == repo && it.number == feature.prNumber })
+        }
+
     private fun allRepos() = (pullRequests.map { it.repo } + repositories).distinct()
 
     private fun mainItem(repo: String): MainBuildItem? {
@@ -195,13 +228,15 @@ class HomeViewModel(
                     repo = repo,
                     pullRequests = prs.map { PullRequestItem(it, downloads.stateOf(it), tracker.statusFor(it.offer)) },
                     mainBuild = mainItem(repo),
+                    features = featuresOf(repo),
                 )
             }
         // Repos with no open pull requests come after the ones that have some
         val withNone = (repositories - withPullRequests.map { it.repo }.toSet())
-            .map { RepoSection(repo = it, pullRequests = emptyList(), mainBuild = mainItem(it)) }
+            .map { RepoSection(repo = it, pullRequests = emptyList(), mainBuild = mainItem(it), features = featuresOf(it)) }
         val sections = withPullRequests + withNone
-        val collapsed = sections.filter { (it.repo in toggledRepos) != it.pullRequests.isEmpty() }.map { it.repo }.toSet()
+        // A repo with nothing to show starts collapsed; a running feature counts as something
+        val collapsed = sections.filter { (it.repo in toggledRepos) != (it.pullRequests.isEmpty() && it.features.isEmpty()) }.map { it.repo }.toSet()
         _uiState.value = HomeUiState(isLoading = isLoading, error = error, repos = sections, collapsedRepos = collapsed)
     }
 

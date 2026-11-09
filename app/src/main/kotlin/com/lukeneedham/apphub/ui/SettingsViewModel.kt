@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.lukeneedham.apphub.data.GithubApi
 import com.lukeneedham.apphub.domain.DisplaySettings
 import com.lukeneedham.apphub.domain.InvalidTokenException
+import com.lukeneedham.apphub.domain.LlmProvider
+import com.lukeneedham.apphub.domain.LlmSettings
 import com.lukeneedham.apphub.domain.RateLimitInfo
 import com.lukeneedham.apphub.domain.TokenStore
 import com.lukeneedham.common.logger.Logger
@@ -24,6 +26,7 @@ class SettingsViewModel(
     private val tokenStore: TokenStore,
     private val repoCreationTokenStore: TokenStore,
     private val displaySettings: DisplaySettings,
+    private val llmSettings: LlmSettings,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(stateFor(tokenStore.token.value))
@@ -49,7 +52,7 @@ class SettingsViewModel(
             try {
                 val info = api.checkToken(token)
                 tokenStore.set(token)
-                _uiState.value = stateFor(token, _uiState.value.repoCreationTokenInput).copy(rateLimit = info)
+                _uiState.value = stateFor(token, _uiState.value.repoCreationTokenInput, _uiState.value.llm).copy(rateLimit = info)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: InvalidTokenException) {
@@ -63,7 +66,7 @@ class SettingsViewModel(
 
     fun remove() {
         tokenStore.set(null)
-        _uiState.value = stateFor(null, _uiState.value.repoCreationTokenInput)
+        _uiState.value = stateFor(null, _uiState.value.repoCreationTokenInput, _uiState.value.llm)
     }
 
     fun onRepoCreationTokenInputChange(input: String) = _uiState.update { it.copy(repoCreationTokenInput = input) }
@@ -81,6 +84,45 @@ class SettingsViewModel(
         _uiState.update { it.copy(hasRepoCreationToken = false) }
     }
 
+    fun selectLlmProvider(provider: LlmProvider) {
+        llmSettings.selectProvider(provider)
+        _uiState.update { it.copy(llm = llmState(provider)) }
+    }
+
+    /** Keeps the model as typed for the chosen provider, unless it is blank: then the provider's default stays. */
+    fun onLlmModelChange(model: String) {
+        val provider = _uiState.value.llm.provider
+        if (model.isNotBlank()) llmSettings.setModel(provider, model)
+        _uiState.update { it.copy(llm = it.llm.copy(modelInput = model)) }
+    }
+
+    fun onLlmBaseUrlChange(url: String) {
+        llmSettings.setBaseUrl(_uiState.value.llm.provider, url)
+        _uiState.update { it.copy(llm = it.llm.copy(baseUrlInput = url)) }
+    }
+
+    fun onLlmKeyInputChange(input: String) = _uiState.update { it.copy(llm = it.llm.copy(keyInput = input)) }
+
+    /** Keeps the typed key for the chosen provider. The provider is asked about it when a session uses it. */
+    fun saveLlmKey() {
+        val llm = _uiState.value.llm
+        if (llm.keyInput.isBlank()) return
+        llmSettings.setApiKey(llm.provider, llm.keyInput)
+        _uiState.update { it.copy(llm = it.llm.copy(keyInput = "", hasKey = true)) }
+    }
+
+    fun removeLlmKey() {
+        llmSettings.setApiKey(_uiState.value.llm.provider, null)
+        _uiState.update { it.copy(llm = it.llm.copy(hasKey = false)) }
+    }
+
+    private fun llmState(provider: LlmProvider = llmSettings.provider.value) = LlmUiState(
+        provider = provider,
+        modelInput = llmSettings.model(provider).value,
+        hasKey = llmSettings.apiKey(provider).value != null,
+        baseUrlInput = llmSettings.baseUrl(provider).value,
+    )
+
     private fun loadRateLimit(token: String) {
         viewModelScope.launch {
             try {
@@ -96,8 +138,9 @@ class SettingsViewModel(
         }
     }
 
-    /** The state for the GitHub [token]. [repoCreationInput] is what was typed for the other token, which has its own buttons. */
-    private fun stateFor(token: String?, repoCreationInput: String = "") = SettingsUiState(
+    /** The state for the GitHub [token]. [repoCreationInput] is what was typed for the other token, which has its own buttons, and [llm] the LLM part. */
+    private fun stateFor(token: String?, repoCreationInput: String = "", llm: LlmUiState = llmState()) = SettingsUiState(
+        llm = llm,
         signedIn = token != null,
         hasRepoCreationToken = repoCreationTokenStore.token.value != null,
         repoCreationTokenInput = repoCreationInput,

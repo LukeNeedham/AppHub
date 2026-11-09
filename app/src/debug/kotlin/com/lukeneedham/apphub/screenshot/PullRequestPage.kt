@@ -4,6 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.DownloadState
+import com.lukeneedham.apphub.domain.Feature
+import com.lukeneedham.apphub.domain.FeatureKind
+import com.lukeneedham.apphub.domain.FeatureStatus
 import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.PreviewChange
 import com.lukeneedham.apphub.domain.PreviewChangeKind
@@ -43,6 +46,30 @@ private fun PullRequestPageScreenshot() {
             download = DownloadState.Idle,
             install = InstallStatus.NotInstalled,
         ),
+        hasFeature = true,
+        tweakBlocked = true,
+        tweaks = listOf(
+            Feature(
+                id = "t2",
+                kind = FeatureKind.Tweak,
+                repo = "LukeNeedham/FlagTutor",
+                prompt = "Make the answer buttons rounder",
+                summary = "Make the answer buttons rounder",
+                status = FeatureStatus.Working,
+                prNumber = 12,
+                createdAtMillis = 0,
+            ),
+            Feature(
+                id = "t1",
+                kind = FeatureKind.Tweak,
+                repo = "LukeNeedham/FlagTutor",
+                prompt = "Show the score at the end of the quiz",
+                summary = "Show the score at the end of the quiz",
+                status = FeatureStatus.ReadyForReview,
+                prNumber = 12,
+                createdAtMillis = 0,
+            ),
+        ),
     )
     AppTheme {
         PullRequestPageContent(
@@ -54,6 +81,8 @@ private fun PullRequestPageScreenshot() {
             onCancelDownload = {},
             onInstall = {},
             onOpen = {},
+            onTweak = {},
+            onOpenFeature = {},
             onBack = {},
         )
     }

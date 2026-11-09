@@ -96,7 +96,7 @@ class PullRequestViewModelTest {
     ): PullRequestViewModel {
         val tracker = FakeTracker()
         val downloads = ApkDownloads(downloader, installer, tracker, CoroutineScope(dispatcher))
-        return PullRequestViewModel(repo, number, source, downloads, tracker)
+        return PullRequestViewModel(repo, number, source, downloads, tracker, testFeatureManager())
     }
 
     @Test

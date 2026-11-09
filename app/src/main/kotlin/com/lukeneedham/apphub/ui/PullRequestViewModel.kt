@@ -2,6 +2,8 @@ package com.lukeneedham.apphub.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lukeneedham.apphub.domain.FeatureKind
+import com.lukeneedham.apphub.domain.FeatureManager
 import com.lukeneedham.apphub.domain.InstallTracker
 import com.lukeneedham.apphub.domain.InvalidTokenException
 import com.lukeneedham.apphub.domain.PullRequest
@@ -23,6 +25,7 @@ class PullRequestViewModel(
     private val source: PullRequestSource,
     private val downloads: ApkDownloads,
     private val tracker: InstallTracker,
+    private val featureManager: FeatureManager,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PullRequestUiState())
@@ -37,6 +40,8 @@ class PullRequestViewModel(
     init {
         refresh()
         viewModelScope.launch { downloads.changes.drop(1).collect { publish() } }
+        // Tweaks starting, asking and ending
+        viewModelScope.launch { featureManager.features.collect { publish() } }
     }
 
     fun refresh() {
@@ -83,11 +88,15 @@ class PullRequestViewModel(
 
     private fun publish() {
         val pr = pullRequest
+        val sessions = featureManager.features.value.filter { it.belongsTo(repo, number) }
         _uiState.value = PullRequestUiState(
             isLoading = isLoading,
             error = error,
             item = pr?.let { PullRequestItem(it, downloads.stateOf(it), tracker.statusFor(it.offer)) },
             notFound = notFound,
+            hasFeature = sessions.any { it.kind == FeatureKind.Feature },
+            tweaks = sessions.filter { it.kind == FeatureKind.Tweak },
+            tweakBlocked = featureManager.isBusy(repo, number),
         )
     }
 

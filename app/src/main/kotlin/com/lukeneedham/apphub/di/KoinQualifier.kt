@@ -10,4 +10,7 @@ object KoinQualifier {
 
     /** The scope that outlives every screen. */
     const val APPLICATION_SCOPE = "applicationScope"
+
+    /** The HTTP client of the LLM calls, whose read timeout is long. */
+    const val llmHttpClient = "llmHttpClient"
 }

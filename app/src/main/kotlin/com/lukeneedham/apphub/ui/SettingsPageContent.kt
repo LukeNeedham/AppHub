@@ -2,6 +2,7 @@ package com.lukeneedham.apphub.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.lukeneedham.apphub.R
+import com.lukeneedham.apphub.domain.LlmProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,6 +57,12 @@ internal fun SettingsPageContent(
     onSaveRepoCreationToken: () -> Unit,
     onRemoveRepoCreationToken: () -> Unit,
     onShowAutoMergePrsChange: (Boolean) -> Unit,
+    onSelectLlmProvider: (LlmProvider) -> Unit,
+    onLlmModelChange: (String) -> Unit,
+    onLlmBaseUrlChange: (String) -> Unit,
+    onLlmKeyInputChange: (String) -> Unit,
+    onSaveLlmKey: () -> Unit,
+    onRemoveLlmKey: () -> Unit,
     onBack: () -> Unit,
     onOpenDebug: (() -> Unit)?,
 ) {
@@ -79,6 +87,7 @@ internal fun SettingsPageContent(
         ) {
             GithubCard(state, onInputChange, onSave, onRemove)
             RepoCreationTokenCard(state, onRepoCreationTokenInputChange, onSaveRepoCreationToken, onRemoveRepoCreationToken)
+            LlmCard(state.llm, onSelectLlmProvider, onLlmModelChange, onLlmBaseUrlChange, onLlmKeyInputChange, onSaveLlmKey, onRemoveLlmKey)
             AutoMergeRow(state.showAutoMergePrs, onShowAutoMergePrsChange)
             if (onOpenDebug != null) {
                 SettingsRow(title = "Debug", subtitle = "Logs, crashes, network and animation speed", onClick = onOpenDebug)
@@ -118,7 +127,8 @@ private fun GithubCard(
                 "Without a token GitHub allows 60 requests an hour. With one it allows 5,000. " +
                     "A token is also what lets AppHub build main on demand: a project's \"Latest main\" row, " +
                     "with its Build button, only shows when there is one, and what lets it create a new app (the plus on the " +
-                    "home page). For those the token needs the Actions permission (read and write); " +
+                    "home page), and what lets a feature or tweak push to a repo and open its pull request. For those the token needs the " +
+                    "permissions Actions (read and write), Contents (read and write) and Pull requests (read and write); " +
                     "for the rate limit alone it needs no permissions.",
                 style = MaterialTheme.typography.bodySmall,
                 color = AppTheme.colors.textSecondary,
@@ -196,6 +206,83 @@ private fun RepoCreationTokenCard(
     }
 }
 
+/**
+ * The LLM the feature sessions run on: the provider, its model and its API key. Each provider keeps its own model and key, so switching
+ * between them loses nothing. The key is kept like the GitHub token, encrypted with a key of the Android Keystore.
+ */
+@Composable
+private fun LlmCard(
+    llm: LlmUiState,
+    onSelectProvider: (LlmProvider) -> Unit,
+    onModelChange: (String) -> Unit,
+    onBaseUrlChange: (String) -> Unit,
+    onKeyInputChange: (String) -> Unit,
+    onSaveKey: () -> Unit,
+    onRemoveKey: () -> Unit,
+) {
+    Card {
+        Text("AI model for features", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Features and tweaks are written by an LLM that AppHub talks to directly. Pick the provider, the model and add your API " +
+                "key. The key stays on this device, and is sent only to that provider.",
+            style = MaterialTheme.typography.bodySmall,
+            color = AppTheme.colors.textSecondary,
+        )
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LlmProvider.entries.forEach { provider ->
+                if (provider == llm.provider) {
+                    Button(onClick = { onSelectProvider(provider) }, shape = CircleShape) { Text(provider.label) }
+                } else {
+                    OutlinedButton(onClick = { onSelectProvider(provider) }, shape = CircleShape) { Text(provider.label) }
+                }
+            }
+        }
+        if (llm.provider.needsBaseUrl) {
+            OutlinedTextField(
+                value = llm.baseUrlInput,
+                onValueChange = onBaseUrlChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("API address") },
+                singleLine = true,
+                supportingText = { Text("For example https://api.z.ai/api/paas/v4") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                shape = MaterialTheme.shapes.medium,
+            )
+        }
+        OutlinedTextField(
+            value = llm.modelInput,
+            onValueChange = onModelChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Model") },
+            singleLine = true,
+            supportingText = { Text(if (llm.provider.defaultModel.isEmpty()) "The name the provider gives the model" else "Default: ${llm.provider.defaultModel}") },
+            shape = MaterialTheme.shapes.medium,
+        )
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            llm.provider.suggestedModels.forEach { model ->
+                OutlinedButton(onClick = { onModelChange(model) }, shape = CircleShape) { Text(model) }
+            }
+        }
+        if (llm.hasKey) {
+            Text("${llm.provider.label} API key saved on this device.", style = MaterialTheme.typography.bodyMedium)
+            OutlinedButton(onClick = onRemoveKey, shape = CircleShape) { Text("Remove key") }
+        } else {
+            Text(llm.provider.keyHelp, style = MaterialTheme.typography.bodySmall, color = AppTheme.colors.textSecondary)
+            OutlinedTextField(
+                value = llm.keyInput,
+                onValueChange = onKeyInputChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("${llm.provider.label} API key") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                shape = MaterialTheme.shapes.medium,
+            )
+            Button(onClick = onSaveKey, enabled = llm.keyInput.isNotBlank(), shape = CircleShape) { Text("Save key") }
+        }
+    }
+}
+
 /** How to make a token on GitHub's fine-grained token page, which "Create a token" opens. */
 @Composable
 private fun TokenSteps() {
@@ -206,7 +293,7 @@ private fun TokenSteps() {
             "Token name: anything, for example AppHub.",
             "Expiration: pick a date (the longest is 1 year). You will need a new token after it.",
             "Repository access: choose \"All repositories\" to build main (\"Public repositories\" is enough for the rate limit alone).",
-            "To build main: open \"Repository permissions\", find \"Actions\" and set it to \"Read and write\". Leave the rest unset.",
+            "To build main and run features: open \"Repository permissions\" and set \"Actions\", \"Contents\" and \"Pull requests\" to \"Read and write\". Leave the rest unset.",
             "Scroll to the bottom and tap \"Generate token\".",
             "Copy the token (it starts with github_pat_). GitHub shows it only once.",
             "Come back here, paste it in the field and tap \"Save token\".",
@@ -290,6 +377,12 @@ private fun Preview() {
             onSaveRepoCreationToken = {},
             onRemoveRepoCreationToken = {},
             onShowAutoMergePrsChange = {},
+            onSelectLlmProvider = {},
+            onLlmModelChange = {},
+            onLlmBaseUrlChange = {},
+            onLlmKeyInputChange = {},
+            onSaveLlmKey = {},
+            onRemoveLlmKey = {},
             onBack = {},
             onOpenDebug = {},
         )
