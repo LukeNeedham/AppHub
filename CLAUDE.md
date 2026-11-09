@@ -41,3 +41,8 @@
   Actions permission, read and write), and follows its run, which it finds by its title `New App <name>` (the `run-name` of the
   workflow). No secret of ci-workflows can create repos. `NEW_APP_WORKFLOW`, `NEW_APP_REF` and `newAppRunTitle` must match that
   workflow, and the name check (`newAppNameError`) must match `check_name` of `scripts/new_app.py`.
+- **Features and tweaks** (`docs/features.md`): the "Start new feature" button of a repo on Home and the "Tweak" button of the page of a
+  pull request that a feature made start a session, which an LLM drives from inside the app. The LLM is only ever used through the Kotlin interface
+  `LlmClient` (`domain/Llm.kt`), chosen by `LlmClientSource`; keys and models are in Settings. A session takes one prompt and is closed to typing,
+  except to answer the question of the model. It ends by itself on a green CI. `AgentTools`, `FeatureRunner` and `FeatureManager` in `domain/` are pure Kotlin and
+  unit-tested; keep `FeatureRunner`'s rule that the model is not called while the CI runs or after it is green.

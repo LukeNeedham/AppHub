@@ -12,6 +12,10 @@ description: |
 
   Use it to install a PR's build in a tap, open its web preview, jump to the PR or its Claude Code session, see
   whether the build you have installed is the latest, and install the latest `main` build of any repo.
+  It also runs features: type one prompt describing a feature of an app, and a session driven by an LLM of your choice (Claude, DeepSeek, or
+  another provider added in code) builds it, opens the pull request, fixes the CI until it is green and ends by itself. A tweak does the same
+  for changes you want to such a pull request.
+
   Every PR also has a link of its own, `https://www.lukeneedham.com/apphub/pr/<repo name>/<number>`, that opens it
   in the app.
 
@@ -19,6 +23,7 @@ user:
   install: Download the debug APK from the comment that CI posts on any pull request of this repo, and install it. The first time, Android asks to allow AppHub to install apps.
   steps:
     - "Optional: add a GitHub personal access token under Settings → GitHub, for a higher rate limit and for building main."
+    - "To run features and tweaks: give the token the permissions Actions, Contents and Pull requests (read and write), then pick an LLM provider and add its API key under Settings → AI model for features."
 
 developer:
   notes: |

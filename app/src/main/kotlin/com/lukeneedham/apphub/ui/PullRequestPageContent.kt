@@ -50,6 +50,8 @@ internal fun PullRequestPageContent(
     onCancelDownload: () -> Unit,
     onInstall: () -> Unit,
     onOpen: () -> Unit,
+    onTweak: () -> Unit,
+    onOpenFeature: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     val background = AppTheme.colors.background
@@ -142,6 +144,11 @@ internal fun PullRequestPageContent(
                     )
                 }
 
+                if (state.hasFeature) {
+                    HorizontalDivider(color = AppTheme.colors.border)
+                    TweaksSection(state.tweaks, blocked = state.tweakBlocked, onTweak = onTweak, onOpenFeature = onOpenFeature)
+                }
+
                 if (pr.previewChanges.isNotEmpty()) {
                     HorizontalDivider(color = AppTheme.colors.border)
                     PreviewChangesSection(pr.previewChanges)
@@ -179,6 +186,8 @@ private fun Preview() {
             onCancelDownload = {},
             onInstall = {},
             onOpen = {},
+            onTweak = {},
+            onOpenFeature = {},
             onBack = {},
         )
     }

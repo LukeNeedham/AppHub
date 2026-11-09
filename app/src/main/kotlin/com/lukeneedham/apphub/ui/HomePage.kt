@@ -111,6 +111,8 @@ fun HomePage(
     onOpenPullRequest: (PullRequestRef) -> Unit,
     onOpenSettings: () -> Unit,
     onNewApp: () -> Unit,
+    onStartFeature: (String) -> Unit,
+    onOpenFeature: (String) -> Unit,
 ) {
     val viewModel = koinViewModel<HomeViewModel>()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -132,5 +134,7 @@ fun HomePage(
         onOpenPullRequest = onOpenPullRequest,
         onOpenSettings = onOpenSettings,
         onNewApp = onNewApp,
+        onStartFeature = onStartFeature,
+        onOpenFeature = onOpenFeature,
     )
 }

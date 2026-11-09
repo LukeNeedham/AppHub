@@ -44,6 +44,8 @@ fun PullRequestPage(
     repo: String,
     number: Int,
     onBack: () -> Unit,
+    onTweak: () -> Unit,
+    onOpenFeature: (String) -> Unit,
 ) {
     val viewModel = koinViewModel<PullRequestViewModel>(parameters = { parametersOf(repo, number) })
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -57,6 +59,8 @@ fun PullRequestPage(
         onCancelDownload = viewModel::cancelDownload,
         onInstall = viewModel::install,
         onOpen = viewModel::open,
+        onTweak = onTweak,
+        onOpenFeature = onOpenFeature,
         onBack = onBack,
     )
 }

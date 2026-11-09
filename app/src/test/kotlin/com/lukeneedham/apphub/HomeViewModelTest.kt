@@ -80,6 +80,7 @@ class HomeViewModelTest {
             tokens,
             mainBuilds,
             display,
+            testFeatureManager(),
         )
     }
 
