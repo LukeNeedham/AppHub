@@ -119,12 +119,6 @@ private fun FormCard(
     onCreate: () -> Unit,
 ) {
     NewAppCard {
-        Text(
-            "Makes the GitHub repo, then runs the workflow of ci-workflows that gives it its first commit, adds the app to " +
-                "the list and sets it up. It takes a minute or two.",
-            style = MaterialTheme.typography.bodySmall,
-            color = AppTheme.colors.textSecondary,
-        )
         OutlinedTextField(
             value = state.name,
             onValueChange = onNameChange,
