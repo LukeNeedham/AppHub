@@ -91,6 +91,17 @@ class AgentToolsTest {
     }
 
     @Test
+    fun searchListsTheRepoWithOneTreeRequestAndSkipsBuildOutputAndBinaries() = runTest {
+        host.files["app/build/Gen.kt"] = "hello"
+        host.files["logo.png"] = "hello"
+
+        val outcome = tools.execute(toolCall("1", "search", "query" to "hello"))
+
+        assertEquals("README.md:1: Hello\nREADME.md:2: Hello", outcome.content)
+        assertEquals(1, host.treeCalls)
+    }
+
+    @Test
     fun searchSeesStagedEditsAndDeletes() = runTest {
         tools.execute(toolCall("1", "write_file", "path" to "app/New.kt", "content" to "class Hello"))
         tools.execute(toolCall("2", "delete_file", "path" to "README.md"))

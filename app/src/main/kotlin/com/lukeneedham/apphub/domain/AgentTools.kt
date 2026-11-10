@@ -73,28 +73,22 @@ class AgentTools(
     }
 
     /**
-     * Finds the lines that contain [query] (plain text, case-insensitive) in the files under [rawPath], staged changes included. It walks
-     * the directories one by one, so it is bounded: it looks at no more than [maxSearchFiles] files and says so when it stops early.
+     * Finds the lines that contain [query] (plain text, case-insensitive) in the files under [rawPath], staged changes included. The
+     * file names come from one tree request; each file is then read, so it looks at no more than [maxSearchFiles] files and says so
+     * when it stops early.
      */
     private suspend fun search(query: String, rawPath: String): ToolOutcome {
         val root = cleanPath(rawPath, allowRoot = true) ?: return badPath(rawPath)
         if (query.isBlank()) return ToolOutcome("query is empty.", isError = true)
+        val inScope = { path: String -> root.isEmpty() || path == root || path.startsWith("$root/") }
+        val tree = host.listTree(repo, ref)
         val files = sortedSetOf<String>()
-        var truncated = false
-        val pending = ArrayDeque(listOf(root))
-        while (pending.isNotEmpty()) {
-            val dir = pending.removeFirst()
-            for (entry in host.listDirectory(repo, ref, dir)) {
-                val path = if (dir.isEmpty()) entry.name else "$dir/${entry.name}"
-                if (entry.isDirectory) {
-                    if (entry.name !in skippedDirectories) pending.addLast(path)
-                } else if (!isBinaryName(entry.name)) {
-                    if (files.size >= maxSearchFiles) truncated = true else files.add(path)
-                }
-            }
+        var truncated = tree.truncated
+        for (path in tree.files) {
+            if (!inScope(path) || path.split('/').any { it in skippedDirectories } || isBinaryName(path.substringAfterLast('/'))) continue
+            if (files.size >= maxSearchFiles) truncated = true else files.add(path)
         }
         // The staged changes: new files count, deleted ones do not
-        val inScope = { path: String -> root.isEmpty() || path == root || path.startsWith("$root/") }
         staged.forEach { (path, change) ->
             if (!inScope(path)) return@forEach
             if (change is FileChange.Delete) files.remove(path) else if (!isBinaryName(path.substringAfterLast('/'))) files.add(path)
@@ -113,7 +107,7 @@ class AgentTools(
         }
         val notes = buildList {
             if (matchCount > matches.size) add("[... cut: $matchCount matching lines, these are the first ${matches.size}. Search for something more specific or in a directory.]")
-            if (truncated) add("[... not complete: only the first $maxSearchFiles files were searched. Search in a directory to see the rest.]")
+            if (truncated) add("[... not complete: not every file was searched (at most $maxSearchFiles are, and a very big repo is listed in part). Search in a directory to see the rest.]")
         }
         if (matches.isEmpty()) return ToolOutcome((listOf("No line contains '$query'.") + notes).joinToString("\n"))
         return ToolOutcome((matches + notes).joinToString("\n"))

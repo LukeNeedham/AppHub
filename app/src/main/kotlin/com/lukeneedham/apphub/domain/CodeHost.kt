@@ -11,6 +11,12 @@ sealed interface FileChange {
 
 data class DirectoryEntry(val name: String, val isDirectory: Boolean)
 
+/**
+ * Every file of a repo at one ref, as paths from the repo root. [truncated] is true when the host cut the listing short because the
+ * repo is too big, so [files] is only part of it.
+ */
+data class RepoTree(val files: List<String>, val truncated: Boolean)
+
 /** A pull request as the automation needs it. [branch] is the branch it is made from. */
 data class PullRequestInfo(val number: Int, val title: String, val url: String, val branch: String, val isOpen: Boolean)
 
@@ -36,6 +42,9 @@ interface CodeHost {
 
     /** The entries of a directory; empty when [path] is not a directory of [ref] (a branch name). [path] "" is the root. */
     suspend fun listDirectory(repo: String, ref: String, path: String): List<DirectoryEntry>
+
+    /** Every file of [ref] (a branch name) in one request, directories not listed. Empty when there is no such ref. */
+    suspend fun listTree(repo: String, ref: String): RepoTree
 
     /** The text of a file, or null when there is no such file of [ref] or it is not text. */
     suspend fun readFile(repo: String, ref: String, path: String): String?
