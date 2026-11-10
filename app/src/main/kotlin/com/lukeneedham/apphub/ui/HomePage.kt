@@ -113,6 +113,7 @@ fun HomePage(
     onNewApp: () -> Unit,
     onStartFeature: (String) -> Unit,
     onOpenFeature: (String) -> Unit,
+    onOpenApp: (String) -> Unit,
 ) {
     val viewModel = koinViewModel<HomeViewModel>()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -136,5 +137,6 @@ fun HomePage(
         onNewApp = onNewApp,
         onStartFeature = onStartFeature,
         onOpenFeature = onOpenFeature,
+        onOpenApp = onOpenApp,
     )
 }

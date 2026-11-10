@@ -39,6 +39,7 @@ import com.lukeneedham.apphub.domain.NewAppSource
 import com.lukeneedham.apphub.domain.PullRequestSource
 import com.lukeneedham.apphub.domain.TokenStore
 import com.lukeneedham.apphub.ui.ApkDownloads
+import com.lukeneedham.apphub.ui.AppViewModel
 import com.lukeneedham.apphub.ui.HomeViewModel
 import com.lukeneedham.apphub.ui.NewAppViewModel
 import com.lukeneedham.apphub.ui.PullRequestViewModel
@@ -80,6 +81,7 @@ object KoinModules {
         single { FeatureManager(get(), get(), get(named(KoinQualifier.APPLICATION_SCOPE))) }
         single { FeatureKeepAlive(androidContext(), get(), get(named(KoinQualifier.APPLICATION_SCOPE))) }
         viewModelOf(::HomeViewModel)
+        viewModel { (repo: String) -> AppViewModel(repo, get(), get(), get(), get(), get(), get()) }
         viewModel { (repo: String, number: Int) -> PullRequestViewModel(repo, number, get(), get(), get(), get()) }
         viewModel { (repo: String, number: Int) -> PromptViewModel(repo, number, get(), get(), get()) }
         viewModel { (id: String) -> FeatureViewModel(id, get()) }

@@ -9,6 +9,10 @@ sealed interface Route : NavKey {
     @Serializable
     data object Home : Route
 
+    /** The page of one app, by its repo `owner/name`: all its pull requests and its main build. */
+    @Serializable
+    data class App(val repo: String) : Route
+
     /**
      * The page of one pull request. [repo] is `owner/name`. [openedAt] is set when opened from a deep link, so opening
      * the same pull request again is a new entry, which reloads.

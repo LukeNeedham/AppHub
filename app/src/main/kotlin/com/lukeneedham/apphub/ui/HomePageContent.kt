@@ -130,6 +130,7 @@ internal fun HomePageContent(
     onNewApp: () -> Unit,
     onStartFeature: (String) -> Unit,
     onOpenFeature: (String) -> Unit,
+    onOpenApp: (String) -> Unit,
 ) {
     val background = AppTheme.colors.background
     val listState = rememberLazyListState()
@@ -233,6 +234,7 @@ internal fun HomePageContent(
                         section = section,
                         expanded = section.repo !in state.collapsedRepos,
                         onToggle = { onToggleRepo(section.repo) },
+                        onOpenApp = { onOpenApp(section.repo) },
                         onDownload = onDownload,
                         onCancelDownload = onCancelDownload,
                         onInstall = onInstall,
@@ -396,12 +398,16 @@ internal fun ErrorCard(message: String, onRetry: () -> Unit) {
     }
 }
 
-/** One project: a header that collapses and expands its pull requests. */
+/**
+ * One project: a header that collapses and expands its pull requests. With no [onToggle] it is not collapsible: always
+ * expanded, with no chevron (the page of the app). With no [onOpenApp] the header has no button to that page.
+ */
 @Composable
-private fun RepoCard(
+internal fun RepoCard(
     section: RepoSection,
     expanded: Boolean,
-    onToggle: () -> Unit,
+    onToggle: (() -> Unit)?,
+    onOpenApp: (() -> Unit)?,
     onDownload: (String) -> Unit,
     onCancelDownload: (String) -> Unit,
     onInstall: (String) -> Unit,
@@ -421,7 +427,7 @@ private fun RepoCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onToggle)
+                    .then(if (onToggle != null) Modifier.clickable(onClick = onToggle) else Modifier)
                     .padding(start = 18.dp, end = 12.dp, top = 14.dp, bottom = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -449,12 +455,23 @@ private fun RepoCard(
                     },
                 )
                 Spacer(Modifier.width(4.dp))
-                Icon(
-                    painterResource(R.drawable.ic_expand_more),
-                    contentDescription = if (expanded) "Collapse" else "Expand",
-                    modifier = Modifier.rotate(rotation),
-                    tint = AppTheme.colors.textSecondary,
-                )
+                if (onOpenApp != null) {
+                    IconButton(onClick = onOpenApp) {
+                        Icon(
+                            painterResource(R.drawable.ic_open),
+                            contentDescription = "Open the page of ${section.repo.substringAfter('/')}",
+                            tint = AppTheme.colors.textSecondary,
+                        )
+                    }
+                }
+                if (onToggle != null) {
+                    Icon(
+                        painterResource(R.drawable.ic_expand_more),
+                        contentDescription = if (expanded) "Collapse" else "Expand",
+                        modifier = Modifier.rotate(rotation),
+                        tint = AppTheme.colors.textSecondary,
+                    )
+                }
             }
             // One animation for card and content together: the size follows the content, which fades with it
             AnimatedVisibility(
@@ -1037,6 +1054,7 @@ private fun Preview() {
             onNewApp = {},
             onStartFeature = {},
             onOpenFeature = {},
+            onOpenApp = {},
         )
     }
 }

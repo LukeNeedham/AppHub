@@ -29,6 +29,15 @@ fun Router(backStack: NavBackStack<NavKey>, route: Route) {
                 onNewApp = { navigateTo(Route.NewApp) },
                 onStartFeature = { navigateTo(Route.Prompt(it)) },
                 onOpenFeature = { navigateTo(Route.Feature(it)) },
+                onOpenApp = { navigateTo(Route.App(it)) },
+            )
+
+            is Route.App -> AppPage(
+                repo = route.repo,
+                onBack = ::onBack,
+                onOpenPullRequest = { navigateTo(Route.PullRequest(it.repo, it.number)) },
+                onStartFeature = { navigateTo(Route.Prompt(it)) },
+                onOpenFeature = { navigateTo(Route.Feature(it)) },
             )
 
             is Route.PullRequest -> PullRequestPage(
