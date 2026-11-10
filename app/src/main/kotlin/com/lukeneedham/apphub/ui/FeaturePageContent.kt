@@ -87,11 +87,6 @@ internal fun FeaturePageContent(
             Card {
                 Text("Prompt", style = MaterialTheme.typography.titleMedium)
                 SelectionContainer { Text(feature.prompt, style = MaterialTheme.typography.bodyMedium) }
-                Text(
-                    "The prompt cannot be changed: a session takes one, and only asks you something if it is blocked.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = AppTheme.colors.textSecondary,
-                )
             }
             if (feature.log.isNotEmpty()) {
                 Card {
