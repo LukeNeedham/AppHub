@@ -4,6 +4,7 @@ import com.lukeneedham.apphub.domain.CiStatus
 import com.lukeneedham.apphub.domain.CodeHost
 import com.lukeneedham.apphub.domain.ConfiguredLlm
 import com.lukeneedham.apphub.domain.DirectoryEntry
+import com.lukeneedham.apphub.domain.RepoTree
 import com.lukeneedham.apphub.domain.Feature
 import com.lukeneedham.apphub.domain.FeatureManager
 import com.lukeneedham.apphub.domain.FeatureRunner
@@ -89,6 +90,13 @@ class FakeCodeHost(
         val prefix = if (path.isEmpty()) "" else "$path/"
         return files.keys.filter { it.startsWith(prefix) }.map { it.removePrefix(prefix) }
             .map { DirectoryEntry(it.substringBefore('/'), isDirectory = '/' in it) }.distinct()
+    }
+
+    var treeCalls = 0
+
+    override suspend fun listTree(repo: String, ref: String): RepoTree {
+        treeCalls++
+        return RepoTree(files.keys.sorted(), truncated = false)
     }
 
     override suspend fun readFile(repo: String, ref: String, path: String) = files[path]

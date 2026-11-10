@@ -81,4 +81,38 @@ class AgentToolsTest {
 
         assertEquals("app/\nREADME.md", outcome.content)
     }
+
+    @Test
+    fun searchFindsLinesCaseInsensitivelyAcrossDirectories() = runTest {
+        val outcome = tools.execute(toolCall("1", "search", "query" to "HELLO"))
+
+        assertEquals("README.md:1: Hello\nREADME.md:2: Hello", outcome.content)
+        assertEquals("app/Main.kt:1: fun main() {}", tools.execute(toolCall("2", "search", "query" to "main", "path" to "app")).content)
+    }
+
+    @Test
+    fun searchListsTheRepoWithOneTreeRequestAndSkipsBuildOutputAndBinaries() = runTest {
+        host.files["app/build/Gen.kt"] = "hello"
+        host.files["logo.png"] = "hello"
+
+        val outcome = tools.execute(toolCall("1", "search", "query" to "hello"))
+
+        assertEquals("README.md:1: Hello\nREADME.md:2: Hello", outcome.content)
+        assertEquals(1, host.treeCalls)
+    }
+
+    @Test
+    fun searchSeesStagedEditsAndDeletes() = runTest {
+        tools.execute(toolCall("1", "write_file", "path" to "app/New.kt", "content" to "class Hello"))
+        tools.execute(toolCall("2", "delete_file", "path" to "README.md"))
+
+        assertEquals("app/New.kt:1: class Hello", tools.execute(toolCall("3", "search", "query" to "hello")).content)
+    }
+
+    @Test
+    fun searchWithNoMatchOrAnEmptyQueryIsReportedNotThrown() = runTest {
+        assertFalse(tools.execute(toolCall("1", "search", "query" to "zzz")).isError)
+        assertTrue(tools.execute(toolCall("2", "search", "query" to " ")).isError)
+        assertTrue(tools.execute(toolCall("3", "search", "query" to "x", "path" to "../etc")).isError)
+    }
 }

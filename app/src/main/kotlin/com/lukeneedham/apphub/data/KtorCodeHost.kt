@@ -7,6 +7,7 @@ import com.lukeneedham.apphub.domain.FileChange
 import com.lukeneedham.apphub.domain.InvalidTokenException
 import com.lukeneedham.apphub.domain.PullRequestInfo
 import com.lukeneedham.apphub.domain.RateLimitException
+import com.lukeneedham.apphub.domain.RepoTree
 import com.lukeneedham.apphub.domain.TokenStore
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -63,6 +64,16 @@ class KtorCodeHost(
         if (element !is JsonArray) return emptyList()
         return apiJson.decodeFromJsonElement(kotlinx.serialization.builtins.ListSerializer(ContentEntryDto.serializer()), element)
             .mapNotNull { entry -> entry.name?.let { DirectoryEntry(it, isDirectory = entry.type == "dir") } }
+    }
+
+    override suspend fun listTree(repo: String, ref: String): RepoTree {
+        val encodedRef = ref.split('/').joinToString("/") { encode(it) }
+        val response = call(HttpMethod.Get, "$api/repos/$repo/git/trees/$encodedRef?recursive=1", allowNotFound = true)
+            ?: return RepoTree(emptyList(), truncated = false)
+        val dto = response.body<TreeDto>()
+        // Only files: a symlink or a submodule is not text to search
+        val files = dto.tree.orEmpty().filter { it.type == "blob" && it.mode != "120000" }.mapNotNull { it.path }
+        return RepoTree(files, truncated = dto.truncated == true)
     }
 
     override suspend fun readFile(repo: String, ref: String, path: String): String? {
@@ -334,6 +345,13 @@ data class ContentEntryDto(
     val type: String? = null,
     val content: String? = null,
 )
+
+/** The recursive listing of a tree: every file and directory, with `blob` for a file. */
+@Serializable
+data class TreeDto(val tree: List<TreeEntryDto>? = null, val truncated: Boolean? = null)
+
+@Serializable
+data class TreeEntryDto(val path: String? = null, val type: String? = null, val mode: String? = null)
 
 @Serializable
 data class RefDto(@SerialName("object") val obj: ShaDto? = null)

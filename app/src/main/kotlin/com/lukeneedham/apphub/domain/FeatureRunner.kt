@@ -226,6 +226,7 @@ class FeatureRunner(
         when (call.name) {
             AgentTools.listFilesTool -> "Listed ${call.arguments.text("path").orEmpty().ifEmpty { "the repo root" }}"
             AgentTools.readFileTool -> "Read ${call.arguments.text("path")}"
+            AgentTools.searchTool -> "Searched for \"${call.arguments.text("query")}\""
             AgentTools.writeFileTool -> "Wrote ${call.arguments.text("path")}"
             AgentTools.replaceInFileTool -> "Changed ${call.arguments.text("path")}"
             AgentTools.deleteFileTool -> "Deleted ${call.arguments.text("path")}"

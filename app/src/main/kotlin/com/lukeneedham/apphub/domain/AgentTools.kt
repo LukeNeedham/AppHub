@@ -40,6 +40,7 @@ class AgentTools(
             when (call.name) {
                 listFilesTool -> listFiles(call.arguments.text("path").orEmpty())
                 readFileTool -> readFile(call.arguments.required("path"))
+                searchTool -> search(call.arguments.required("query"), call.arguments.text("path").orEmpty())
                 writeFileTool -> writeFile(call.arguments.required("path"), call.arguments.required("content"))
                 replaceInFileTool -> replaceInFile(
                     call.arguments.required("path"),
@@ -70,6 +71,49 @@ class AgentTools(
         if (text.length <= maxFileChars) return ToolOutcome(text)
         return ToolOutcome(text.take(maxFileChars) + "\n[... cut: the file has ${text.length} characters, this is the first $maxFileChars]")
     }
+
+    /**
+     * Finds the lines that contain [query] (plain text, case-insensitive) in the files under [rawPath], staged changes included. The
+     * file names come from one tree request; each file is then read, so it looks at no more than [maxSearchFiles] files and says so
+     * when it stops early.
+     */
+    private suspend fun search(query: String, rawPath: String): ToolOutcome {
+        val root = cleanPath(rawPath, allowRoot = true) ?: return badPath(rawPath)
+        if (query.isBlank()) return ToolOutcome("query is empty.", isError = true)
+        val inScope = { path: String -> root.isEmpty() || path == root || path.startsWith("$root/") }
+        val tree = host.listTree(repo, ref)
+        val files = sortedSetOf<String>()
+        var truncated = tree.truncated
+        for (path in tree.files) {
+            if (!inScope(path) || path.split('/').any { it in skippedDirectories } || isBinaryName(path.substringAfterLast('/'))) continue
+            if (files.size >= maxSearchFiles) truncated = true else files.add(path)
+        }
+        // The staged changes: new files count, deleted ones do not
+        staged.forEach { (path, change) ->
+            if (!inScope(path)) return@forEach
+            if (change is FileChange.Delete) files.remove(path) else if (!isBinaryName(path.substringAfterLast('/'))) files.add(path)
+        }
+
+        val matches = mutableListOf<String>()
+        var matchCount = 0
+        for (path in files) {
+            val text = currentText(path) ?: continue
+            text.lineSequence().forEachIndexed { index, line ->
+                if (line.contains(query, ignoreCase = true)) {
+                    matchCount++
+                    if (matches.size < maxSearchMatches) matches += "$path:${index + 1}: ${line.trim().take(maxSearchLineChars)}"
+                }
+            }
+        }
+        val notes = buildList {
+            if (matchCount > matches.size) add("[... cut: $matchCount matching lines, these are the first ${matches.size}. Search for something more specific or in a directory.]")
+            if (truncated) add("[... not complete: not every file was searched (at most $maxSearchFiles are, and a very big repo is listed in part). Search in a directory to see the rest.]")
+        }
+        if (matches.isEmpty()) return ToolOutcome((listOf("No line contains '$query'.") + notes).joinToString("\n"))
+        return ToolOutcome((matches + notes).joinToString("\n"))
+    }
+
+    private fun isBinaryName(name: String) = name.substringAfterLast('.', "").lowercase() in binaryExtensions
 
     private suspend fun writeFile(rawPath: String, content: String): ToolOutcome {
         val path = writablePath(rawPath) ?: return badPath(rawPath)
@@ -134,6 +178,7 @@ class AgentTools(
     companion object {
         const val listFilesTool = "list_files"
         const val readFileTool = "read_file"
+        const val searchTool = "search"
         const val writeFileTool = "write_file"
         const val replaceInFileTool = "replace_in_file"
         const val deleteFileTool = "delete_file"
@@ -142,7 +187,12 @@ class AgentTools(
         const val submitTool = "submit"
 
         private const val maxFileChars = 40_000
+        private const val maxSearchFiles = 400
+        private const val maxSearchMatches = 60
+        private const val maxSearchLineChars = 200
         private val protectedPrefixes = listOf(".github/workflows")
+        private val skippedDirectories = setOf(".git", "build", ".gradle", ".idea", "node_modules")
+        private val binaryExtensions = setOf("png", "jpg", "jpeg", "gif", "webp", "ico", "jar", "apk", "aab", "keystore", "jks", "zip", "ttf", "otf", "woff", "woff2", "pdf")
 
         val specs: List<LlmTool> = listOf(
             LlmTool(
@@ -157,6 +207,16 @@ class AgentTools(
                 schema("path" to "Directory, relative to the repo root"),
             ),
             LlmTool(readFileTool, "Reads a text file of the repo.", schema("path" to "File, relative to the repo root")),
+            LlmTool(
+                searchTool,
+                "Finds the lines of the repo's text files that contain a piece of text (case-insensitive, not a regex), as path:line: text. " +
+                    "Use it to find where something is used instead of listing directories and reading files one by one.",
+                schema(
+                    "query" to "The text to look for",
+                    "path" to "Directory to search in, relative to the repo root; '' for the whole repo",
+                    required = listOf("query"),
+                ),
+            ),
             LlmTool(
                 writeFileTool,
                 "Creates a file or replaces all of it. For a small change to an existing file use replace_in_file instead.",

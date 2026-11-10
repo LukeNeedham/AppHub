@@ -28,7 +28,7 @@ or a **tweak** (more changes to the pull request of a feature). Both are one `Fe
 1. **Title first.** The prompts tell the model its very first step is `set_title` with a short summary of the request. `FeatureRunner` puts it in
    `Feature.summary` at once, so the row of a feature on Home and the row of a tweak on the PR page change from the first line of the prompt to the title
    as soon as the model answers. Until then (or if the model never calls it) the first line of the prompt is shown.
-2. **Work phase.** The model has the tools of `AgentTools`: `set_title`, `list_files`, `read_file`, `write_file`, `replace_in_file`, `delete_file`, `ask_user` and `submit`.
+2. **Work phase.** The model has the tools of `AgentTools`: `set_title`, `list_files`, `read_file`, `search`, `write_file`, `replace_in_file`, `delete_file`, `ask_user` and `submit`.
    Edits are staged in memory and visible to the model's own reads. Nothing under `.github/workflows` or `.git` can be written.
 3. **Submit.** `submit` ends the phase. The runner makes one commit on the branch (`feature/<words>-<id>`, made from the default branch;
    or the branch of the pull request for a tweak) and, for a feature the first time, opens the pull request.
