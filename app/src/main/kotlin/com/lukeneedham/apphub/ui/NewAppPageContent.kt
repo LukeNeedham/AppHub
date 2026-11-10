@@ -129,9 +129,9 @@ private fun FormCard(
             enabled = !state.inProgress,
             isError = state.nameError != null,
             supportingText = {
-                Text(
-                    state.nameError ?: if (state.name.isEmpty()) "For example LyricTutor" else "Package: ${newAppPackage(state.name)}",
-                )
+                if (state.name.isNotEmpty()) {
+                    Text(state.nameError ?: "Package: ${newAppPackage(state.name)}")
+                }
             },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
             shape = MaterialTheme.shapes.medium,
