@@ -2,8 +2,6 @@ package com.lukeneedham.apphub.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lukeneedham.apphub.domain.FeatureKind
-import com.lukeneedham.apphub.domain.FeatureManager
 import com.lukeneedham.apphub.domain.DownloadState
 import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.InstallTracker
@@ -33,7 +31,6 @@ class AppViewModel(
     private val tracker: InstallTracker,
     private val mainBuilds: MainBuildSource,
     private val displaySettings: com.lukeneedham.apphub.domain.DisplaySettings,
-    private val featureManager: FeatureManager,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppUiState())
@@ -49,7 +46,6 @@ class AppViewModel(
         refresh()
         viewModelScope.launch { downloads.changes.drop(1).collect { publish() } }
         viewModelScope.launch { displaySettings.showAutoMergePrs.drop(1).collect { publish() } }
-        viewModelScope.launch { featureManager.features.collect { publish() } }
     }
 
     fun refresh() {
@@ -118,17 +114,12 @@ class AppViewModel(
 
     private fun publish() {
         val showAutoMerge = displaySettings.showAutoMergePrs.value
-        val features = featureManager.features.value.filter { feature ->
-            feature.repo == repo && feature.kind == FeatureKind.Feature &&
-                (feature.prNumber == null || pullRequests.any { it.number == feature.prNumber })
-        }
         val section = RepoSection(
             repo = repo,
             pullRequests = pullRequests
                 .filter { showAutoMerge || !it.isAutoMerge() }
                 .map { PullRequestItem(it, downloads.stateOf(it), tracker.statusFor(it.offer)) },
             mainBuild = mainItem(),
-            features = features,
         )
         _uiState.value = AppUiState(isLoading = isLoading, error = error, section = section)
     }

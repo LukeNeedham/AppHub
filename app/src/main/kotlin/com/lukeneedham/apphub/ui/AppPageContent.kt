@@ -35,8 +35,6 @@ internal fun AppPageContent(
     onOpen: (String) -> Unit,
     mainBuild: MainBuildActions,
     onOpenPullRequest: (PullRequestRef) -> Unit,
-    onStartFeature: () -> Unit,
-    onOpenFeature: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     val background = AppTheme.colors.background
@@ -78,8 +76,6 @@ internal fun AppPageContent(
                         onOpen = onOpen,
                         mainBuild = mainBuild,
                         onOpenPullRequest = onOpenPullRequest,
-                        onStartFeature = onStartFeature,
-                        onOpenFeature = onOpenFeature,
                     )
                 }
             }
@@ -101,8 +97,6 @@ private fun Preview() {
             onOpen = {},
             mainBuild = MainBuildActions(download = {}, cancelDownload = {}, install = {}, open = {}),
             onOpenPullRequest = {},
-            onStartFeature = {},
-            onOpenFeature = {},
             onBack = {},
         )
     }

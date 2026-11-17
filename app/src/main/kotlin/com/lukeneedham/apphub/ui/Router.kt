@@ -16,10 +16,6 @@ fun Router(backStack: NavBackStack<NavKey>, route: Route) {
     // The common actions are defined once here, never repeated in each branch
     fun navigateTo(target: Route) { backStack.add(target) }
     fun onBack() { backStack.removeLastOrNull() }
-    fun replaceWith(target: Route) {
-        backStack.removeLastOrNull()
-        backStack.add(target)
-    }
 
     CompositionLocalProvider(LocalCurrentRoute provides route) {
         when (route) { // exhaustive: no `else`
@@ -27,8 +23,6 @@ fun Router(backStack: NavBackStack<NavKey>, route: Route) {
                 onOpenPullRequest = { navigateTo(Route.PullRequest(it.repo, it.number)) },
                 onOpenSettings = { navigateTo(Route.Settings) },
                 onNewApp = { navigateTo(Route.NewApp) },
-                onStartFeature = { navigateTo(Route.Prompt(it)) },
-                onOpenFeature = { navigateTo(Route.Feature(it)) },
                 onOpenApp = { navigateTo(Route.App(it)) },
             )
 
@@ -36,32 +30,9 @@ fun Router(backStack: NavBackStack<NavKey>, route: Route) {
                 repo = route.repo,
                 onBack = ::onBack,
                 onOpenPullRequest = { navigateTo(Route.PullRequest(it.repo, it.number)) },
-                onStartFeature = { navigateTo(Route.Prompt(it)) },
-                onOpenFeature = { navigateTo(Route.Feature(it)) },
             )
 
-            is Route.PullRequest -> PullRequestPage(
-                repo = route.repo,
-                number = route.number,
-                onBack = ::onBack,
-                onTweak = { navigateTo(Route.Prompt(route.repo, route.number)) },
-                onOpenFeature = { navigateTo(Route.Feature(it)) },
-            )
-
-            is Route.Prompt -> PromptPage(
-                repo = route.repo,
-                pullRequestNumber = route.pullRequestNumber,
-                onBack = ::onBack,
-                // A tweak goes back to the pull request, which lists it; a feature goes to its own page
-                onStarted = { id -> if (route.pullRequestNumber > 0) onBack() else replaceWith(Route.Feature(id)) },
-                onOpenSettings = { navigateTo(Route.Settings) },
-            )
-
-            is Route.Feature -> FeaturePage(
-                id = route.id,
-                onBack = ::onBack,
-                onOpenPullRequest = { repo, number -> navigateTo(Route.PullRequest(repo, number)) },
-            )
+            is Route.PullRequest -> PullRequestPage(repo = route.repo, number = route.number, onBack = ::onBack)
 
             Route.Settings -> SettingsPage(
                 onBack = ::onBack,
