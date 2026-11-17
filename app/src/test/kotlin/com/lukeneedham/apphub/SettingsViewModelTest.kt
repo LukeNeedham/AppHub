@@ -62,7 +62,7 @@ class SettingsViewModelTest {
     @Test
     fun aValidTokenIsKeptAndItsAllowanceShown() = runTest(dispatcher) {
         val tokens = MemoryTokens()
-        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, MemoryTokens(), MemoryDisplay(), InMemoryLlmSettings())
+        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, MemoryTokens(), MemoryDisplay())
 
         viewModel.onInputChange("  github_pat_abcd ")
         viewModel.save()
@@ -78,7 +78,7 @@ class SettingsViewModelTest {
     @Test
     fun aRejectedTokenIsNotKept() = runTest(dispatcher) {
         val tokens = MemoryTokens()
-        val viewModel = SettingsViewModel(FakeApi(emptySet()), tokens, MemoryTokens(), MemoryDisplay(), InMemoryLlmSettings())
+        val viewModel = SettingsViewModel(FakeApi(emptySet()), tokens, MemoryTokens(), MemoryDisplay())
 
         viewModel.onInputChange("wrong")
         viewModel.save()
@@ -92,7 +92,7 @@ class SettingsViewModelTest {
     @Test
     fun removingTheTokenSignsOut() = runTest(dispatcher) {
         val tokens = MemoryTokens("github_pat_abcd")
-        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, MemoryTokens(), MemoryDisplay(), InMemoryLlmSettings())
+        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, MemoryTokens(), MemoryDisplay())
         advanceUntilIdle()
         assertEquals(true, viewModel.uiState.value.signedIn)
 
@@ -104,7 +104,7 @@ class SettingsViewModelTest {
 
     @Test
     fun aSavedRepoCreationTokenIsShownAsSavedFromTheStart() = runTest(dispatcher) {
-        val viewModel = SettingsViewModel(FakeApi(emptySet()), MemoryTokens(), MemoryTokens("github_pat_create"), MemoryDisplay(), InMemoryLlmSettings())
+        val viewModel = SettingsViewModel(FakeApi(emptySet()), MemoryTokens(), MemoryTokens("github_pat_create"), MemoryDisplay())
         advanceUntilIdle()
 
         assertEquals(true, viewModel.uiState.value.hasRepoCreationToken)
@@ -113,7 +113,7 @@ class SettingsViewModelTest {
     @Test
     fun aRepoCreationTokenThatIsTypedAndSavedIsKeptTrimmedAndForgottenFromTheField() = runTest(dispatcher) {
         val creationTokens = MemoryTokens()
-        val viewModel = SettingsViewModel(FakeApi(emptySet()), MemoryTokens(), creationTokens, MemoryDisplay(), InMemoryLlmSettings())
+        val viewModel = SettingsViewModel(FakeApi(emptySet()), MemoryTokens(), creationTokens, MemoryDisplay())
 
         viewModel.onRepoCreationTokenInputChange("  github_pat_new ")
         viewModel.saveRepoCreationToken()
@@ -127,7 +127,7 @@ class SettingsViewModelTest {
     @Test
     fun anEmptyRepoCreationTokenIsNotSaved() = runTest(dispatcher) {
         val creationTokens = MemoryTokens()
-        val viewModel = SettingsViewModel(FakeApi(emptySet()), MemoryTokens(), creationTokens, MemoryDisplay(), InMemoryLlmSettings())
+        val viewModel = SettingsViewModel(FakeApi(emptySet()), MemoryTokens(), creationTokens, MemoryDisplay())
 
         viewModel.onRepoCreationTokenInputChange("   ")
         viewModel.saveRepoCreationToken()
@@ -140,7 +140,7 @@ class SettingsViewModelTest {
     fun removingTheRepoCreationTokenForgetsItAndLeavesTheGithubTokenAlone() = runTest(dispatcher) {
         val tokens = MemoryTokens("github_pat_abcd")
         val creationTokens = MemoryTokens("github_pat_create")
-        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, creationTokens, MemoryDisplay(), InMemoryLlmSettings())
+        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, creationTokens, MemoryDisplay())
         advanceUntilIdle()
 
         viewModel.removeRepoCreationToken()
@@ -155,7 +155,7 @@ class SettingsViewModelTest {
     fun theGithubTokenAndTheRepoCreationTokenDoNotTouchEachOther() = runTest(dispatcher) {
         val tokens = MemoryTokens()
         val creationTokens = MemoryTokens("github_pat_create")
-        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, creationTokens, MemoryDisplay(), InMemoryLlmSettings())
+        val viewModel = SettingsViewModel(FakeApi(setOf("github_pat_abcd")), tokens, creationTokens, MemoryDisplay())
         viewModel.onRepoCreationTokenInputChange("half typed")
 
         viewModel.onInputChange("github_pat_abcd")

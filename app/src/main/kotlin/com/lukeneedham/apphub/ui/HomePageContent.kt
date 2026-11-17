@@ -128,8 +128,6 @@ internal fun HomePageContent(
     onOpenPullRequest: (PullRequestRef) -> Unit,
     onOpenSettings: () -> Unit,
     onNewApp: () -> Unit,
-    onStartFeature: (String) -> Unit,
-    onOpenFeature: (String) -> Unit,
     onOpenApp: (String) -> Unit,
 ) {
     val background = AppTheme.colors.background
@@ -241,8 +239,6 @@ internal fun HomePageContent(
                         onOpen = onOpen,
                         mainBuild = mainBuild,
                         onOpenPullRequest = onOpenPullRequest,
-                        onStartFeature = { onStartFeature(section.repo) },
-                        onOpenFeature = onOpenFeature,
                     )
                 }
                 item(key = "trailing-space") { Spacer(Modifier.height(trailingSpace)) }
@@ -414,8 +410,6 @@ internal fun RepoCard(
     onOpen: (String) -> Unit,
     mainBuild: MainBuildActions,
     onOpenPullRequest: (PullRequestRef) -> Unit,
-    onStartFeature: () -> Unit,
-    onOpenFeature: (String) -> Unit,
 ) {
     val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
     Surface(
@@ -497,11 +491,6 @@ internal fun RepoCard(
                             description = "Start a Claude session on ${section.repo}",
                             onClick = { uriHandler.openUri(section.claudeUrl) },
                         )
-                        CircleIconButton(
-                            icon = R.drawable.ic_add,
-                            description = "Start a new feature on ${section.repo}",
-                            onClick = onStartFeature,
-                        )
                         section.mainBuild?.let { item ->
                             Spacer(Modifier.weight(1f))
                             StatusControl(
@@ -514,11 +503,6 @@ internal fun RepoCard(
                         }
                     }
                     section.mainBuild?.let { item -> MainBuildErrors(item) }
-                    HorizontalDivider(color = AppTheme.colors.border)
-                    section.features.forEach { feature ->
-                        HorizontalDivider(color = AppTheme.colors.border)
-                        FeatureRow(feature, onClick = { onOpenFeature(feature.id) })
-                    }
                     if (section.pullRequests.isEmpty()) {
                         HorizontalDivider(color = AppTheme.colors.border)
                         Text(
@@ -1052,8 +1036,6 @@ private fun Preview() {
             onOpenPullRequest = {},
             onOpenSettings = {},
             onNewApp = {},
-            onStartFeature = {},
-            onOpenFeature = {},
             onOpenApp = {},
         )
     }

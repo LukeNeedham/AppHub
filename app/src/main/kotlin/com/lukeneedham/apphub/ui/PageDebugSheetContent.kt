@@ -39,7 +39,7 @@ internal fun PageDebugSheetContent(info: PageDebugInfo, onCopy: (String) -> Unit
     ) {
         Text("Debug: this page", style = MaterialTheme.typography.titleMedium)
         Text(
-            "Copy the page name into a feature prompt to say which page to change.",
+            "Copy the page name into a prompt to say which page to change.",
             style = MaterialTheme.typography.bodySmall,
             color = AppTheme.colors.textSecondary,
         )
