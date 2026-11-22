@@ -47,6 +47,8 @@ data class RepoSection(
     val pullRequests: List<PullRequestItem>,
     /** Null when the repo has no main build (no `main-build` release), or there is no token to look it up with. */
     val mainBuild: MainBuildItem? = null,
+    /** The production deployment of a website; null for an app, or a website with no URL set. */
+    val productionUrl: String? = null,
 ) {
     val url: String get() = repoUrl(repo)
     val claudeUrl: String get() = newClaudeSessionUrl(repo)
@@ -72,6 +74,7 @@ class HomeViewModel(
     private var repositories = emptyList<String>()
     private var toggledRepos = emptySet<String>()
     private var mainApks = emptyMap<String, MainApk>()
+    private var productionUrls = emptyMap<String, String>()
 
     init {
         pullRequests = source.cached()
@@ -170,7 +173,8 @@ class HomeViewModel(
             repos.map { repo ->
                 async {
                     try {
-                        applyMain(repo, limit.withPermit { mainBuilds.status(repo) })
+                        val (apk, production) = limit.withPermit { mainBuilds.status(repo) to mainBuilds.productionUrl(repo) }
+                        applyMain(repo, apk, production)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -181,8 +185,9 @@ class HomeViewModel(
         }
     }
 
-    private fun applyMain(repo: String, apk: MainApk?) {
+    private fun applyMain(repo: String, apk: MainApk?, productionUrl: String?) {
         mainApks = if (apk == null) mainApks - repo else mainApks + (repo to apk)
+        productionUrls = if (productionUrl == null) productionUrls - repo else productionUrls + (repo to productionUrl)
     }
 
     private fun publish() {
@@ -195,11 +200,12 @@ class HomeViewModel(
                     repo = repo,
                     pullRequests = prs.map { PullRequestItem(it, downloads.stateOf(it), tracker.statusFor(it.offer)) },
                     mainBuild = mainItem(repo),
+                    productionUrl = productionUrls[repo],
                 )
             }
         // Repos with no open pull requests come after the ones that have some
         val withNone = (repositories - withPullRequests.map { it.repo }.toSet())
-            .map { RepoSection(repo = it, pullRequests = emptyList(), mainBuild = mainItem(it)) }
+            .map { RepoSection(repo = it, pullRequests = emptyList(), mainBuild = mainItem(it), productionUrl = productionUrls[it]) }
         val sections = withPullRequests + withNone
         val collapsed = sections.filter { (it.repo in toggledRepos) != it.pullRequests.isEmpty() }.map { it.repo }.toSet()
         _uiState.value = HomeUiState(isLoading = isLoading, error = error, repos = sections, collapsedRepos = collapsed)

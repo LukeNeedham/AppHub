@@ -46,6 +46,13 @@ and no such comment still reads "No build". An app's PR never takes these states
 
 There is no description line (no APK, so no age), and the status is centred in the height of both lines, like the other pills with no APK.
 
+### The production pill
+
+A website has no main build either, so in the place of the main build's pill (the row of buttons at the top of its card, and of its page) it has the
+**Production** pill (`productionControl` in `ui/HomePageContent.kt`): purple, as the deployment is live and can be acted on, and a press on its icon
+(the Open icon), or on the row in its sheet, opens the production deployment. The URL is the **`productionUrl`** of the website's entry in `apps.json` of ci-workflows (`docs/next-js-app.md` there); a website
+whose entry has none shows no pill. It does not need the token, as the file is already read for the list of apps.
+
 ## The two lines
 
 Every pill lays out the same two lines, each exactly one line tall (ellipsized if too long), so all pills are

@@ -19,8 +19,16 @@ import java.time.Instant
 
 class MainBuildRepositoryTest {
 
-    private class FakeApi(var release: ReleaseDto? = null) : GithubApi {
+    private class FakeApi(
+        var release: ReleaseDto? = null,
+        var urls: Map<String, String> = emptyMap(),
+    ) : GithubApi {
         var releaseCalls = 0
+        var urlCalls = 0
+        override suspend fun productionUrls(): Map<String, String> {
+            urlCalls++
+            return urls
+        }
         override suspend fun openPullRequests(): List<IssueDto> = emptyList()
         override suspend fun repositories(): List<String> = emptyList()
         override suspend fun commonApps(): Set<String> = emptySet()
@@ -106,5 +114,33 @@ class MainBuildRepositoryTest {
     fun `an unknown upload time is not a reason to hide the build`() = runTest {
         val apk = MainBuildRepository(FakeApi(release(assets = listOf(AssetDto("app-debug.apk", url)))), FakeTokenStore()).status("o/r")!!
         assertNull(apk.builtAtMillis)
+    }
+
+    @Test
+    fun `the production url of a website is the productionUrl of its entry in apps json`() = runTest {
+        val api = FakeApi(urls = mapOf("o/site" to "www.example.com"))
+        assertEquals("https://www.example.com", MainBuildRepository(api, FakeTokenStore()).productionUrl("O/Site"))
+    }
+
+    @Test
+    fun `an app, or a website with no productionUrl yet, has no production url`() = runTest {
+        val repository = MainBuildRepository(FakeApi(urls = mapOf("o/site" to "https://example.com")), FakeTokenStore())
+        assertNull(repository.productionUrl("o/app"))
+    }
+
+    @Test
+    fun `a productionUrl that is not a web address is no production url`() = runTest {
+        val api = FakeApi(urls = mapOf("o/site" to " "))
+        assertNull(MainBuildRepository(api, FakeTokenStore()).productionUrl("o/site"))
+    }
+
+    @Test
+    fun `apps json is read once for many repos`() = runTest {
+        val api = FakeApi(urls = mapOf("o/site" to "https://example.com"))
+        val repository = MainBuildRepository(api, FakeTokenStore())
+        repository.productionUrl("o/a")
+        repository.productionUrl("o/b")
+        repository.productionUrl("o/site")
+        assertEquals(1, api.urlCalls)
     }
 }

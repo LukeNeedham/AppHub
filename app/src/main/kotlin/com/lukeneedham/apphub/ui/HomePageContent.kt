@@ -510,6 +510,18 @@ internal fun RepoCard(
                                 onOpen = { mainBuild.open(item.repo) },
                             )
                         }
+                        // A website has no APK: its pill opens the production deployment
+                        section.productionUrl?.let { url ->
+                            Spacer(Modifier.weight(1f))
+                            StatusControl(
+                                productionControl(AppTheme.colors),
+                                onDownload = {},
+                                onCancel = {},
+                                onInstall = {},
+                                onOpen = {},
+                                onOpenPreview = { uriHandler.openUri(url) },
+                            )
+                        }
                     }
                     section.mainBuild?.let { item -> MainBuildErrors(item) }
                     if (section.pullRequests.isEmpty()) {
@@ -839,6 +851,10 @@ private const val STALE_BUILD = "Stale build"
 
 private val OpenRunAction = Trailing.Action(R.drawable.ic_open, "Open the build run on GitHub", ActionKind.OpenRun)
 private val OpenPreviewAction = Trailing.Action(R.drawable.ic_open, "Open the preview", ActionKind.OpenPreview)
+private val OpenProductionAction = Trailing.Action(R.drawable.ic_open, "Open the production website", ActionKind.OpenPreview)
+
+/** The pill of a website's card, in the place of the main build of an app: its production deployment (docs/status-colors.md). */
+internal fun productionControl(colors: AppColors): Control = Control("Production", colors.action, OpenProductionAction)
 
 /**
  * The pill of a website's PR, which has no APK: its preview instead (docs/status-colors.md). Null when the PR is not a website's,

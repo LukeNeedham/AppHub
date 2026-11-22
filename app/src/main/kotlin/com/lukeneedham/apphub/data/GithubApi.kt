@@ -36,6 +36,9 @@ interface GithubApi {
     /** The `owner/name` of every app listed in `apps.json` of the common repo, lower-cased. */
     suspend fun commonApps(): Set<String>
 
+    /** The `productionUrl` of every website in `apps.json` of the common repo that has one, as written, by `owner/name` lower-cased. */
+    suspend fun productionUrls(): Map<String, String> = emptyMap()
+
     /** The first 100 comments of the PR, oldest first. */
     suspend fun comments(repo: String, number: Int): List<CommentDto>
 
@@ -84,6 +87,14 @@ class KtorGithubApi(
         return apiJson.decodeFromString<List<CommonAppDto>>(json)
             .mapNotNull { it.repo?.lowercase() }
             .toSet()
+    }
+
+    override suspend fun productionUrls(): Map<String, String> {
+        val file = get<ContentDto>("https://api.github.com/repos/$COMMON_REPO/contents/$COMMON_APPS_FILE", forceNetwork = true)
+        val json = String(Base64.getMimeDecoder().decode(file.content.orEmpty()))
+        return apiJson.decodeFromString<List<CommonAppDto>>(json)
+            .mapNotNull { app -> app.productionUrl?.let { url -> app.repo?.lowercase()?.let { it to url } } }
+            .toMap()
     }
 
     override suspend fun comments(repo: String, number: Int): List<CommentDto> =
@@ -187,7 +198,7 @@ data class ContentDto(val content: String? = null)
 
 /** One entry of the common repo's `apps.json`. */
 @Serializable
-data class CommonAppDto(val repo: String? = null)
+data class CommonAppDto(val repo: String? = null, val productionUrl: String? = null)
 
 @Serializable
 data class UserDto(val login: String? = null)

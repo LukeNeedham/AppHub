@@ -82,6 +82,7 @@ private fun HomePageScreenshot() {
                         install = InstallStatus.Unknown,
                     ),
                 ),
+                productionUrl = "https://www.lukeneedham.com",
             ),
             RepoSection(
                 repo = "LukeNeedham/VideoDiary",

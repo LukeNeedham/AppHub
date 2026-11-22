@@ -3,6 +3,9 @@ package com.lukeneedham.apphub.data
 import com.lukeneedham.apphub.domain.MainApk
 import com.lukeneedham.apphub.domain.MainBuildSource
 import com.lukeneedham.apphub.domain.TokenStore
+import com.lukeneedham.apphub.domain.normalizeProductionUrl
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -30,6 +33,22 @@ class MainBuildRepository(
         }
         withoutBuild.remove(repo)
         return apk
+    }
+
+    private val urlsMutex = Mutex()
+    private var urls: Map<String, String> = emptyMap()
+    private var urlsUntil = 0L
+
+    /** From `apps.json` of the common repo, which is read again after [RECHECK_MS] rather than once per repo. */
+    override suspend fun productionUrl(repo: String): String? =
+        normalizeProductionUrl(productionUrls()[repo.lowercase()])
+
+    private suspend fun productionUrls(): Map<String, String> = urlsMutex.withLock {
+        if (urlsUntil <= now()) {
+            urls = api.productionUrls()
+            urlsUntil = now() + RECHECK_MS
+        }
+        urls
     }
 
     private companion object {
