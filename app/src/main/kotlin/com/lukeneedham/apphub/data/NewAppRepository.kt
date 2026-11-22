@@ -4,6 +4,7 @@ import com.lukeneedham.apphub.domain.GITHUB_OWNER
 import com.lukeneedham.apphub.domain.NewAppException
 import com.lukeneedham.apphub.domain.NewAppProgress
 import com.lukeneedham.apphub.domain.NewAppSource
+import com.lukeneedham.apphub.domain.NewAppStack
 import com.lukeneedham.apphub.domain.newAppRunTitle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -12,8 +13,8 @@ import kotlinx.coroutines.flow.flow
 import java.io.IOException
 
 /**
- * Creates an app: makes its repo with the token of its own, then starts the workflow `new_app.yml` of the common repo to set
- * the repo up, and follows its run. The repo is made here and not by the workflow so that no secret of the common repo
+ * Creates a project: makes its repo with the token of its own, then starts the workflow `new_app.yml` of the common repo to set
+ * the repo up for its stack, and follows its run. The repo is made here and not by the workflow so that no secret of the common repo
  * can create repos (`docs/create-app.md` there).
  *
  * GitHub answers a start with no id for the run, so the run is found by its title (the workflow names each run after the
@@ -26,17 +27,17 @@ class NewAppRepository(
     private val runAttempts: Int = RUN_ATTEMPTS,
 ) : NewAppSource {
 
-    override fun create(name: String, isPrivate: Boolean): Flow<NewAppProgress> = flow {
+    override fun create(name: String, stack: NewAppStack, isPrivate: Boolean): Flow<NewAppProgress> = flow {
         emit(NewAppProgress.CreatingRepo)
         val title = newAppRunTitle(name)
         // First, so that a token that cannot see the workflow is found out before a repo is made that nothing can set up
         val before = runs().filter { it.displayTitle == title }.map { it.id }.toSet()
-        val branch = api.createRepo(name, isPrivate)
+        val branch = api.createRepo(name, stack, isPrivate)
         if (branch != MAIN) api.renameBranch(name, branch, MAIN)
 
         emit(NewAppProgress.Starting)
         try {
-            api.dispatch(name)
+            api.dispatch(name, stack)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

@@ -7,7 +7,9 @@ import com.lukeneedham.apphub.domain.MissingPermissionException
 import com.lukeneedham.apphub.domain.NEW_APP_REF
 import com.lukeneedham.apphub.domain.NEW_APP_WORKFLOW
 import com.lukeneedham.apphub.domain.NewAppException
+import com.lukeneedham.apphub.domain.NewAppStack
 import com.lukeneedham.apphub.domain.TokenStore
+import com.lukeneedham.apphub.domain.newAppDispatchInputs
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.HttpRequestBuilder
@@ -31,16 +33,16 @@ import java.io.IOException
  */
 interface NewAppApi {
     /**
-     * Creates the repo [GITHUB_OWNER]/[name] with a README, so that its default branch exists, and returns that branch's name.
-     * Throws [NewAppException] when GitHub refuses (a bad token, a missing permission, a name that is taken).
+     * Creates the repo [GITHUB_OWNER]/[name] of a project of [stack] with a README, so that its default branch exists, and returns that
+     * branch's name. Throws [NewAppException] when GitHub refuses (a bad token, a missing permission, a name that is taken).
      */
-    suspend fun createRepo(name: String, isPrivate: Boolean): String
+    suspend fun createRepo(name: String, stack: NewAppStack, isPrivate: Boolean): String
 
     /** Renames the branch [from] of the repo [name] to [to]. Throws [NewAppException] when GitHub refuses. */
     suspend fun renameBranch(name: String, from: String, to: String)
 
-    /** Starts the workflow that sets up the repo [name], which exists: with its `resume` input on. GitHub answers 204 with no run: find it in [runs]. */
-    suspend fun dispatch(name: String)
+    /** Starts the workflow that sets up the repo [name], which exists, for [stack]. GitHub answers 204 with no run: find it in [runs]. */
+    suspend fun dispatch(name: String, stack: NewAppStack)
 
     /** The latest runs of the workflow that were started by hand or from here, newest first. */
     suspend fun runs(): List<WorkflowRunDto>
@@ -56,12 +58,12 @@ class KtorNewAppApi(
     private val repoCreationTokenStore: TokenStore,
 ) : NewAppApi {
 
-    override suspend fun createRepo(name: String, isPrivate: Boolean): String {
+    override suspend fun createRepo(name: String, stack: NewAppStack, isPrivate: Boolean): String {
         val token = repoCreationTokenStore.token.value ?: throw NewAppException("Add a repo creation token first.")
         val response = client.post("https://api.github.com/user/repos") {
             authorize(token)
             contentType(ContentType.Application.Json)
-            setBody(CreateRepoDto(name, isPrivate, autoInit = true, description = "$name, an Android app"))
+            setBody(CreateRepoDto(name, isPrivate, autoInit = true, description = stack.repoDescription(name)))
         }
         when (response.status.value) {
             401 -> throw NewAppException("GitHub rejected the repo creation token. Replace it.")
@@ -87,12 +89,11 @@ class KtorNewAppApi(
         }
     }
 
-    override suspend fun dispatch(name: String) {
+    override suspend fun dispatch(name: String, stack: NewAppStack) {
         val response = client.post("$WORKFLOW_URL/dispatches") {
             authorize(tokenStore.token.value)
             contentType(ContentType.Application.Json)
-            // The inputs of a workflow are strings, whatever their type. The repo exists, so the workflow carries on with it
-            setBody(DispatchDto(NEW_APP_REF, mapOf("name" to name, "resume" to "true")))
+            setBody(DispatchDto(NEW_APP_REF, newAppDispatchInputs(name, stack)))
         }
         throwIfFailed(response)
     }

@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -20,6 +22,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -32,24 +35,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.lukeneedham.apphub.R
 import com.lukeneedham.apphub.domain.NewAppProgress
+import com.lukeneedham.apphub.domain.NewAppStack
 import com.lukeneedham.apphub.domain.newAppPackage
 import com.lukeneedham.apphub.domain.newClaudeSessionUrl
 import com.lukeneedham.apphub.domain.repoUrl
 import com.lukeneedham.apphub.ui.theme.AppTheme
 
 private const val CLAUDE_APP_ACCESS_URL = "https://github.com/apps/claude/installations/select_target"
+private const val VERCEL_NEW_PROJECT_URL = "https://vercel.com/new"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun NewAppPageContent(
     state: NewAppUiState,
     onNameChange: (String) -> Unit,
+    onStackChange: (NewAppStack) -> Unit,
     onPrivateChange: (Boolean) -> Unit,
     onCreate: () -> Unit,
     onDismissResult: () -> Unit,
@@ -61,7 +68,7 @@ internal fun NewAppPageContent(
         containerColor = background,
         topBar = {
             TopAppBar(
-                title = { Text("New app") },
+                title = { Text("New project") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
@@ -78,8 +85,8 @@ internal fun NewAppPageContent(
         ) {
             if (!state.signedIn) NeedsToken(onOpenSettings)
             if (!state.hasCreationToken) NeedsCreationToken(onOpenSettings)
-            FormCard(state, onNameChange, onPrivateChange, onCreate)
-            state.progress?.let { ProgressCard(it, onDismissResult) }
+            FormCard(state, onNameChange, onStackChange, onPrivateChange, onCreate)
+            state.progress?.let { ProgressCard(it, state.stack, onDismissResult) }
             if (state.error != null) {
                 Text(state.error, style = MaterialTheme.typography.bodySmall, color = AppTheme.colors.failed)
             }
@@ -92,7 +99,7 @@ private fun NeedsToken(onOpenSettings: () -> Unit) {
     NewAppCard {
         Text("A GitHub token is needed", style = MaterialTheme.typography.titleMedium)
         Text(
-            "Creating an app starts a workflow of the ci-workflows repo, which needs a token with the Actions permission " +
+            "Creating a project starts a workflow of the ci-workflows repo, which needs a token with the Actions permission " +
                 "(read and write). Add one in Settings.",
             style = MaterialTheme.typography.bodySmall,
             color = AppTheme.colors.textSecondary,
@@ -116,22 +123,24 @@ private fun NeedsCreationToken(onOpenSettings: () -> Unit) {
 private fun FormCard(
     state: NewAppUiState,
     onNameChange: (String) -> Unit,
+    onStackChange: (NewAppStack) -> Unit,
     onPrivateChange: (Boolean) -> Unit,
     onCreate: () -> Unit,
 ) {
     NewAppCard {
+        StackPicker(state.stack, enabled = !state.inProgress, onStackChange = onStackChange)
         OutlinedTextField(
             value = state.name,
             onValueChange = onNameChange,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("App name") },
+            label = { Text("Project name") },
             singleLine = true,
             enabled = !state.inProgress,
             isError = state.nameError != null,
             supportingText = {
-                if (state.name.isNotEmpty()) {
-                    Text(state.nameError ?: "Package: ${newAppPackage(state.name)}")
-                }
+                // A website has no Android package, so there is only something to say for a wrong name or an app
+                val hint = state.nameError ?: state.stack?.takeIf { it.hasAndroidPackage }?.let { "Package: ${newAppPackage(state.name)}" }
+                if (state.name.isNotEmpty() && hint != null) Text(hint)
             },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
             shape = MaterialTheme.shapes.medium,
@@ -140,19 +149,46 @@ private fun FormCard(
             Column(Modifier.weight(1f)) {
                 Text("Private repository", style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    "AppHub lists public repos, so a private app does not show here.",
+                    "AppHub lists public repos, so a private project does not show here.",
                     style = MaterialTheme.typography.bodySmall,
                     color = AppTheme.colors.textSecondary,
                 )
             }
             Switch(checked = state.isPrivate, onCheckedChange = onPrivateChange, enabled = !state.inProgress)
         }
-        Button(onClick = onCreate, enabled = state.canCreate, shape = CircleShape) { Text("Create app") }
+        Button(onClick = onCreate, enabled = state.canCreate, shape = CircleShape) { Text("Create project") }
+    }
+}
+
+/** What the project is built with. Nothing is chosen at first: the user picks, so the workflow never guesses (there is no default stack). */
+@Composable
+private fun StackPicker(selected: NewAppStack?, enabled: Boolean, onStackChange: (NewAppStack) -> Unit) {
+    Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("Built with", style = MaterialTheme.typography.labelLarge, color = AppTheme.colors.textSecondary)
+        NewAppStack.entries.forEach { stack ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = stack == selected,
+                        enabled = enabled,
+                        role = Role.RadioButton,
+                        onClick = { onStackChange(stack) },
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RadioButton(selected = stack == selected, onClick = null, enabled = enabled)
+                Column(Modifier.padding(start = 12.dp, top = 6.dp, bottom = 6.dp)) {
+                    Text(stack.title, style = MaterialTheme.typography.bodyMedium)
+                    Text(stack.description, style = MaterialTheme.typography.bodySmall, color = AppTheme.colors.textSecondary)
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun ProgressCard(progress: NewAppProgress, onDismissResult: () -> Unit) {
+private fun ProgressCard(progress: NewAppProgress, stack: NewAppStack?, onDismissResult: () -> Unit) {
     val uriHandler = LocalUriHandler.current
     NewAppCard {
         when (progress) {
@@ -160,14 +196,13 @@ private fun ProgressCard(progress: NewAppProgress, onDismissResult: () -> Unit) 
             NewAppProgress.Starting -> Working("Repo made. Starting its setup…")
             NewAppProgress.Waiting -> Working("Started. Waiting for the run to appear…")
             is NewAppProgress.Running -> {
-                Working("Creating the app…")
+                Working("Creating the project…")
                 TextButton(onClick = { uriHandler.openUri(progress.runUrl) }) { Text("Watch the run") }
             }
             is NewAppProgress.Done -> {
                 Text("Created ${progress.repo}", style = MaterialTheme.typography.titleMedium, color = AppTheme.colors.installed)
                 Text(
-                    "The package is ${newAppPackage(progress.repo.substringAfter('/'))}. Give the Claude GitHub App access to the repo, " +
-                        "unless its installation covers all repositories, then start a session on it.",
+                    doneText(progress.repo, stack),
                     style = MaterialTheme.typography.bodySmall,
                     color = AppTheme.colors.textSecondary,
                 )
@@ -178,6 +213,9 @@ private fun ProgressCard(progress: NewAppProgress, onDismissResult: () -> Unit) 
                     }
                 }
                 TextButton(onClick = { uriHandler.openUri(CLAUDE_APP_ACCESS_URL) }) { Text("Claude app access") }
+                if (stack == NewAppStack.NextJs) {
+                    TextButton(onClick = { uriHandler.openUri(VERCEL_NEW_PROJECT_URL) }) { Text("Vercel") }
+                }
                 TextButton(onClick = onDismissResult) { Text("Create another") }
             }
             is NewAppProgress.Failed -> {
@@ -194,6 +232,17 @@ private fun ProgressCard(progress: NewAppProgress, onDismissResult: () -> Unit) 
                 }
             }
         }
+    }
+}
+
+/** What is left to do once [repo] is created, which depends on its [stack]. */
+private fun doneText(repo: String, stack: NewAppStack?): String {
+    val claudeAccess = "Give the Claude GitHub App access to the repo, unless its installation covers all repositories, then start a session on it."
+    return when (stack) {
+        NewAppStack.NextJs ->
+            "The run's summary says whether the site was set up on Vercel. If it says that was skipped, connect the repo on Vercel " +
+                "and turn Deployment Protection off for previews. $claudeAccess"
+        NewAppStack.Kmp, null -> "The package is ${newAppPackage(repo.substringAfter('/'))}. $claudeAccess"
     }
 }
 
@@ -225,6 +274,7 @@ private fun Preview() {
         NewAppPageContent(
             state = NewAppUiState(signedIn = true, hasCreationToken = true),
             onNameChange = {},
+            onStackChange = {},
             onPrivateChange = {},
             onCreate = {},
             onDismissResult = {},
@@ -242,6 +292,25 @@ private fun PreviewSignedOut() {
         NewAppPageContent(
             state = NewAppUiState(signedIn = false, hasCreationToken = false, name = "Lyric Tutor"),
             onNameChange = {},
+            onStackChange = {},
+            onPrivateChange = {},
+            onCreate = {},
+            onDismissResult = {},
+            onOpenSettings = {},
+            onBack = {},
+        )
+    }
+}
+
+/** For Android Studio: a website is chosen. */
+@Preview
+@Composable
+private fun PreviewWebsite() {
+    AppTheme {
+        NewAppPageContent(
+            state = NewAppUiState(signedIn = true, hasCreationToken = true, name = "MySite", stack = NewAppStack.NextJs),
+            onNameChange = {},
+            onStackChange = {},
             onPrivateChange = {},
             onCreate = {},
             onDismissResult = {},
@@ -261,9 +330,11 @@ private fun PreviewDone() {
                 signedIn = true,
                 hasCreationToken = true,
                 name = "LyricTutor",
+                stack = NewAppStack.Kmp,
                 progress = NewAppProgress.Done("LukeNeedham/LyricTutor", "https://github.com/LukeNeedham/ci-workflows/actions/runs/1"),
             ),
             onNameChange = {},
+            onStackChange = {},
             onPrivateChange = {},
             onCreate = {},
             onDismissResult = {},

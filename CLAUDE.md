@@ -35,9 +35,12 @@
   app replaces on every push to `main` (`android_main_build.yml` in `LukeNeedham/ci-workflows`, through the caller
   `build_main.yml`). `MAIN_RELEASE_TAG` and `MAIN_APK_ASSET` must match it. Which commit the APK is of comes from the
   `commit:` line of the release notes (`scripts/main_build.py` there). AppHub never starts a build.
-- The plus on Home opens `NewAppPage`, which creates an app in two steps (`docs/create-app.md` in `LukeNeedham/ci-workflows`): it makes
+- The plus on Home opens `NewAppPage`, which creates a project in two steps (`docs/create-app.md` in `LukeNeedham/ci-workflows`): the user
+  first **chooses its stack**, `NewAppStack` (`kmp`, an Android app, or `next-js`, a website with no Android app), with none chosen at first:
+  there is no default, and nothing can be created without one. It makes
   the repo itself, with a token of its own (the create new app token, entered on the Settings page and kept in its own Keystore entry, only
-  ever used to create repos; the New app page only reads it, and says to set it up first when it is missing), then starts the workflow `new_app.yml` of ci-workflows with `resume` on, with the token of Settings (which needs the
+  ever used to create repos; the New project page only reads it, and says to set it up first when it is missing), then starts the workflow `new_app.yml` of ci-workflows with `name`, `stack` and `resume` on (`newAppDispatchInputs`), with the token of Settings (which needs the
   Actions permission, read and write), and follows its run, which it finds by its title `New App <name>` (the `run-name` of the
-  workflow). No secret of ci-workflows can create repos. `NEW_APP_WORKFLOW`, `NEW_APP_REF` and `newAppRunTitle` must match that
-  workflow, and the name check (`newAppNameError`) must match `check_name` of `scripts/new_app.py`.
+  workflow). No secret of ci-workflows can create repos. `NEW_APP_WORKFLOW`, `NEW_APP_REF`, `newAppRunTitle` and the ids of `NewAppStack`
+  must match that workflow (its `stack` input is required, so a dispatch without one is refused), and the name check (`newAppNameError`)
+  must match `check_name` of `scripts/new_app.py`. A website has no package, so the page shows none for it.

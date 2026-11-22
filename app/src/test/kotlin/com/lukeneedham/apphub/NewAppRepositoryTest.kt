@@ -6,6 +6,7 @@ import com.lukeneedham.apphub.data.WorkflowRunDto
 import com.lukeneedham.apphub.domain.MissingPermissionException
 import com.lukeneedham.apphub.domain.NewAppException
 import com.lukeneedham.apphub.domain.NewAppProgress
+import com.lukeneedham.apphub.domain.NewAppStack
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -28,8 +29,10 @@ class NewAppRepositoryTest {
     ) : NewAppApi {
         var runsCalls = 0
         val events = mutableListOf<String>()
+        val stacks = mutableListOf<NewAppStack>()
 
-        override suspend fun createRepo(name: String, isPrivate: Boolean): String {
+        override suspend fun createRepo(name: String, stack: NewAppStack, isPrivate: Boolean): String {
+            stacks += stack
             events += "createRepo $name private=$isPrivate"
             createError?.let { throw it }
             return defaultBranch
@@ -39,7 +42,8 @@ class NewAppRepositoryTest {
             events += "renameBranch $name $from->$to"
         }
 
-        override suspend fun dispatch(name: String) {
+        override suspend fun dispatch(name: String, stack: NewAppStack) {
+            stacks += stack
             events += "dispatch $name"
             dispatchError?.let { throw it }
         }
@@ -67,7 +71,7 @@ class NewAppRepositoryTest {
     fun `it makes the repo, starts the setup, finds its run and follows it to the end`() = runTest {
         val api = FakeApi(happyAnswers)
 
-        val progress = repository(api).create("LyricTutor", isPrivate = true).toList()
+        val progress = repository(api).create("LyricTutor", NewAppStack.Kmp, isPrivate = true).toList()
 
         val url = "https://github.com/LukeNeedham/ci-workflows/actions/runs/7"
         assertEquals(
@@ -86,7 +90,7 @@ class NewAppRepositoryTest {
     fun `the workflow is looked at before the repo is made, and the repo is made before the workflow starts`() = runTest {
         val api = FakeApi(happyAnswers)
 
-        repository(api).create("LyricTutor", isPrivate = true).toList()
+        repository(api).create("LyricTutor", NewAppStack.Kmp, isPrivate = true).toList()
 
         assertEquals(listOf("runs", "createRepo LyricTutor private=true", "dispatch LyricTutor"), api.events.take(3))
     }
@@ -95,14 +99,14 @@ class NewAppRepositoryTest {
     fun `a token that cannot see the workflow makes no repo`() = runTest {
         val api = object : NewAppApi {
             val events = mutableListOf<String>()
-            override suspend fun createRepo(name: String, isPrivate: Boolean): String = "main".also { events += "createRepo" }
+            override suspend fun createRepo(name: String, stack: NewAppStack, isPrivate: Boolean): String = "main".also { events += "createRepo" }
             override suspend fun renameBranch(name: String, from: String, to: String) { events += "renameBranch" }
-            override suspend fun dispatch(name: String) { events += "dispatch" }
+            override suspend fun dispatch(name: String, stack: NewAppStack) { events += "dispatch" }
             override suspend fun runs(): List<WorkflowRunDto> = throw MissingPermissionException()
         }
 
         try {
-            repository(api).create("LyricTutor", false).toList()
+            repository(api).create("LyricTutor", NewAppStack.Kmp, false).toList()
             fail("expected a MissingPermissionException")
         } catch (e: MissingPermissionException) {
             // expected
@@ -114,7 +118,7 @@ class NewAppRepositoryTest {
     fun `a default branch that is not main is renamed to it before the setup starts`() = runTest {
         val api = FakeApi(happyAnswers, defaultBranch = "master")
 
-        repository(api).create("LyricTutor", false).toList()
+        repository(api).create("LyricTutor", NewAppStack.Kmp, false).toList()
 
         val create = api.events.indexOf("createRepo LyricTutor private=false")
         val rename = api.events.indexOf("renameBranch LyricTutor master->main")
@@ -126,7 +130,7 @@ class NewAppRepositoryTest {
     fun `main is not renamed`() = runTest {
         val api = FakeApi(happyAnswers)
 
-        repository(api).create("LyricTutor", false).toList()
+        repository(api).create("LyricTutor", NewAppStack.Kmp, false).toList()
 
         assertTrue(api.events.none { it.startsWith("renameBranch") })
     }
@@ -136,7 +140,7 @@ class NewAppRepositoryTest {
         val api = FakeApi(happyAnswers, createError = NewAppException("A repository named LyricTutor exists already"))
 
         try {
-            repository(api).create("LyricTutor", false).toList()
+            repository(api).create("LyricTutor", NewAppStack.Kmp, false).toList()
             fail("expected a NewAppException")
         } catch (e: NewAppException) {
             assertTrue(e.message!!.contains("exists already"))
@@ -149,7 +153,7 @@ class NewAppRepositoryTest {
         val api = FakeApi(happyAnswers, dispatchError = IOException("GitHub returned 422"))
 
         try {
-            repository(api).create("LyricTutor", false).toList()
+            repository(api).create("LyricTutor", NewAppStack.Kmp, false).toList()
             fail("expected a NewAppException")
         } catch (e: NewAppException) {
             val message = e.message!!
@@ -163,7 +167,7 @@ class NewAppRepositoryTest {
     fun `a run that did not succeed is reported as failed with its link`() = runTest {
         val api = FakeApi(listOf(emptyList(), listOf(workflowRun(8, "completed", "failure"))))
 
-        val progress = repository(api).create("LyricTutor", isPrivate = false).toList()
+        val progress = repository(api).create("LyricTutor", NewAppStack.Kmp, isPrivate = false).toList()
 
         assertEquals(NewAppProgress.Failed("https://github.com/LukeNeedham/ci-workflows/actions/runs/8"), progress.last())
     }
@@ -172,7 +176,7 @@ class NewAppRepositoryTest {
     fun `a cancelled run is a failure too`() = runTest {
         val api = FakeApi(listOf(emptyList(), listOf(workflowRun(8, "completed", "cancelled"))))
 
-        assertTrue(repository(api).create("LyricTutor", false).toList().last() is NewAppProgress.Failed)
+        assertTrue(repository(api).create("LyricTutor", NewAppStack.Kmp, false).toList().last() is NewAppProgress.Failed)
     }
 
     @Test
@@ -187,7 +191,7 @@ class NewAppRepositoryTest {
             ),
         )
 
-        val progress = repository(api).create("LyricTutor", false).toList()
+        val progress = repository(api).create("LyricTutor", NewAppStack.Kmp, false).toList()
 
         assertEquals(NewAppProgress.Running("https://github.com/LukeNeedham/ci-workflows/actions/runs/9"), progress[3])
         assertTrue(progress.last() is NewAppProgress.Done)
@@ -198,7 +202,7 @@ class NewAppRepositoryTest {
         val other = workflowRun(5, "in_progress", title = "New App Other")
         val api = FakeApi(listOf(listOf(other), listOf(other), listOf(workflowRun(6, "completed", "success"), other)))
 
-        val progress = repository(api).create("LyricTutor", false).toList()
+        val progress = repository(api).create("LyricTutor", NewAppStack.Kmp, false).toList()
 
         assertEquals(NewAppProgress.Running("https://github.com/LukeNeedham/ci-workflows/actions/runs/6"), progress[3])
     }
@@ -208,7 +212,7 @@ class NewAppRepositoryTest {
         val api = FakeApi(listOf(emptyList()))
 
         try {
-            repository(api).create("LyricTutor", false).toList()
+            repository(api).create("LyricTutor", NewAppStack.Kmp, false).toList()
             fail("expected an IOException")
         } catch (e: IOException) {
             assertTrue(e.message!!.contains("did not start"))
@@ -220,10 +224,19 @@ class NewAppRepositoryTest {
         val api = FakeApi(listOf(emptyList(), listOf(workflowRun(7, "in_progress"))))
 
         try {
-            repository(api).create("LyricTutor", false).toList()
+            repository(api).create("LyricTutor", NewAppStack.Kmp, false).toList()
             fail("expected an IOException")
         } catch (e: IOException) {
             assertTrue(e.message!!.contains("taking too long"))
         }
+    }
+
+    @Test
+    fun `the stack that was chosen goes to the repo and to the workflow`() = runTest {
+        val api = FakeApi(happyAnswers)
+
+        repository(api).create("MySite", NewAppStack.NextJs, isPrivate = false).toList()
+
+        assertEquals(listOf(NewAppStack.NextJs, NewAppStack.NextJs), api.stacks)
     }
 }

@@ -11,6 +11,13 @@ const val NEW_APP_WORKFLOW = "new_app.yml"
 /** The branch the workflow is run from. */
 const val NEW_APP_REF = "main"
 
+/**
+ * The inputs of the workflow for the project [name] of [stack]. The repo exists, so the workflow carries on with it (`resume`). The
+ * inputs of a workflow are strings, whatever their type. `stack` is required there, with no default: a dispatch without it is refused.
+ */
+fun newAppDispatchInputs(name: String, stack: NewAppStack): Map<String, String> =
+    mapOf("name" to name, "stack" to stack.id, "resume" to "true")
+
 /** The title of the run that creates [name]: the `run-name` of the workflow, by which AppHub tells its run from the others. */
 fun newAppRunTitle(name: String) = "New App $name"
 
@@ -18,7 +25,7 @@ private const val MIN_NAME_LENGTH = 2
 private const val MAX_NAME_LENGTH = 50
 private val NEW_APP_NAME = Regex("[A-Za-z][A-Za-z0-9]*([-_][A-Za-z0-9]+)*")
 
-/** What is wrong with [name] as the name of a new app and its repo, said as `scripts/new_app.py` checks it; null when it is fine. */
+/** What is wrong with [name] as the name of a new project and its repo, said as `scripts/new_app.py` checks it; null when it is fine. */
 fun newAppNameError(name: String): String? = when {
     name.length < MIN_NAME_LENGTH -> "At least $MIN_NAME_LENGTH characters"
     name.length > MAX_NAME_LENGTH -> "At most $MAX_NAME_LENGTH characters"
@@ -51,15 +58,16 @@ sealed interface NewAppProgress {
     data class Failed(val runUrl: String) : NewAppProgress
 }
 
-/** Where new apps are created. */
+/** Where new projects are created. */
 interface NewAppSource {
     /**
-     * Makes the repo of the app [name] (private when [isPrivate]), then starts the workflow that sets it up and follows it
+     * Makes the repo of the project [name] of [stack] (private when [isPrivate]), then starts the workflow that sets it up for that
+     * stack and follows it
      * until it ends. Throws [NewAppException] with a message to show when the repo could not be made or its setup not
      * started, [InvalidTokenException] or [MissingPermissionException] when the token of the workflow calls does not allow
      * them, and an `IOException` for any other failure to reach GitHub.
      */
-    fun create(name: String, isPrivate: Boolean): Flow<NewAppProgress>
+    fun create(name: String, stack: NewAppStack, isPrivate: Boolean): Flow<NewAppProgress>
 }
 
 /** GitHub answered 403 or 404: the token may not start the workflow, or cannot see its repo. */

@@ -1,6 +1,7 @@
 package com.lukeneedham.apphub.ui
 
 import com.lukeneedham.apphub.domain.NewAppProgress
+import com.lukeneedham.apphub.domain.NewAppStack
 import com.lukeneedham.apphub.domain.newAppNameError
 
 data class NewAppUiState(
@@ -9,6 +10,8 @@ data class NewAppUiState(
     /** Whether the token that creates repos is saved (in Settings). */
     val hasCreationToken: Boolean = false,
     val name: String = "",
+    /** What the project is built with. Null until the user chooses: there is no default, so nothing can be created without one. */
+    val stack: NewAppStack? = null,
     val isPrivate: Boolean = false,
     /** Null before anything was started, and after a start that was refused (see [error]). */
     val progress: NewAppProgress? = null,
@@ -22,5 +25,5 @@ data class NewAppUiState(
         get() = progress != null && progress !is NewAppProgress.Done && progress !is NewAppProgress.Failed
 
     val canCreate: Boolean
-        get() = signedIn && hasCreationToken && name.isNotEmpty() && nameError == null && !inProgress
+        get() = signedIn && hasCreationToken && name.isNotEmpty() && nameError == null && stack != null && !inProgress
 }

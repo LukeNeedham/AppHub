@@ -7,6 +7,7 @@ import com.lukeneedham.apphub.domain.MissingPermissionException
 import com.lukeneedham.apphub.domain.NewAppException
 import com.lukeneedham.apphub.domain.NewAppProgress
 import com.lukeneedham.apphub.domain.NewAppSource
+import com.lukeneedham.apphub.domain.NewAppStack
 import com.lukeneedham.apphub.domain.TokenStore
 import com.lukeneedham.common.logger.Logger
 import kotlinx.coroutines.CancellationException
@@ -48,25 +49,34 @@ class NewAppViewModel(
         _uiState.update { it.copy(name = name, error = null) }
     }
 
+    fun onStackChange(stack: NewAppStack) {
+        if (_uiState.value.inProgress) return
+        _uiState.update { it.copy(stack = stack, error = null) }
+    }
+
     fun onPrivateChange(isPrivate: Boolean) {
         if (_uiState.value.inProgress) return
         _uiState.update { it.copy(isPrivate = isPrivate) }
     }
 
-    /** Makes the repo, then starts its setup and follows it. Nothing happens while the name is wrong, a token is missing or one is running. */
+    /**
+     * Makes the repo, then starts its setup for the chosen stack and follows it. Nothing happens while the name is wrong, no stack
+     * is chosen, a token is missing or one is running.
+     */
     fun create() {
         val state = _uiState.value
-        if (!state.canCreate) return
+        val stack = state.stack
+        if (!state.canCreate || stack == null) return
         _uiState.update { it.copy(progress = NewAppProgress.CreatingRepo, error = null) }
         viewModelScope.launch {
             try {
-                source.create(state.name, state.isPrivate).collect { progress ->
+                source.create(state.name, stack, state.isPrivate).collect { progress ->
                     _uiState.update { it.copy(progress = progress) }
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: NewAppException) {
-                fail(e.message ?: "Could not create the app")
+                fail(e.message ?: "Could not create the project")
             } catch (e: InvalidTokenException) {
                 fail("GitHub rejected your token. Replace or remove it in Settings.")
             } catch (e: MissingPermissionException) {
@@ -75,13 +85,13 @@ class NewAppViewModel(
                         "for the ci-workflows repo: \"All repositories\" covers it.",
                 )
             } catch (e: Exception) {
-                Logger.e("Could not create the app", e)
-                fail(e.message ?: "Could not create the app")
+                Logger.e("Could not create the project", e)
+                fail(e.message ?: "Could not create the project")
             }
         }
     }
 
-    /** Closes the result: a created app starts a blank form, a failed run keeps the name to try again. */
+    /** Closes the result: a created project starts a blank form, a failed run keeps the name and the stack to try again. */
     fun dismissResult() {
         _uiState.update {
             if (it.progress is NewAppProgress.Done) {

@@ -3,6 +3,7 @@ package com.lukeneedham.apphub.screenshot
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.lukeneedham.apphub.domain.NewAppProgress
+import com.lukeneedham.apphub.domain.NewAppStack
 import com.lukeneedham.apphub.ui.NewAppPageContent
 import com.lukeneedham.apphub.ui.NewAppUiState
 import com.lukeneedham.apphub.ui.theme.AppTheme
@@ -15,12 +16,14 @@ private fun NewAppPageScreenshot() {
         signedIn = true,
         hasCreationToken = true,
         name = "LyricTutor",
+        stack = NewAppStack.Kmp,
         progress = NewAppProgress.Running("https://github.com/LukeNeedham/ci-workflows/actions/runs/1"),
     )
     AppTheme {
         NewAppPageContent(
             state = state,
             onNameChange = {},
+            onStackChange = {},
             onPrivateChange = {},
             onCreate = {},
             onDismissResult = {},

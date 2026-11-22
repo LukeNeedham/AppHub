@@ -163,7 +163,7 @@ internal fun HomePageContent(
                     title = { Text("AppHub", fontWeight = FontWeight.Bold) },
                     actions = {
                         IconButton(onClick = onNewApp) {
-                            Icon(painterResource(R.drawable.ic_add), contentDescription = "New app")
+                            Icon(painterResource(R.drawable.ic_add), contentDescription = "New project")
                         }
                         IconButton(onClick = onOpenSettings) {
                             Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings")
