@@ -14,10 +14,10 @@ it sits in that list, so a new state should be placed in it, not given a new col
 |---|---|---|
 | Grey | Nothing to do: there is no APK and none is coming | No build, Cancelled |
 | Blue | Something is running; wait | Building, Downloading |
-| Purple (the action colour, `AppColors.action`) | An APK is ready and you can act on it | Ready, Update ready, Ready to install |
+| Purple (the action colour, `AppColors.action`) | An APK is ready and you can act on it, or a website's preview is up | Ready, Update ready, Ready to install, Preview |
 | Amber | What is on offer is out of date | Stale build: the new build has not finished, so only the previous APK can be offered |
 | Green | Done | Installed |
-| Red | Broken | Build failed, Download failed |
+| Red | Broken | Build failed, Download failed, Login needed |
 
 Notes:
 
@@ -31,6 +31,20 @@ Notes:
   installed one's. The timestamp is not on the pill: see the bottom sheet below.
 - **Red is for failure** whoever's it is: a failed CI build or a failed download. The text tells them apart.
 - Amber on a stale build wins over the build's own state, as the build is still running in that case.
+
+## A website's pill
+
+A website (the stack `next-js` of ci-workflows) has **no APK**, so its PR has no APK comment. Its pill shows the preview instead, from the
+comment of the CI with the header `web-preview-link` (`web_pr.yml` there; `CommentParser.parseWebsitePreview`, `WebsitePreview`). A PR with no APK comment
+and no such comment still reads "No build". An app's PR never takes these states: its APK comment decides.
+
+| Status | Colour | Means | Press on the icon |
+|---|---|---|---|
+| Preview | Purple | The preview is up and opens without a login | Opens the preview (the Open icon) |
+| Building | Blue | Vercel has not finished the preview, or it failed | Nothing |
+| Login needed | Red | The preview is up but Vercel asks for a login: Deployment Protection is on for previews | Opens the preview |
+
+There is no description line (no APK, so no age), and the status is centred in the height of both lines, like the other pills with no APK.
 
 ## The two lines
 

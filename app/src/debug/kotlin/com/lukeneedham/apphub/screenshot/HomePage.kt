@@ -13,6 +13,7 @@ import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.MainApk
 import com.lukeneedham.apphub.domain.MainBuildItem
 import com.lukeneedham.apphub.domain.PullRequest
+import com.lukeneedham.apphub.domain.WebsitePreview
 import com.lukeneedham.apphub.ui.HomePageContent
 import com.lukeneedham.apphub.ui.HomeUiState
 import com.lukeneedham.apphub.ui.MainBuildActions
@@ -61,6 +62,27 @@ private fun HomePageScreenshot() {
                     install = InstallStatus.NotInstalled,
                 ),
             ),
+            // A website: no APK and no icon, so its pill shows the preview and its card the initial. Second, so that the pill is not below the fold of the screenshot
+            RepoSection(
+                repo = "LukeNeedham/PersonalWebsite",
+                pullRequests = listOf(
+                    PullRequestItem(
+                        pr = PullRequest(
+                            repo = "LukeNeedham/PersonalWebsite",
+                            number = 13,
+                            title = "Add the projects page",
+                            author = "LukeNeedham",
+                            url = "https://github.com/LukeNeedham/PersonalWebsite/pull/13",
+                            isDraft = false,
+                            apk = null,
+                            webUrl = "https://personal-website-git-projects-lukeneedhams-projects.vercel.app",
+                            website = WebsitePreview.Ready("https://personal-website-git-projects-lukeneedhams-projects.vercel.app"),
+                        ),
+                        download = DownloadState.Idle,
+                        install = InstallStatus.Unknown,
+                    ),
+                ),
+            ),
             RepoSection(
                 repo = "LukeNeedham/VideoDiary",
                 pullRequests = listOf(
@@ -83,9 +105,16 @@ private fun HomePageScreenshot() {
         ),
     )
     // Shown in place of the repo icons, which the page loads from a URL: a screenshot must never need the network.
-    // A flat colour per repo, like its icon.
+    // A flat colour per repo, like its icon; none for the website, which has no icon (the initial shows)
     val iconPreviewHandler = AsyncImagePreviewHandler { request ->
-        ColorImage(if ("VideoDiary" in request.data.toString()) 0xFFE53935.toInt() else 0xFF1565C0.toInt())
+        val url = request.data.toString()
+        ColorImage(
+            when {
+                "PersonalWebsite" in url -> 0x00000000
+                "VideoDiary" in url -> 0xFFE53935.toInt()
+                else -> 0xFF1565C0.toInt()
+            },
+        )
     }
     // Coil shows its mock images only in inspection mode, which CI renders every screenshot in
     CompositionLocalProvider(LocalAsyncImagePreviewHandler provides iconPreviewHandler) {

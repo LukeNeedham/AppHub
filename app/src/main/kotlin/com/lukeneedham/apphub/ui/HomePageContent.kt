@@ -97,6 +97,7 @@ import com.lukeneedham.apphub.domain.InstallStatus
 import com.lukeneedham.apphub.domain.MainBuildItem
 import com.lukeneedham.apphub.domain.MainPhase
 import com.lukeneedham.apphub.domain.PullRequestRef
+import com.lukeneedham.apphub.domain.WebsitePreview
 import com.lukeneedham.apphub.domain.ageText
 import com.lukeneedham.apphub.domain.formatTimestamp
 import com.lukeneedham.apphub.domain.repoIconUrl
@@ -425,12 +426,20 @@ internal fun RepoCard(
                     .padding(start = 18.dp, end = 12.dp, top = 14.dp, bottom = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Always takes its space, so names line up whether or not the repo has an icon
-                AsyncImage(
-                    model = freshIconRequest(section.repo),
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp),
-                )
+                // Always takes its space, so names line up whether or not the repo has an icon. A website has none:
+                // the initial shows for it, and under the icon while it loads (as in the jump bar)
+                Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        section.repo.substringAfter('/').take(1).uppercase(),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = AppTheme.colors.textSecondary,
+                    )
+                    AsyncImage(
+                        model = freshIconRequest(section.repo),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
@@ -638,6 +647,7 @@ internal fun PullRequestStatus(
         onInstall = onInstall,
         onOpen = onOpen,
         onOpenRun = { pr.buildingRunUrl?.let(uriHandler::openUri) },
+        onOpenPreview = { pr.webUrl?.let(uriHandler::openUri) },
     )
 }
 
@@ -821,13 +831,25 @@ internal data class Control(
     val progressText: String? = null,
 )
 
-internal enum class ActionKind { Download, Install, Open, OpenRun }
+internal enum class ActionKind { Download, Install, Open, OpenRun, OpenPreview }
 
 /** What a press on a "Building" pill does: opens the run that builds the APK. */
 private const val STALE_BUILD = "Stale build"
 
 
 private val OpenRunAction = Trailing.Action(R.drawable.ic_open, "Open the build run on GitHub", ActionKind.OpenRun)
+private val OpenPreviewAction = Trailing.Action(R.drawable.ic_open, "Open the preview", ActionKind.OpenPreview)
+
+/**
+ * The pill of a website's PR, which has no APK: its preview instead (docs/status-colors.md). Null when the PR is not a website's,
+ * or the CI has not commented on it yet.
+ */
+private fun websiteControl(website: WebsitePreview?, colors: AppColors): Control? = when (website) {
+    null -> null
+    is WebsitePreview.Ready -> Control("Preview", colors.action, OpenPreviewAction)
+    is WebsitePreview.NeedsLogin -> Control("Login needed", colors.failed, OpenPreviewAction)
+    is WebsitePreview.NotReady -> Control("Building", colors.building)
+}
 
 internal sealed interface Trailing {
     /** A press on the tag downloads the APK, installs the one already downloaded, or opens the installed app ([kind]). */
@@ -842,7 +864,7 @@ internal fun controlOf(item: PullRequestItem): Control {
     val colors = AppTheme.colors
     val installed = item.install == InstallStatus.Installed
     val build = when (item.pr.apk) {
-        null -> Control("No build", colors.idle)
+        null -> websiteControl(item.pr.website, colors) ?: Control("No build", colors.idle)
         is ApkBuild.InProgress -> Control("Building", colors.building, if (item.pr.buildingRunUrl != null) OpenRunAction else null)
         is ApkBuild.Failed -> Control("Build failed", colors.failed)
         is ApkBuild.Cancelled -> Control("Cancelled", colors.idle)
@@ -932,6 +954,7 @@ internal fun StatusControl(
     onInstall: () -> Unit,
     onOpen: () -> Unit,
     onOpenRun: () -> Unit = {},
+    onOpenPreview: () -> Unit = {},
 ) {
     val color = control.color
     // The pale status colours do not read as text on their own tint in light mode, so the text takes a darker shade
@@ -944,6 +967,7 @@ internal fun StatusControl(
             ActionKind.Download -> onDownload()
             ActionKind.Open -> onOpen()
             ActionKind.OpenRun -> onOpenRun()
+            ActionKind.OpenPreview -> onOpenPreview()
             ActionKind.Install -> onInstall()
         }
     }

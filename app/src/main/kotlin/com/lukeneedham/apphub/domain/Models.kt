@@ -40,6 +40,30 @@ sealed interface ApkBuild {
     data class Cancelled(override val commit: String?) : ApkBuild
 }
 
+/**
+ * The preview of a pull request of a website, as the CI of ci-workflows reports it in its comment `web-preview-link`
+ * (`web_pr.yml`, `docs/next-js-app.md` there). A website has no APK: this is what its pill shows instead.
+ */
+@Serializable
+sealed interface WebsitePreview {
+    /** The URL of the preview, when there is one. */
+    val url: String?
+
+    /** The preview is up and opens without a login. */
+    @Serializable
+    data class Ready(override val url: String) : WebsitePreview
+
+    /** The preview is up, but Vercel asks for a login to open it: Deployment Protection is on for previews. */
+    @Serializable
+    data class NeedsLogin(override val url: String) : WebsitePreview
+
+    /** Vercel has not finished the preview, or it failed. [state] is what Vercel says (`in_progress`, `failure`...). */
+    @Serializable
+    data class NotReady(val state: String?) : WebsitePreview {
+        override val url: String? get() = null
+    }
+}
+
 @Serializable
 data class PullRequest(
     /** `owner/name` */
@@ -58,6 +82,8 @@ data class PullRequest(
     val description: String? = null,
     /** The previews this PR changes compared with main, from the CI's "Preview changes" comment; empty when none or not posted. */
     val previewChanges: List<PreviewChange> = emptyList(),
+    /** The preview of a website (a project with no APK); null for an app, or before the CI has commented. */
+    val website: WebsitePreview? = null,
 ) {
     val key: String get() = "$repo#$number"
 

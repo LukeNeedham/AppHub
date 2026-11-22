@@ -11,6 +11,7 @@ import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.RateLimitException
 import com.lukeneedham.apphub.domain.RateLimitInfo
 import kotlinx.coroutines.test.runTest
+import com.lukeneedham.apphub.domain.WebsitePreview
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -128,5 +129,25 @@ class PullRequestRepositoryTest {
         val prs = PullRequestRepository(api, MemoryCache()).openPullRequests()
 
         assertEquals(listOf(1), prs.map { it.number })
+    }
+
+    @Test
+    fun aWebsitePullRequestHasItsPreviewAndNoApk() = runTest {
+        val url = "https://personal-website-git-b-lukeneedhams-projects.vercel.app"
+        val ready = "### 🌐 Preview\n\n- **Commit:** `0123456`\n- **Preview:** $url\n\n<!-- preview-url: $url -->\n" +
+            "<!-- Sticky Pull Request Commentweb-preview-link -->"
+        val api = FakeApi(listOf(issue(1, "t1")), ready)
+
+        val pr = PullRequestRepository(api, MemoryCache()).openPullRequests().single()
+
+        assertEquals(WebsitePreview.Ready(url), pr.website)
+        assertEquals(url, pr.webUrl)
+        assertEquals(null, pr.apk)
+    }
+
+    @Test
+    fun anAppPullRequestHasNoWebsitePreview() = runTest {
+        val pr = PullRequestRepository(FakeApi(listOf(issue(1, "t1")), comment), MemoryCache()).openPullRequests().single()
+        assertEquals(null, pr.website)
     }
 }

@@ -28,7 +28,9 @@
 - AppHub lists the open PRs of the owner's public repos with their APK and web deploy links, and downloads
   and installs the APKs. `domain/` is pure Kotlin (unit-tested); `data/` holds GitHub, download and install.
 - When the shared CI comment format changes in `LukeNeedham/ci-workflows`
-  (`.github/workflows/android_pr_build.yml`), update `CommentParser` and its test to match.
+  (`.github/workflows/android_pr_build.yml`, and `web_pr.yml` with `scripts/web_preview.py` for a website's preview comment, which has the
+  header `web-preview-link` and the URL on a line `<!-- preview-url: URL -->`), update `CommentParser` and its test to match. A website has
+  no APK and no `app-icon.png`: its pill shows the preview (`WebsitePreview`), and its card shows its initial for an icon.
 - The colours and icons of the PR status pill follow `docs/status-colors.md`; update it with any change to
   `controlOf` in `ui/HomePage.kt`.
 - The main build is the latest build of `main`: the APK `app-debug.apk` of the rolling release `main-build`, which the CI of each

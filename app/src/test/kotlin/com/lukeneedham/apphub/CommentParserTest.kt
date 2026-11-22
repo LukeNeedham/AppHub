@@ -4,6 +4,7 @@ import com.lukeneedham.apphub.domain.ApkBuild
 import com.lukeneedham.apphub.domain.CommentParser
 import com.lukeneedham.apphub.domain.PreviewChange
 import com.lukeneedham.apphub.domain.PreviewChangeKind
+import com.lukeneedham.apphub.domain.WebsitePreview
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -202,5 +203,76 @@ class CommentParserTest {
             ),
             CommentParser.parsePreviewChanges(body),
         )
+    }
+
+    private val previewUrl = "https://personal-website-git-my-branch-lukeneedhams-projects.vercel.app"
+    private val websiteMarker = "<!-- Sticky Pull Request Commentweb-preview-link -->"
+
+    // The comments of `web_pr.yml` in ci-workflows (`scripts/web_preview.py`), with the marker the sticky comment action adds
+    private val websiteReady = """
+        ### 🌐 Preview
+
+        - **Commit:** `0123456`
+        - **Preview:** $previewUrl
+
+        <!-- preview-url: $previewUrl -->
+        $websiteMarker
+    """.trimIndent()
+
+    private val websiteNeedsLogin = """
+        ### 🔒 Preview needs a login
+
+        - **Commit:** `0123456`
+        - **Preview:** $previewUrl
+
+        Vercel asks for a login to open this preview. Turn off *Deployment Protection* for previews in the project's settings on Vercel (`docs/next-js-app.md`).
+
+        <!-- preview-url: $previewUrl -->
+        $websiteMarker
+    """.trimIndent()
+
+    private val websiteNotReady = """
+        ### ⏳ Preview not ready
+
+        - **Commit:** `0123456`
+        - **Vercel:** in_progress
+        $websiteMarker
+    """.trimIndent()
+
+    @Test
+    fun aWebsitePreviewThatOpensIsReadyWithItsUrl() {
+        assertEquals(WebsitePreview.Ready(previewUrl), CommentParser.parseWebsitePreview(websiteReady))
+    }
+
+    @Test
+    fun aWebsitePreviewThatAsksForALoginSaysSoAndKeepsItsUrl() {
+        assertEquals(WebsitePreview.NeedsLogin(previewUrl), CommentParser.parseWebsitePreview(websiteNeedsLogin))
+    }
+
+    @Test
+    fun aWebsitePreviewThatIsNotThereYetSaysWhatVercelSays() {
+        assertEquals(WebsitePreview.NotReady("in_progress"), CommentParser.parseWebsitePreview(websiteNotReady))
+        assertNull(WebsitePreview.NotReady("in_progress").url)
+    }
+
+    @Test
+    fun onlyTheCommentOfTheWebsitePreviewIsOne() {
+        assertNull(CommentParser.parseWebsitePreview(succeeded))
+        assertNull(CommentParser.parseWebsitePreview("### 📲 AppHub\n\n[Open this pull request in AppHub](https://www.lukeneedham.com/apphub/pr/PersonalWebsite/12)"))
+        // The URL on its own, without the comment of the CI around it, is not enough: Vercel's own comment has one too
+        assertNull(CommentParser.parseWebsitePreview("<!-- preview-url: $previewUrl -->"))
+    }
+
+    @Test
+    fun theNewestWebsitePreviewWins() {
+        assertEquals(WebsitePreview.Ready(previewUrl), CommentParser.parseWebsitePreview(listOf(websiteNotReady, websiteReady)))
+        assertEquals(WebsitePreview.NotReady("in_progress"), CommentParser.parseWebsitePreview(listOf(websiteReady, websiteNotReady)))
+        assertNull(CommentParser.parseWebsitePreview(emptyList()))
+    }
+
+    @Test
+    fun aWebsitePreviewIsNotAnApkBuildAndItsUrlIsAWebLink() {
+        assertNull(CommentParser.parseApkBuild(websiteReady))
+        assertEquals(null to previewUrl, CommentParser.parse(listOf(websiteReady)))
     }
 }
