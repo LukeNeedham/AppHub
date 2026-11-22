@@ -62,26 +62,7 @@ private fun HomePageScreenshot() {
                     install = InstallStatus.NotInstalled,
                 ),
             ),
-            RepoSection(
-                repo = "LukeNeedham/VideoDiary",
-                pullRequests = listOf(
-                    PullRequestItem(
-                        pr = PullRequest(
-                            repo = "LukeNeedham/VideoDiary",
-                            number = 7,
-                            title = "Trim a clip before saving it",
-                            author = "LukeNeedham",
-                            url = "https://github.com/LukeNeedham/VideoDiary/pull/7",
-                            isDraft = false,
-                            apk = ApkBuild.InProgress(commit = "9f8e7d6", previousUrl = null),
-                            webUrl = null,
-                        ),
-                        download = DownloadState.Idle,
-                        install = InstallStatus.Unknown,
-                    ),
-                ),
-            ),
-            // A website: no APK and no icon, so its pill shows the preview and its card the initial
+            // A website: no APK and no icon, so its pill shows the preview and its card the initial. Second, so that the pill is not below the fold of the screenshot
             RepoSection(
                 repo = "LukeNeedham/PersonalWebsite",
                 pullRequests = listOf(
@@ -96,6 +77,25 @@ private fun HomePageScreenshot() {
                             apk = null,
                             webUrl = "https://personal-website-git-projects-lukeneedhams-projects.vercel.app",
                             website = WebsitePreview.Ready("https://personal-website-git-projects-lukeneedhams-projects.vercel.app"),
+                        ),
+                        download = DownloadState.Idle,
+                        install = InstallStatus.Unknown,
+                    ),
+                ),
+            ),
+            RepoSection(
+                repo = "LukeNeedham/VideoDiary",
+                pullRequests = listOf(
+                    PullRequestItem(
+                        pr = PullRequest(
+                            repo = "LukeNeedham/VideoDiary",
+                            number = 7,
+                            title = "Trim a clip before saving it",
+                            author = "LukeNeedham",
+                            url = "https://github.com/LukeNeedham/VideoDiary/pull/7",
+                            isDraft = false,
+                            apk = ApkBuild.InProgress(commit = "9f8e7d6", previousUrl = null),
+                            webUrl = null,
                         ),
                         download = DownloadState.Idle,
                         install = InstallStatus.Unknown,
