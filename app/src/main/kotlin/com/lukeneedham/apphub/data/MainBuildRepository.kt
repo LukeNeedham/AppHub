@@ -3,6 +3,9 @@ package com.lukeneedham.apphub.data
 import com.lukeneedham.apphub.domain.MainApk
 import com.lukeneedham.apphub.domain.MainBuildSource
 import com.lukeneedham.apphub.domain.TokenStore
+import com.lukeneedham.apphub.domain.normalizeProductionUrl
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -30,6 +33,25 @@ class MainBuildRepository(
         }
         withoutBuild.remove(repo)
         return apk
+    }
+
+    private val websitesMutex = Mutex()
+    private var websites: Set<String> = emptySet()
+    private var websitesUntil = 0L
+
+    override suspend fun productionUrl(repo: String): String? {
+        if (tokenStore.token.value == null) return null
+        if (repo.lowercase() !in websites()) return null
+        return normalizeProductionUrl(api.homepage(repo))
+    }
+
+    /** The websites of `apps.json`, which changes rarely: read again after [RECHECK_MS], not once per repo. */
+    private suspend fun websites(): Set<String> = websitesMutex.withLock {
+        if (websitesUntil <= now()) {
+            websites = api.websiteRepos()
+            websitesUntil = now() + RECHECK_MS
+        }
+        websites
     }
 
     private companion object {

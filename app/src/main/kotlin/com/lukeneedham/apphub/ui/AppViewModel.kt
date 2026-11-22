@@ -39,6 +39,7 @@ class AppViewModel(
     // All of this is touched on the main thread only, from viewModelScope
     private var pullRequests = source.cached().filter { it.repo == repo }
     private var mainApk: MainApk? = null
+    private var productionUrl: String? = null
     private var isLoading = true
     private var error: String? = null
 
@@ -63,6 +64,7 @@ class AppViewModel(
             }
             try {
                 mainApk = mainBuilds.status(repo)
+                productionUrl = mainBuilds.productionUrl(repo)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -120,6 +122,7 @@ class AppViewModel(
                 .filter { showAutoMerge || !it.isAutoMerge() }
                 .map { PullRequestItem(it, downloads.stateOf(it), tracker.statusFor(it.offer)) },
             mainBuild = mainItem(),
+            productionUrl = productionUrl,
         )
         _uiState.value = AppUiState(isLoading = isLoading, error = error, section = section)
     }

@@ -19,8 +19,18 @@ import java.time.Instant
 
 class MainBuildRepositoryTest {
 
-    private class FakeApi(var release: ReleaseDto? = null) : GithubApi {
+    private class FakeApi(
+        var release: ReleaseDto? = null,
+        var websites: Set<String> = emptySet(),
+        var homepage: String? = null,
+    ) : GithubApi {
         var releaseCalls = 0
+        var websiteCalls = 0
+        override suspend fun websiteRepos(): Set<String> {
+            websiteCalls++
+            return websites
+        }
+        override suspend fun homepage(repo: String): String? = homepage
         override suspend fun openPullRequests(): List<IssueDto> = emptyList()
         override suspend fun repositories(): List<String> = emptyList()
         override suspend fun commonApps(): Set<String> = emptySet()
@@ -106,5 +116,40 @@ class MainBuildRepositoryTest {
     fun `an unknown upload time is not a reason to hide the build`() = runTest {
         val apk = MainBuildRepository(FakeApi(release(assets = listOf(AssetDto("app-debug.apk", url)))), FakeTokenStore()).status("o/r")!!
         assertNull(apk.builtAtMillis)
+    }
+
+    @Test
+    fun `the production url of a website is the website of its repo`() = runTest {
+        val api = FakeApi(websites = setOf("o/site"), homepage = "www.example.com")
+        assertEquals("https://www.example.com", MainBuildRepository(api, FakeTokenStore()).productionUrl("O/Site"))
+    }
+
+    @Test
+    fun `an app has no production url, and GitHub is not asked for its website`() = runTest {
+        val api = FakeApi(websites = setOf("o/site"), homepage = "https://example.com")
+        assertNull(MainBuildRepository(api, FakeTokenStore()).productionUrl("o/app"))
+    }
+
+    @Test
+    fun `a website with no website set has no production url`() = runTest {
+        val api = FakeApi(websites = setOf("o/site"), homepage = " ")
+        assertNull(MainBuildRepository(api, FakeTokenStore()).productionUrl("o/site"))
+    }
+
+    @Test
+    fun `without a token there is no production url`() = runTest {
+        val api = FakeApi(websites = setOf("o/site"), homepage = "https://example.com")
+        assertNull(MainBuildRepository(api, FakeTokenStore(null)).productionUrl("o/site"))
+        assertEquals(0, api.websiteCalls)
+    }
+
+    @Test
+    fun `the list of websites is read once for many repos`() = runTest {
+        val api = FakeApi(websites = setOf("o/site"), homepage = "https://example.com")
+        val repository = MainBuildRepository(api, FakeTokenStore())
+        repository.productionUrl("o/a")
+        repository.productionUrl("o/b")
+        repository.productionUrl("o/site")
+        assertEquals(1, api.websiteCalls)
     }
 }

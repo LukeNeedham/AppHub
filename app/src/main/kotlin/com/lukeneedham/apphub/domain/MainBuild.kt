@@ -20,6 +20,22 @@ data class MainApk(val commit: String, val downloadUrl: String, val builtAtMilli
 interface MainBuildSource {
     /** The latest main build of the repo; null when it has none (no such release), or when there is no token to ask with. */
     suspend fun status(repo: String): MainApk?
+
+    /**
+     * The production deployment of a website (stack `next-js`): the URL set as the website of its GitHub repo. Null for an app, for a website
+     * with no URL set, and when there is no token to ask with.
+     */
+    suspend fun productionUrl(repo: String): String? = null
+}
+
+/** A website URL as typed in the "Website" field of a repo: `http(s)` only, with `https://` added when there is no scheme; null when blank or not a web address. */
+fun normalizeProductionUrl(raw: String?): String? {
+    val text = raw?.trim().orEmpty()
+    if (text.isEmpty() || text.any { it.isWhitespace() }) return null
+    val url = if ("://" in text) text else "https://$text"
+    val host = url.substringAfter("://").substringBefore('/').substringBefore('?').substringBefore('#')
+    val isWeb = url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true)
+    return if (isWeb && host.isNotEmpty()) url else null
 }
 
 /** A build that can be downloaded and installed: a PR's, or one of main. [key] is unique across both. */

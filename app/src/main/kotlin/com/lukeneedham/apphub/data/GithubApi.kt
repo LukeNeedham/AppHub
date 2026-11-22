@@ -36,6 +36,12 @@ interface GithubApi {
     /** The `owner/name` of every app listed in `apps.json` of the common repo, lower-cased. */
     suspend fun commonApps(): Set<String>
 
+    /** The `owner/name` of every app listed in `apps.json` with the stack `next-js` (a website), lower-cased. */
+    suspend fun websiteRepos(): Set<String> = emptySet()
+
+    /** The "Website" of the repo on GitHub, as typed; null when there is none. */
+    suspend fun homepage(repo: String): String? = null
+
     /** The first 100 comments of the PR, oldest first. */
     suspend fun comments(repo: String, number: Int): List<CommentDto>
 
@@ -86,6 +92,19 @@ class KtorGithubApi(
             .toSet()
     }
 
+    override suspend fun websiteRepos(): Set<String> {
+        val file = get<ContentDto>("https://api.github.com/repos/$COMMON_REPO/contents/$COMMON_APPS_FILE", forceNetwork = true)
+        val json = String(Base64.getMimeDecoder().decode(file.content.orEmpty()))
+        return apiJson.decodeFromString<List<CommonAppDto>>(json)
+            .filter { it.stack == WEBSITE_STACK }
+            .mapNotNull { it.repo?.lowercase() }
+            .toSet()
+    }
+
+    // Revalidated every time: the production URL is changed in the settings of the repo, and a 304 is free of the rate limit
+    override suspend fun homepage(repo: String): String? =
+        get<RepoDto>("https://api.github.com/repos/$repo", forceNetwork = true).homepage
+
     override suspend fun comments(repo: String, number: Int): List<CommentDto> =
         // Revalidated every time: the CI edits its comment in place, and a 304 is free of the rate limit
         get("https://api.github.com/repos/$repo/issues/$number/comments?per_page=100", forceNetwork = true)
@@ -117,6 +136,7 @@ class KtorGithubApi(
     private companion object {
         const val COMMON_REPO = "LukeNeedham/ci-workflows"
         const val COMMON_APPS_FILE = "apps.json"
+        const val WEBSITE_STACK = "next-js"
         const val REPOS_PER_PAGE = 100
     }
 
@@ -179,6 +199,8 @@ data class IssueDto(
 data class RepoDto(
     @SerialName("full_name") val fullName: String? = null,
     val archived: Boolean? = null,
+    /** The "Website" of the repo, which is where a website's production URL is kept. */
+    val homepage: String? = null,
 )
 
 /** A file from the contents API; [content] is base64 with line breaks. */
@@ -187,7 +209,7 @@ data class ContentDto(val content: String? = null)
 
 /** One entry of the common repo's `apps.json`. */
 @Serializable
-data class CommonAppDto(val repo: String? = null)
+data class CommonAppDto(val repo: String? = null, val stack: String? = null)
 
 @Serializable
 data class UserDto(val login: String? = null)
