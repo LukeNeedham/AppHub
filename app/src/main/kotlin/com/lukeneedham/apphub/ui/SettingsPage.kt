@@ -58,12 +58,6 @@ fun SettingsPage(
         onSaveRepoCreationToken = viewModel::saveRepoCreationToken,
         onRemoveRepoCreationToken = viewModel::removeRepoCreationToken,
         onShowAutoMergePrsChange = viewModel::setShowAutoMergePrs,
-        onSelectLlmProvider = viewModel::selectLlmProvider,
-        onLlmModelChange = viewModel::onLlmModelChange,
-        onLlmBaseUrlChange = viewModel::onLlmBaseUrlChange,
-        onLlmKeyInputChange = viewModel::onLlmKeyInputChange,
-        onSaveLlmKey = viewModel::saveLlmKey,
-        onRemoveLlmKey = viewModel::removeLlmKey,
         onBack = onBack,
         onOpenDebug = onOpenDebug,
     )

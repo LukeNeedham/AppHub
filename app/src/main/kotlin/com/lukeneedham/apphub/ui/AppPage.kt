@@ -14,8 +14,6 @@ fun AppPage(
     repo: String,
     onBack: () -> Unit,
     onOpenPullRequest: (PullRequestRef) -> Unit,
-    onStartFeature: (String) -> Unit,
-    onOpenFeature: (String) -> Unit,
 ) {
     val viewModel = koinViewModel<AppViewModel>(parameters = { parametersOf(repo) })
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -35,8 +33,6 @@ fun AppPage(
             open = { viewModel.openMain() },
         ),
         onOpenPullRequest = onOpenPullRequest,
-        onStartFeature = { onStartFeature(repo) },
-        onOpenFeature = onOpenFeature,
         onBack = onBack,
     )
 }

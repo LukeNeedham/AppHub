@@ -22,12 +22,6 @@ private fun SettingsPageScreenshot() {
             onSaveRepoCreationToken = {},
             onRemoveRepoCreationToken = {},
             onShowAutoMergePrsChange = {},
-            onSelectLlmProvider = {},
-            onLlmModelChange = {},
-            onLlmBaseUrlChange = {},
-            onLlmKeyInputChange = {},
-            onSaveLlmKey = {},
-            onRemoveLlmKey = {},
             onBack = {},
             onOpenDebug = {},
         )

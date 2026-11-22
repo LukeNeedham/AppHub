@@ -1,6 +1,4 @@
 HomePage
 PullRequestPage
-PromptPage
-FeaturePage
 NewAppPage
 SettingsPage
