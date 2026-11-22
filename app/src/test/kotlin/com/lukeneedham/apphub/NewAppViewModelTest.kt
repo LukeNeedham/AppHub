@@ -4,6 +4,7 @@ import com.lukeneedham.apphub.domain.InvalidTokenException
 import com.lukeneedham.apphub.domain.MissingPermissionException
 import com.lukeneedham.apphub.domain.NewAppException
 import com.lukeneedham.apphub.domain.NewAppProgress
+import com.lukeneedham.apphub.domain.NewAppStack
 import com.lukeneedham.apphub.domain.NewAppSource
 import com.lukeneedham.apphub.domain.TokenStore
 import com.lukeneedham.apphub.ui.NewAppViewModel
@@ -43,9 +44,11 @@ class NewAppViewModelTest {
 
     private class FakeSource(private val behaviour: (String, Boolean) -> Flow<NewAppProgress>) : NewAppSource {
         val started = mutableListOf<Pair<String, Boolean>>()
+        val stacks = mutableListOf<NewAppStack>()
 
-        override fun create(name: String, isPrivate: Boolean): Flow<NewAppProgress> {
+        override fun create(name: String, stack: NewAppStack, isPrivate: Boolean): Flow<NewAppProgress> {
             started += name to isPrivate
+            stacks += stack
             return behaviour(name, isPrivate)
         }
     }
@@ -69,6 +72,7 @@ class NewAppViewModelTest {
         val source = FakeSource { _, _ -> flowOf(done) }
         val viewModel = viewModel(source, MemoryTokens(null))
         viewModel.onNameChange("LyricTutor")
+        viewModel.onStackChange(NewAppStack.Kmp)
 
         viewModel.create()
         advanceUntilIdle()
@@ -82,6 +86,7 @@ class NewAppViewModelTest {
         val source = FakeSource { _, _ -> flowOf(done) }
         val viewModel = viewModel(source, creationTokens = MemoryTokens(null))
         viewModel.onNameChange("LyricTutor")
+        viewModel.onStackChange(NewAppStack.Kmp)
 
         viewModel.create()
         advanceUntilIdle()
@@ -96,6 +101,7 @@ class NewAppViewModelTest {
         val creationTokens = MemoryTokens(null)
         val viewModel = viewModel(FakeSource { _, _ -> flowOf(done) }, creationTokens = creationTokens)
         viewModel.onNameChange("LyricTutor")
+        viewModel.onStackChange(NewAppStack.Kmp)
         advanceUntilIdle()
         assertFalse(viewModel.uiState.value.canCreate)
 
@@ -111,6 +117,7 @@ class NewAppViewModelTest {
         val creationTokens = MemoryTokens("github_pat_create")
         val viewModel = viewModel(FakeSource { _, _ -> flowOf(done) }, creationTokens = creationTokens)
         viewModel.onNameChange("LyricTutor")
+        viewModel.onStackChange(NewAppStack.Kmp)
         advanceUntilIdle()
         assertTrue(viewModel.uiState.value.canCreate)
 
@@ -160,6 +167,7 @@ class NewAppViewModelTest {
         }
         val viewModel = viewModel(source)
         viewModel.onNameChange("LyricTutor")
+        viewModel.onStackChange(NewAppStack.Kmp)
         viewModel.onPrivateChange(true)
 
         viewModel.create()
@@ -176,6 +184,7 @@ class NewAppViewModelTest {
         val source = FakeSource { _, _ -> flow { emit(NewAppProgress.Waiting); awaitCancellation() } }
         val viewModel = viewModel(source)
         viewModel.onNameChange("LyricTutor")
+        viewModel.onStackChange(NewAppStack.Kmp)
         viewModel.create()
         advanceUntilIdle()
         assertTrue(viewModel.uiState.value.inProgress)
@@ -196,6 +205,7 @@ class NewAppViewModelTest {
         for (failure in listOf<Exception>(InvalidTokenException(), MissingPermissionException())) {
             val viewModel = viewModel(FakeSource { _, _ -> flow { throw failure } })
             viewModel.onNameChange("LyricTutor")
+            viewModel.onStackChange(NewAppStack.Kmp)
             viewModel.create()
             advanceUntilIdle()
             errors += viewModel.uiState.value.error
@@ -210,6 +220,7 @@ class NewAppViewModelTest {
         val message = "A repository named LyricTutor exists already, or GitHub does not take the name."
         val viewModel = viewModel(FakeSource { _, _ -> flow { throw NewAppException(message) } })
         viewModel.onNameChange("LyricTutor")
+        viewModel.onStackChange(NewAppStack.Kmp)
 
         viewModel.create()
         advanceUntilIdle()
@@ -223,6 +234,7 @@ class NewAppViewModelTest {
     fun `any other failure shows its message and lets the user try again`() = runTest(dispatcher) {
         val viewModel = viewModel(FakeSource { _, _ -> flow { throw IOException("GitHub returned 422") } })
         viewModel.onNameChange("LyricTutor")
+        viewModel.onStackChange(NewAppStack.Kmp)
 
         viewModel.create()
         advanceUntilIdle()
@@ -235,6 +247,7 @@ class NewAppViewModelTest {
     fun `closing a created app starts a blank form`() = runTest(dispatcher) {
         val viewModel = viewModel(FakeSource { _, _ -> flowOf(done) })
         viewModel.onNameChange("LyricTutor")
+        viewModel.onStackChange(NewAppStack.Kmp)
         viewModel.create()
         advanceUntilIdle()
 
@@ -251,6 +264,7 @@ class NewAppViewModelTest {
     fun `closing a failed run keeps the name to try again`() = runTest(dispatcher) {
         val viewModel = viewModel(FakeSource { _, _ -> flowOf(NewAppProgress.Failed("run-url")) })
         viewModel.onNameChange("LyricTutor")
+        viewModel.onStackChange(NewAppStack.Kmp)
         viewModel.create()
         advanceUntilIdle()
 
@@ -258,6 +272,77 @@ class NewAppViewModelTest {
 
         assertEquals("LyricTutor", viewModel.uiState.value.name)
         assertNull(viewModel.uiState.value.progress)
+        assertTrue(viewModel.uiState.value.canCreate)
+    }
+
+    @Test
+    fun `there is no default stack, so nothing can be created until one is chosen`() = runTest(dispatcher) {
+        val source = FakeSource { _, _ -> flowOf(done) }
+        val viewModel = viewModel(source)
+        viewModel.onNameChange("LyricTutor")
+
+        assertNull(viewModel.uiState.value.stack)
+        assertFalse(viewModel.uiState.value.canCreate)
+        viewModel.create()
+        advanceUntilIdle()
+        assertTrue(source.started.isEmpty())
+
+        viewModel.onStackChange(NewAppStack.NextJs)
+        assertTrue(viewModel.uiState.value.canCreate)
+    }
+
+    @Test
+    fun `the chosen stack is what is created`() = runTest(dispatcher) {
+        val source = FakeSource { _, _ -> flowOf(done) }
+        val viewModel = viewModel(source)
+        viewModel.onNameChange("MySite")
+        viewModel.onStackChange(NewAppStack.Kmp)
+        viewModel.onStackChange(NewAppStack.NextJs)
+
+        viewModel.create()
+        advanceUntilIdle()
+
+        assertEquals(listOf(NewAppStack.NextJs), source.stacks)
+    }
+
+    @Test
+    fun `the stack cannot be changed while a project is being created`() = runTest(dispatcher) {
+        val source = FakeSource { _, _ -> flow { emit(NewAppProgress.Waiting); awaitCancellation() } }
+        val viewModel = viewModel(source)
+        viewModel.onNameChange("MySite")
+        viewModel.onStackChange(NewAppStack.NextJs)
+        viewModel.create()
+        advanceUntilIdle()
+
+        viewModel.onStackChange(NewAppStack.Kmp)
+
+        assertEquals(NewAppStack.NextJs, viewModel.uiState.value.stack)
+    }
+
+    @Test
+    fun `closing a created project starts a form with no stack chosen`() = runTest(dispatcher) {
+        val viewModel = viewModel(FakeSource { _, _ -> flowOf(done) })
+        viewModel.onNameChange("MySite")
+        viewModel.onStackChange(NewAppStack.NextJs)
+        viewModel.create()
+        advanceUntilIdle()
+
+        viewModel.dismissResult()
+
+        assertNull(viewModel.uiState.value.stack)
+    }
+
+    @Test
+    fun `closing a failed run keeps the stack to try again`() = runTest(dispatcher) {
+        val viewModel = viewModel(FakeSource { _, _ -> flowOf(NewAppProgress.Failed("run-url")) })
+        viewModel.onNameChange("MySite")
+        viewModel.onStackChange(NewAppStack.NextJs)
+        viewModel.create()
+        advanceUntilIdle()
+
+        viewModel.dismissResult()
+
+        assertEquals(NewAppStack.NextJs, viewModel.uiState.value.stack)
         assertTrue(viewModel.uiState.value.canCreate)
     }
 }

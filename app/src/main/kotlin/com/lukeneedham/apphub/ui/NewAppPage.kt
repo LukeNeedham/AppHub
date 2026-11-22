@@ -15,6 +15,7 @@ fun NewAppPage(
     NewAppPageContent(
         state = state,
         onNameChange = viewModel::onNameChange,
+        onStackChange = viewModel::onStackChange,
         onPrivateChange = viewModel::onPrivateChange,
         onCreate = viewModel::create,
         onDismissResult = viewModel::dismissResult,
