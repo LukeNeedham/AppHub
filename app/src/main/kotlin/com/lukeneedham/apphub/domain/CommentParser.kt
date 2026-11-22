@@ -40,6 +40,28 @@ object CommentParser {
         }
     }
 
+    private const val WEBSITE_MARKER = "Sticky Pull Request Commentweb-preview-link"
+    private val websiteUrl = Regex("""<!--\s*preview-url:\s*(https://\S+?)\s*-->""")
+    private val vercelState = Regex("""\*\*Vercel:\*\*\s*(\S+)""")
+
+    /**
+     * The preview of a website, from the comment of the CI with the header `web-preview-link` (ci-workflows `scripts/web_preview.py`): the URL is on
+     * a line of its own, `<!-- preview-url: URL -->`. Null when [body] is not that comment.
+     */
+    fun parseWebsitePreview(body: String): WebsitePreview? {
+        if (!body.contains(WEBSITE_MARKER)) return null
+        val url = websiteUrl.find(body)?.groupValues?.get(1)
+        return when {
+            url != null && body.contains("Preview needs a login") -> WebsitePreview.NeedsLogin(url)
+            url != null -> WebsitePreview.Ready(url)
+            else -> WebsitePreview.NotReady(vercelState.find(body)?.groupValues?.get(1))
+        }
+    }
+
+    /** The newest website preview among [commentBodies] (oldest first); null if the CI posted none. */
+    fun parseWebsitePreview(commentBodies: List<String>): WebsitePreview? =
+        commentBodies.mapNotNull(::parseWebsitePreview).lastOrNull()
+
     /** The first preview URL in the comment, or null. */
     fun parseWebUrl(body: String): String? =
         anyUrl.findAll(body)

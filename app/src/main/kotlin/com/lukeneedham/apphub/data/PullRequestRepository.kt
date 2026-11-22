@@ -63,6 +63,7 @@ class PullRequestRepository(
         val bodies = comments.map { it.body }
         val (parsed, web) = CommentParser.parse(comments.map { it.body to it.updatedAtMillis })
         val apk = parsed.withPreviousBuildTime(repo)
+        val website = CommentParser.parseWebsitePreview(bodies)
         return CachedPullRequest(
             updatedAt = issue.updatedAt,
             pr = PullRequest(
@@ -74,10 +75,12 @@ class PullRequestRepository(
                 url = issue.url,
                 isDraft = issue.isDraft,
                 apk = apk,
-                webUrl = web,
+                // The CI's own comment names the preview exactly; otherwise the first preview host in any comment (Vercel's bot, Netlify...)
+                webUrl = website?.url ?: web,
                 sessionUrl = CommentParser.parseSessionUrl(listOf(issue.body) + bodies),
                 description = issue.body?.trim()?.takeIf { it.isNotEmpty() },
                 previewChanges = CommentParser.parsePreviewChanges(bodies),
+                website = website,
             ),
         )
     }
