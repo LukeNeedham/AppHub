@@ -21,16 +21,14 @@ class MainBuildRepositoryTest {
 
     private class FakeApi(
         var release: ReleaseDto? = null,
-        var websites: Set<String> = emptySet(),
-        var homepage: String? = null,
+        var urls: Map<String, String> = emptyMap(),
     ) : GithubApi {
         var releaseCalls = 0
-        var websiteCalls = 0
-        override suspend fun websiteRepos(): Set<String> {
-            websiteCalls++
-            return websites
+        var urlCalls = 0
+        override suspend fun productionUrls(): Map<String, String> {
+            urlCalls++
+            return urls
         }
-        override suspend fun homepage(repo: String): String? = homepage
         override suspend fun openPullRequests(): List<IssueDto> = emptyList()
         override suspend fun repositories(): List<String> = emptyList()
         override suspend fun commonApps(): Set<String> = emptySet()
@@ -119,37 +117,30 @@ class MainBuildRepositoryTest {
     }
 
     @Test
-    fun `the production url of a website is the website of its repo`() = runTest {
-        val api = FakeApi(websites = setOf("o/site"), homepage = "www.example.com")
+    fun `the production url of a website is the productionUrl of its entry in apps json`() = runTest {
+        val api = FakeApi(urls = mapOf("o/site" to "www.example.com"))
         assertEquals("https://www.example.com", MainBuildRepository(api, FakeTokenStore()).productionUrl("O/Site"))
     }
 
     @Test
-    fun `an app has no production url, and GitHub is not asked for its website`() = runTest {
-        val api = FakeApi(websites = setOf("o/site"), homepage = "https://example.com")
-        assertNull(MainBuildRepository(api, FakeTokenStore()).productionUrl("o/app"))
+    fun `an app, or a website with no productionUrl yet, has no production url`() = runTest {
+        val repository = MainBuildRepository(FakeApi(urls = mapOf("o/site" to "https://example.com")), FakeTokenStore())
+        assertNull(repository.productionUrl("o/app"))
     }
 
     @Test
-    fun `a website with no website set has no production url`() = runTest {
-        val api = FakeApi(websites = setOf("o/site"), homepage = " ")
+    fun `a productionUrl that is not a web address is no production url`() = runTest {
+        val api = FakeApi(urls = mapOf("o/site" to " "))
         assertNull(MainBuildRepository(api, FakeTokenStore()).productionUrl("o/site"))
     }
 
     @Test
-    fun `without a token there is no production url`() = runTest {
-        val api = FakeApi(websites = setOf("o/site"), homepage = "https://example.com")
-        assertNull(MainBuildRepository(api, FakeTokenStore(null)).productionUrl("o/site"))
-        assertEquals(0, api.websiteCalls)
-    }
-
-    @Test
-    fun `the list of websites is read once for many repos`() = runTest {
-        val api = FakeApi(websites = setOf("o/site"), homepage = "https://example.com")
+    fun `apps json is read once for many repos`() = runTest {
+        val api = FakeApi(urls = mapOf("o/site" to "https://example.com"))
         val repository = MainBuildRepository(api, FakeTokenStore())
         repository.productionUrl("o/a")
         repository.productionUrl("o/b")
         repository.productionUrl("o/site")
-        assertEquals(1, api.websiteCalls)
+        assertEquals(1, api.urlCalls)
     }
 }

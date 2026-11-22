@@ -22,13 +22,13 @@ interface MainBuildSource {
     suspend fun status(repo: String): MainApk?
 
     /**
-     * The production deployment of a website (stack `next-js`): the URL set as the website of its GitHub repo. Null for an app, for a website
-     * with no URL set, and when there is no token to ask with.
+     * The production deployment of a website (stack `next-js`): the `productionUrl` of its entry in `apps.json` of the common repo.
+     * Null for an app, and for a website whose entry has none yet.
      */
     suspend fun productionUrl(repo: String): String? = null
 }
 
-/** A website URL as typed in the "Website" field of a repo: `http(s)` only, with `https://` added when there is no scheme; null when blank or not a web address. */
+/** A production URL as written in `apps.json`: `http(s)` only, with `https://` added when there is no scheme; null when blank or not a web address. */
 fun normalizeProductionUrl(raw: String?): String? {
     val text = raw?.trim().orEmpty()
     if (text.isEmpty() || text.any { it.isWhitespace() }) return null

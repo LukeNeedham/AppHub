@@ -35,23 +35,20 @@ class MainBuildRepository(
         return apk
     }
 
-    private val websitesMutex = Mutex()
-    private var websites: Set<String> = emptySet()
-    private var websitesUntil = 0L
+    private val urlsMutex = Mutex()
+    private var urls: Map<String, String> = emptyMap()
+    private var urlsUntil = 0L
 
-    override suspend fun productionUrl(repo: String): String? {
-        if (tokenStore.token.value == null) return null
-        if (repo.lowercase() !in websites()) return null
-        return normalizeProductionUrl(api.homepage(repo))
-    }
+    /** From `apps.json` of the common repo, which is read again after [RECHECK_MS] rather than once per repo. */
+    override suspend fun productionUrl(repo: String): String? =
+        normalizeProductionUrl(productionUrls()[repo.lowercase()])
 
-    /** The websites of `apps.json`, which changes rarely: read again after [RECHECK_MS], not once per repo. */
-    private suspend fun websites(): Set<String> = websitesMutex.withLock {
-        if (websitesUntil <= now()) {
-            websites = api.websiteRepos()
-            websitesUntil = now() + RECHECK_MS
+    private suspend fun productionUrls(): Map<String, String> = urlsMutex.withLock {
+        if (urlsUntil <= now()) {
+            urls = api.productionUrls()
+            urlsUntil = now() + RECHECK_MS
         }
-        websites
+        urls
     }
 
     private companion object {

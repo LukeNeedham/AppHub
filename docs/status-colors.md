@@ -50,9 +50,8 @@ There is no description line (no APK, so no age), and the status is centred in t
 
 A website has no main build either, so in the place of the main build's pill (the row of buttons at the top of its card, and of its page) it has the
 **Production** pill (`productionControl` in `ui/HomePageContent.kt`): purple, as the deployment is live and can be acted on, and a press on its icon
-(the Open icon), or on the row in its sheet, opens the production deployment. The URL is the **Website** of the repo on GitHub (its `homepage`), which a
-repo of the stack `next-js` (read from `stack` in `apps.json` of ci-workflows) must have set; a website with none shows no pill. It needs the token, like the
-main build.
+(the Open icon), or on the row in its sheet, opens the production deployment. The URL is the **`productionUrl`** of the website's entry in `apps.json` of ci-workflows (`docs/next-js-app.md` there); a website
+whose entry has none shows no pill. It does not need the token, as the file is already read for the list of apps.
 
 ## The two lines
 
